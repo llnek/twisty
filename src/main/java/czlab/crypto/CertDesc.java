@@ -12,12 +12,10 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package com.zotohlab.frwk.crypto;
+package czlab.crypto;
 
-
-import java.util.Date;
 import javax.security.auth.x500.X500Principal;
-
+import java.util.Date;
 
 /**
  *

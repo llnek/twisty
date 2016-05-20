@@ -12,7 +12,7 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package com.zotohlab.frwk.crypto;
+package czlab.crypto;
 
 
 import org.apache.commons.lang3.tuple.ImmutablePair;

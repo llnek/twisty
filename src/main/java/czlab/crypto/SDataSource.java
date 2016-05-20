@@ -12,17 +12,17 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package com.zotohlab.frwk.crypto;
+package czlab.crypto;
 
 
-import static com.zotohlab.frwk.util.CU.nsb;
-import com.zotohlab.frwk.io.XStream;
-import javax.activation.DataSource;
 import java.io.ByteArrayInputStream;
+import javax.activation.DataSource;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import static czlab.xlib.CU.nsb;
+import czlab.xlib.XStream;
 
 /**
  *

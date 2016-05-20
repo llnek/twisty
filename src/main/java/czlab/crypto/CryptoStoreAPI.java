@@ -12,8 +12,7 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package com.zotohlab.frwk.crypto;
-
+package czlab.crypto;
 
 import java.security.cert.X509Certificate;
 import java.security.KeyStore;
@@ -37,18 +36,18 @@ public interface CryptoStoreAPI {
    */
   public void addKeyEntity(byte[] keyBits, PasswordAPI pwdObj);
 
+  public TrustManagerFactory trustManagerFactory();
+  public KeyManagerFactory keyManagerFactory();
+
+  public Iterable<String> certAliases();
+  public Iterable<String> keyAliases();
+
   /**
    * Add a certificate.
    *
    * @param certBits
    */
   public void addCertEntity(byte[] certBits);
-
-  public TrustManagerFactory trustManagerFactory();
-  public KeyManagerFactory keyManagerFactory();
-
-  public Iterable<String> certAliases();
-  public Iterable<String> keyAliases();
 
   /**
    *
@@ -65,12 +64,6 @@ public interface CryptoStoreAPI {
    */
   public KeyStore.TrustedCertificateEntry certEntity(String alias);
 
-  /**
-   *
-   * @param alias
-   */
-  public void removeEntity(String alias);
-
   public Iterable<X509Certificate> intermediateCAs();
   public Iterable<X509Certificate> rootCAs();
   public Iterable<X509Certificate> trustedCerts();
@@ -80,6 +73,12 @@ public interface CryptoStoreAPI {
    * @param pkcs7Bits
    */
   public void addPKCS7Entity(byte[] pkcs7Bits);
+
+  /**
+   *
+   * @param alias
+   */
+  public void removeEntity(String alias);
 
 }
 
