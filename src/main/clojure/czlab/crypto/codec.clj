@@ -16,16 +16,16 @@
 (ns ^{:doc ""
       :author "kenl" }
 
-  czlab.xlib.crypto.codec
+  czlab.crypto.codec
 
   (:require
-    [czlab.xlib.util.meta :refer [CharsClass BytesClass]]
-    [czlab.xlib.util.core
-    :refer [NewRandom
-    Bytesify Stringify ThrowBadArg]]
+    [czlab.xlib.meta :refer [charsClass bytesClass]]
+    [czlab.xlib.core
+     :refer [newRandom
+             bytesify stringify throwBadArg]]
     [clojure.math.numeric-tower :as math]
-    [czlab.xlib.util.logging :as log]
-    [czlab.xlib.util.io :refer [ByteOS]])
+    [czlab.xlib.logging :as log]
+    [czlab.xlib.io :refer [byteOS]])
 
   (:import
     [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
@@ -40,12 +40,12 @@
     [java.security Key KeyFactory SecureRandom]
     [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
     [javax.crypto Cipher]
-    [com.zotohlab.frwk.crypto Cryptor PasswordAPI]
+    [czlab.crypto Cryptor PasswordAPI]
     [org.mindrot.jbcrypt BCrypt]
     [org.bouncycastle.crypto KeyGenerationParameters]
     [org.bouncycastle.crypto.engines
-    BlowfishEngine
-    AESEngine RSAEngine DESedeEngine]
+     BlowfishEngine
+     AESEngine RSAEngine DESedeEngine]
     [org.bouncycastle.crypto.modes CBCBlockCipher]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -95,13 +95,13 @@
   ^bytes
   [^bytes keyBits ^String algo]
 
-  (let [len (* 8 (alength keyBits)) ]
+  (let [len (* 8 (alength keyBits))]
     (when (and (= T3_DES algo)
                (< len 192)) ;; 8x 3 = 24 bytes
-      (ThrowBadArg "TripleDES key length must be 192."))
+      (throwBadArg "TripleDES key length must be 192."))
     (when (and (= "AES" algo)
                (< len 128))
-      (ThrowBadArg "AES key length must be 128 or 256."))
+      (throwBadArg "AES key length must be 128 or 256."))
     keyBits))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -216,7 +216,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn CaesarEncrypt
+(defn caesarEncrypt
 
   "Encrypt clear text by character rotation"
 
@@ -235,7 +235,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn CaesarDecrypt
+(defn caesarDecrypt
 
   "Decrypt text which was encrypted by the caesar method"
 
@@ -286,7 +286,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn JasyptCryptor*
+(defn jasyptCryptor
 
   "Make a cryptor using Jasypt lib"
 
@@ -340,10 +340,10 @@
     (let [c (getCipher pkey Cipher/ENCRYPT_MODE algo)
           ^bytes
           p (if (string? data)
-              (Bytesify data)
+              (bytesify data)
               data)
           plen (alength p)
-          baos (ByteOS)
+          baos (byteOS)
           out (byte-array (max 4096 (.getOutputSize c plen)))
           n (.update c p 0 plen out 0) ]
       (when (> n 0) (.write baos out 0 n))
@@ -367,12 +367,12 @@
     (let [c (getCipher pkey Cipher/DECRYPT_MODE algo)
           ^bytes
           p (if (string? encoded)
-              (Bytesify encoded)
+              (bytesify encoded)
               encoded)
           plen (alength p)
-          baos (ByteOS)
+          baos (byteOS)
           out (byte-array (max 4096 (.getOutputSize c plen)))
-          n (.update c p 0 plen out 0) ]
+          n (.update c p 0 plen out 0)]
       (when (> n 0) (.write baos out 0 n))
       (let [n2 (.doFinal c out 0) ]
         (when (> n2 0) (.write baos out 0 n2)))
@@ -380,7 +380,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn JavaCryptor*
+(defn javaCryptor
 
   "Make a Standard Java cryptor"
 
@@ -425,7 +425,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
-(defn AsymEncr
+(defn asymEncr
 
   "Encrypt using a public key, returns a base64 encoded cipher"
 
@@ -440,13 +440,13 @@
                        (.init Cipher/ENCRYPT_MODE pk)) ]
       (->> ^bytes
            (if (string? data)
-             (Bytesify  data)
+             (bytesify  data)
              data)
            (.doFinal cipher )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn AsymDecr
+(defn asymDecr
 
   "Decrypt using a private key, input is a base64 encoded cipher"
 
@@ -461,13 +461,13 @@
                    (.init Cipher/DECRYPT_MODE pk))]
       (->> ^bytes
            (if (string? encoded)
-             (Bytesify encoded)
+             (bytesify encoded)
              encoded)
            (.doFinal cipher )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
-(defn BcDecr
+(defn bcDecr
 
   "Decrypt using BouncyCastle"
 
@@ -483,10 +483,10 @@
                           (KeyParameter. (keyAsBits pkey algo))))
           ^bytes
           p (if (string? encoded)
-              (Bytesify encoded)
+              (bytesify encoded)
               encoded)
           out (byte-array 1024)
-          baos (ByteOS)
+          baos (byteOS)
           c (.processBytes cipher p 0 (alength p) out 0) ]
       (when (> c 0) (.write baos out 0 c))
       (let [c2 (.doFinal cipher out 0) ]
@@ -495,7 +495,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn BcEncr
+(defn bcEncr
 
   "Encrypt using BouncyCastle, returning a base64 encoded cipher"
 
@@ -510,10 +510,10 @@
                    (.init true
                           (KeyParameter. (keyAsBits pkey algo))))
           out (byte-array 4096)
-          baos (ByteOS)
+          baos (byteOS)
           ^bytes
           p (if (string? data)
-              (Bytesify data)
+              (bytesify data)
               data)
           c (.processBytes cipher p 0 (alength p) out 0) ]
       (when (> c 0) (.write baos out 0 c))
@@ -523,7 +523,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn BouncyCryptor*
+(defn bouncyCryptor
 
   "Make a cryptor using BouncyCastle"
 
@@ -540,7 +540,7 @@
     (decrypt [this pkey cipher]
       (let [s (.algo this)]
         (ensureKeySize pkey s)
-        (BcDecr pkey cipher s)))
+        (bcDecr pkey cipher s)))
 
     (encrypt [this clear]
       (.encrypt this C_KEYBS clear))
@@ -548,7 +548,7 @@
     (encrypt [this pkey clear]
       (let [s (.algo this)]
         (ensureKeySize pkey s)
-        (BcEncr pkey clear s)))
+        (bcEncr pkey clear s)))
 
     (algo [_] T3_DES)))
 
@@ -564,7 +564,7 @@
     :else
     (let [ostr (char-array len)
           cl (alength chArray)
-          r (NewRandom)
+          r (newRandom)
           rc (amap ^chars ostr pos ret
                     (let [n (mod (.nextInt r Integer/MAX_VALUE) cl) ]
                       (aget chArray n))) ]
@@ -627,7 +627,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn Pwdify
+(defn pwdify
 
   "Create a password object"
 
@@ -638,7 +638,7 @@
     (if
       (.startsWith (str pwdStr) PWD_PFX)
       (reifyPassword
-        (.decrypt (JasyptCryptor*)
+        (.decrypt (jasyptCryptor)
                   (.toCharArray pkey)
                   (.substring pwdStr PWD_PFXLEN)) pkey)
       ;else
@@ -646,7 +646,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn RandomStr*
+(defn randomStr
 
   "Randomly generate some text"
 
@@ -657,15 +657,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn StrongPwd*
+(defn strongPwd
 
   "Generate a strong password"
 
   ^PasswordAPI
   [len]
 
-  (Pwdify (createXXX len s_pwdChars)))
+  (pwdify (createXXX len s_pwdChars)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
+
 

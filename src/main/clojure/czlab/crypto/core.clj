@@ -421,7 +421,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod InitStore! :bytes
+(defmethod initStore! :bytes
 
   ^KeyStore
   [^KeyStore ks ^bytes bits ^PasswordAPI pwdObj]
@@ -430,7 +430,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod InitStore! :file
+(defmethod initStore! :file
 
   ^KeyStore
   [^KeyStore ks ^File f ^PasswordAPI pwdObj]
@@ -739,7 +739,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn sSv1PKCS12
+(defn ssv1PKCS12
 
   "Make a SSV1 (root level) type PKCS12 object"
 
@@ -759,7 +759,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn sSv1JKS
+(defn ssv1JKS
 
   "Make a SSV1 (root level) type JKS object"
 
@@ -1128,7 +1128,7 @@
 (defmethod smimeDigSig :mimemessage
 
   [^PrivateKey pkey
-   certs ;; list of certs
+   certs
    ^String algo
    ^MimeMessage mmsg]
 
@@ -1142,7 +1142,7 @@
 (defmethod smimeDigSig :multipart
 
   [^PrivateKey pkey
-   certs  ;; list of certs
+   certs
    ^String algo
    ^Multipart mp]
 
@@ -1156,7 +1156,7 @@
 (defmethod SmimeDigSig :bodypart
 
   [^PrivateKey pkey
-   certs  ;; list of certs
+   certs
    ^String algo
    ^BodyPart bp]
 
@@ -1177,7 +1177,7 @@
          it (-> (.getRecipientInfos env)
                 (.getRecipients)
                 (.iterator))
-         rc nil ]
+         rc nil]
     (if (or (some? rc)
             (not (.hasNext it)))
       rc
@@ -1187,7 +1187,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmulti SmimeDecrypt
+(defmulti smimeDecrypt
 
   "SMIME decrypt this object"
 
@@ -1195,7 +1195,7 @@
     (condp instance? b
       MimeMessage :mimemsg
       BodyPart :bodypart
-      (ThrowBadArg "wrong type"))))
+      (throwBadArg "wrong type"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1214,7 +1214,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeDecrypt :mimemsg
+(defmethod smimeDecrypt :mimemsg
 
   ^bytes
   [pkeys ^MimeMessage mimemsg]
@@ -1223,7 +1223,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeDecrypt :bodypart
+(defmethod smimeDecrypt :bodypart
 
   ^bytes
   [pkeys ^BodyPart part]
@@ -1234,7 +1234,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn PeekSmimeSignedContent
+(defn peekSmimeSignedContent
 
   "Get the content ignoring the signing stuff"
 
@@ -1244,13 +1244,13 @@
   (some-> (new SMIMESignedParser
                (BcDigestCalculatorProvider.)
                ^MimeMultipart mp
-               (GetCharset (.getContentType mp) "binary"))
+               (getCharset (.getContentType mp) "binary"))
           (.getContent)
           (.getContent)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn TestSmimeDigSig
+(defn testSmimeDigSig
 
   "Verify the signature and return content if ok"
 
@@ -1286,13 +1286,13 @@
       (trap! GeneralSecurityException "Verify signature: no matching cert"))
 
     [(some-> sc
-             (.getContentAsMimeMessage (NewSession))
+             (.getContentAsMimeMessage (newSession))
              (.getContent))
      (nth rc 1) ] ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmulti SmimeDecompress
+(defmulti smimeDecompress
 
   "Inflate the compressed content"
 
@@ -1300,11 +1300,11 @@
     (condp instance? a
       InputStream :stream
       BodyPart :bodypart
-      (ThrowBadArg "wrong type"))))
+      (throwBadArg "wrong type"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeDecompress :bodypart
+(defmethod smimeDecompress :bodypart
 
   ^XData
   [^BodyPart bp]
@@ -1315,7 +1315,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeDecompress :stream
+(defmethod smimeDecompress :stream
 
   ^XData
   [^InputStream inp]
@@ -1333,7 +1333,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmulti SmimeEncrypt
+(defmulti smimeEncrypt
 
   "Generates a MimeBodyPart"
 
@@ -1342,11 +1342,11 @@
       MimeMessage :mimemsg
       Multipart :multipart
       BodyPart :bodypart
-      (ThrowBadArg "wrong type"))))
+      (throwBadArg "wrong type"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeEncrypt :bodypart
+(defmethod smimeEncrypt :bodypart
 
   ^MimeBodyPart
   [^Certificate cert ^String algo ^BodyPart bp]
@@ -1366,7 +1366,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeEncrypt :mimemsg
+(defmethod smimeEncrypt :mimemsg
 
   ^MimeBodyPart
   [^Certificate cert ^String algo ^MimeMessage msg]
@@ -1388,7 +1388,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeEncrypt :multipart
+(defmethod smimeEncrypt :multipart
 
   ^MimeBodyPart
   [^Certificate cert ^String algo ^Multipart mp]
@@ -1401,14 +1401,14 @@
           (.setProvider _BCProvider)))
     (.generate
       gen
-      (doto (NewMimeMsg)(.setContent mp))
+      (doto (newMimeMsg)(.setContent mp))
       (-> (JceCMSContentEncryptorBuilder. algo)
           (.setProvider _BCProvider)
           (.build)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn SmimeCompress
+(defn smimeCompress
 
   "Generates a MimeBodyPart"
 
@@ -1454,7 +1454,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn PkcsDigSig
+(defn pkcsDigSig
 
   "SMIME sign some data"
 
@@ -1483,7 +1483,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn TestPkcsDigSig
+(defn testPkcsDigSig
 
   "Verify the signed object with the signature"
 
@@ -1531,7 +1531,7 @@
     "SHA-512" SMIMESignedGenerator/DIGEST_SHA512
     "SHA-1" SMIMESignedGenerator/DIGEST_SHA1
     "MD5" SMIMESignedGenerator/DIGEST_MD5
-    (ThrowBadArg (str "Unsupported signing algo: " algo))))
+    (throwBadArg (str "Unsupported signing algo: " algo))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1558,7 +1558,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn FingerprintSHA1
+(defn fingerprintSHA1
 
   "Generate a fingerprint using SHA-1"
 
@@ -1569,7 +1569,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn FingerprintMD5
+(defn fingerprintMD5
 
   "Generate a fingerprint using MD5"
 
@@ -1580,7 +1580,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn CertDesc* ""
+(defn certDesc ""
 
   ^CertDesc
   [^X500Principal _subj
@@ -1599,7 +1599,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn DescCertificate
+(defn descCertificate
 
   "Get some basic info from Certificate"
 
@@ -1607,33 +1607,33 @@
   [^X509Certificate x509]
 
   (if (nil? x509)
-    (CertDesc* nil nil nil nil)
-    (CertDesc* (.getSubjectX500Principal x509)
-               (.getIssuerX500Principal x509)
-               (.getNotBefore x509)
-               (.getNotAfter x509))))
+    (certDesc nil nil nil nil)
+    (certDesc (.getSubjectX500Principal x509)
+              (.getIssuerX500Principal x509)
+              (.getNotBefore x509)
+              (.getNotAfter x509))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn DescCert
+(defn descCert
 
   "a object"
 
   (^CertDesc
     [^bytes privateKeyBits ^PasswordAPI pwdObj]
-    (if-some [pkey (ConvPKey privateKeyBits pwdObj) ]
-      (DescCertificate (.getCertificate pkey))
-      (CertDesc* nil nil nil nil)))
+    (if-some [pkey (convPKey privateKeyBits pwdObj) ]
+      (descCertificate (.getCertificate pkey))
+      (certDesc nil nil nil nil)))
 
   (^CertDesc
     [^bytes certBits]
-    (if-some [cert (ConvCert certBits) ]
-      (DescCertificate (.getTrustedCertificate cert))
-      (CertDesc* nil nil nil nil))))
+    (if-some [cert (convCert certBits)]
+      (descCertificate (.getTrustedCertificate cert))
+      (certDesc nil nil nil nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ValidCertificate?
+(defn validCertificate?
 
   "Validate this Certificate"
 
@@ -1645,31 +1645,31 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ValidPKey?
+(defn validPKey?
 
   "Validate this Private Key"
 
   [^bytes keyBits ^PasswordAPI pwdObj]
 
-  (if-some [pkey (ConvPKey keyBits pwdObj) ]
-    (ValidCertificate? (.getCertificate pkey))
+  (if-some [pkey (convPKey keyBits pwdObj)]
+    (validCertificate? (.getCertificate pkey))
     false))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ValidCert?
+(defn validCert?
 
   "Validate this Certificate"
 
   [^bytes certBits]
 
-  (if-some [cert (ConvCert certBits) ]
-    (ValidCertificate? (.getTrustedCertificate cert))
+  (if-some [cert (convCert certBits)]
+    (validCertificate? (.getTrustedCertificate cert))
     false))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn IntoArrayCerts
+(defn intoArrayCerts
 
   "From a list of TrustedCertificateEntry(s)"
 
@@ -1682,7 +1682,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn IntoArrayPKeys
+(defn intoArrayPKeys
 
   "From a list of PrivateKeyEntry(s)"
 
@@ -1695,7 +1695,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn SimpleTrustMgr* ""
+(defn simpleTrustMgr ""
 
   ^X509TrustManager
   []

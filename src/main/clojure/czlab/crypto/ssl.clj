@@ -16,20 +16,20 @@
 (ns ^{:doc ""
       :author "kenl" }
 
-  czlab.xlib.crypto.ssl
+  czlab.crypto.ssl
 
   (:require
-    [czlab.xlib.crypto.stores :refer [CryptoStore*]]
-    [czlab.xlib.util.core :refer [NewRandom]]
-    [czlab.xlib.util.logging :as log]
-    [czlab.xlib.crypto.core
-    :refer [PkcsFile? GetJksStore GetPkcsStore ]])
+    [czlab.crypto.stores :refer [cryptoStore]]
+    [czlab.xlib.core :refer [newRandom]]
+    [czlab.xlib.logging :as log]
+    [czlab.crypto.core
+     :refer [pkcsFile? getJksStore getPkcsStore]])
 
   (:import
     [javax.net.ssl X509TrustManager TrustManager]
     [javax.net.ssl SSLEngine SSLContext]
-    [com.zotohlab.frwk.net SSLTrustMgrFactory]
-    [com.zotohlab.frwk.crypto PasswordAPI CryptoStoreAPI]
+    [czlab.crypto SSLTrustMgrFactory
+     PasswordAPI CryptoStoreAPI]
     [java.net URL]
     [javax.net.ssl KeyManagerFactory TrustManagerFactory]))
 
@@ -38,34 +38,34 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn SslContext*
+(defn sslContext
 
   "Make a server-side SSLContext"
 
   ^SSLContext
   [^URL keyUrl
-   ^PasswordAPI pwdObj & [flavor] ]
+   ^PasswordAPI pwdObj & [flavor]]
 
   (let
     [ks (with-open
-          [inp (.openStream keyUrl) ]
-          (if (PkcsFile? keyUrl)
-            (GetPkcsStore inp pwdObj)
-            (GetJksStore inp pwdObj)))
-     cs (CryptoStore* ks pwdObj)
+          [inp (.openStream keyUrl)]
+          (if (pkcsFile? keyUrl)
+            (getPkcsStore inp pwdObj)
+            (getJksStore inp pwdObj)))
+     cs (cryptoStore ks pwdObj)
      tmf (.trustManagerFactory cs)
      kmf (.keyManagerFactory cs)
      ctx (->> (str (or flavor "TLS"))
-              (SSLContext/getInstance )) ]
+              (SSLContext/getInstance ))]
     (.init ctx
            (.getKeyManagers kmf)
            (.getTrustManagers tmf)
-           (NewRandom))
+           (newRandom))
     ctx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn SslClientCtx*
+(defn sslClientCtx
 
   "Make a client-side SSLContext"
 
@@ -74,8 +74,9 @@
 
   (when ssl
     (doto (SSLContext/getInstance "TLS")
-          (.init nil (SSLTrustMgrFactory/getTrustManagers) (NewRandom)))))
+          (.init nil (SSLTrustMgrFactory/getTrustManagers) (newRandom)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
+
 
