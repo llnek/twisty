@@ -3,19 +3,29 @@
   :license {:name "Apache License 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0"}
   :description ""
-  :url "https://github.com/llnek/xlib"
+  :url "https://github.com/llnek/crypto"
 
   :dependencies '[
+
+    [org.clojure/math.numeric-tower "0.0.4" ]
+    [org.bouncycastle/bcprov-jdk15on "1.54"]
+    [org.bouncycastle/bcmail-jdk15on "1.54"]
+    [org.bouncycastle/bcpkix-jdk15on "1.54"]
+    [org.jasypt/jasypt "1.9.2" ]
+    ;;[org.mindrot/jbcrypt "0.3m" ]
+
+    [org.apache.commons/commons-email "1.4" ]
+    [com.sun.mail/javax.mail "1.5.5" ]
+    [org.clojure/clojure "1.8.0" ]
 
     [czlab/czlab-xlib "0.9.0-SNAPSHOT" ]
   ]
 
   :source-paths #{"src/main/clojure" "src/main/java"}
-  :test-runner "czlabtest.xlib.ClojureJUnit"
+  :test-runner "czlabtest.crypto.ClojureJUnit"
   :version "0.9.0-SNAPSHOT"
   :debug true
-  :project 'czlab/crypto
-  :PID "czlab-crypto")
+  :project 'czlab/czlab-crypto)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -23,7 +33,7 @@
   '[boot.task.built-in :refer [pom target]]
   '[czlab.tpcl.boot
     :as b
-    :refer [fp! ge testjava testclj]]
+    :refer [artifactID fp! ge testjava testclj]]
   '[clojure.tools.logging :as log]
   '[clojure.java.io :as io]
   '[clojure.string :as cs]
@@ -37,71 +47,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)
 
-(def ^:dynamic *genjars* false)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (b/bootEnv!)
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- cljXLib ""
+(defn- cljCrypto ""
 
   [& args]
 
-  (a/cleanDir (fp! (ge :czzDir) "czlab/xlib"))
-  (let [ t1 (a/antJava
+  (a/cleanDir (fp! (ge :czzDir) "czlab/crypto"))
+  (let [t1 (a/antJava
               (ge :CLJC_OPTS)
               (concat [[:argvalues (b/listCljNsps
                                      (fp! (ge :srcDir) "clojure")
-                                     "czlab/xlib")]]
+                                     "czlab/crypto")]]
                       (ge :CJNESTED)))
         t2 (a/antCopy
-             {:todir (fp! (ge :czzDir) "czlab/xlib")}
-             [[:fileset {:dir (fp! (ge :srcDir) "clojure/czlab/xlib")
-                         :excludes "**/*.clj"}]])
-        t3 (a/antJar
-             {:destFile (fp! (ge :distDir)
-                             (str "xlib-" (ge :version) ".jar"))}
-             [[:fileset {:dir (ge :czzDir)
-                         :includes "czlab/xlib/**"
-                         :excludes (str "**/log4j.properties,"
-                                        "**/logback.xml")}]])]
-    (->> (if *genjars*
-           [t1 t2 t3]
-           [t1 t2])
-         (a/runTarget "clj/xlib"))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- cljTpcl ""
-
-  [& args]
-
-  (a/cleanDir (fp! (ge :czzDir) "czlab/tpcl"))
-  (let [t1 (a/antJava
-              (ge :CLJC_OPTS)
-              (concat [[:argvalues
-                        (b/listCljNsps (fp! (ge :srcDir)
-                                           "clojure")
-                                      "czlab/tpcl")]]
-                      (ge :CJNESTED_RAW)))
-        t2 (a/antCopy
-              {:todir (fp! (ge :czzDir) "czlab/tpcl")}
-              [[:fileset {:dir (fp! (ge :srcDir) "clojure/czlab/tpcl")
-                          :excludes "**/*.clj"}]])
-        t3 (a/antJar
-              {:destFile (fp! (ge :distDir)
-                              (str "tpcl-" (ge :version) ".jar"))}
-              [[:fileset {:dir (ge :czzDir)
-                          :includes "czlab/tpcl/**"
-                          :excludes (str "**/log4j.properties,"
-                                         "**/logback.xml")}]]) ]
-    (->> (if *genjars*
-           [t1 t2 t3]
-           [t1 t2])
-         (a/runTarget "clj/tpcl"))))
+             {:todir (fp! (ge :czzDir) "czlab/crypto")}
+             [[:fileset {:dir (fp! (ge :srcDir) "clojure/czlab/crypto")
+                         :excludes "**/*.clj"}]])]
+    (->> [t1 t2]
+         (a/runTarget "clj/crypto"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -219,7 +187,7 @@
     "pack/all"
     (a/antTar
       {:destFile (fp! (ge :distDir)
-                      (str (ge :PID)
+                      (str (artifactID)
                            "-"
                            (ge :version) ".tar.gz"))
        :compression "gzip"}
@@ -266,8 +234,7 @@
   []
 
   (bc/with-pre-wrap fileset
-    (cljTpcl)
-    (cljXLib)
+    (cljCrypto)
     fileset))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -291,7 +258,7 @@
                 :encoding "utf-8"))))
     (b/replaceFile
       (fp! (ge :jzzDir)
-           "czlab/xlib/version.properties")
+           "czlab/crypto/version.properties")
       #(cs/replace % "@@pom.version@@" (ge :version)))
     (b/jarFiles)
     fileset))
@@ -336,7 +303,7 @@
         (install :file
                  (str (ge :distDir)
                       "/"
-                      (ge :PID)
+                      (artifactID)
                       "-"
                       (ge :version)
                       ".jar"))))

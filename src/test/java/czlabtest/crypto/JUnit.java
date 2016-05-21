@@ -12,7 +12,7 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlabtest.xlib;
+package czlabtest.crypto;
 
 import static org.junit.Assert.assertEquals;
 import java.util.concurrent.atomic.AtomicInteger;

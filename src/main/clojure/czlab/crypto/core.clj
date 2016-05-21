@@ -111,8 +111,11 @@
     [javax.net.ssl X509TrustManager TrustManager]
     [org.apache.commons.codec.binary Hex Base64]
     [org.apache.commons.io IOUtils]
-    [czlab.crypto PasswordAPI CertDesc SDataSource]
-    [czlab.xlib.io XData]
+    [czlab.crypto SSLTrustMgrFactory
+     PasswordAPI
+     CertDesc
+     SDataSource]
+    [czlab.xlib XData]
     [java.lang Math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -753,7 +756,7 @@
                  (assoc :dnStr dnStr))
         keylen (:keylen opts)
         ssv1 (mkSSV1 (getPkcsStore)
-                     (asymKeyPair* RSA keylen)
+                     (asymKeyPair RSA keylen)
                      pwdObj opts)]
     (writeOneFile out ssv1)))
 
@@ -773,7 +776,7 @@
                  (assoc :dnStr dnStr))
         keylen (:keylen opts)
         jks (mkSSV1 (getJksStore)
-                    (asymKeyPair* DSA keylen)
+                    (asymKeyPair DSA keylen)
                     pwdObj opts) ]
     (writeOneFile out jks)))
 
@@ -1153,7 +1156,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmethod SmimeDigSig :bodypart
+(defmethod smimeDigSig :bodypart
 
   [^PrivateKey pkey
    certs
@@ -1311,7 +1314,7 @@
 
   (if (nil? bp)
     (XData.)
-    (SmimeDecompress (.getInputStream bp))))
+    (smimeDecompress (.getInputStream bp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

@@ -22,7 +22,7 @@
     [czlab.xlib.core :refer [throwBadArg]]
     [czlab.crypto.core
      :refer [newAlias certAliases
-             pKeyAliases
+             pkeyAliases
              getPKey getCert
              getPkcsStore getJksStore]]
     [czlab.xlib.logging :as log]
@@ -157,7 +157,7 @@
       (let [fac (CertificateFactory/getInstance "X.509")
             certs (.generateCertificates fac bits) ]
         (doseq [^X509Certificate c (seq certs) ]
-          (.setCertificateEntry keystore (NewAlias) c))))))
+          (.setCertificateEntry keystore (newAlias) c))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

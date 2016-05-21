@@ -12,7 +12,7 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlabtest.xlib;
+package czlabtest.crypto;
 
 import mikera.cljunit.ClojureTest;
 import java.util.Arrays;
@@ -25,20 +25,8 @@ public class ClojureJUnit extends ClojureTest {
   @Override
   public List<String> namespaces() {
     return Arrays.asList(new String[] {
-      "czlabtest.xlib.byteutils",
-      "czlabtest.xlib.codes",
-      "czlabtest.xlib.coreutils",
-      "czlabtest.xlib.dateutils",
-      "czlabtest.xlib.fileutils",
-      "czlabtest.xlib.guids",
-      "czlabtest.xlib.ioutils",
-      "czlabtest.xlib.metautils",
-      "czlabtest.xlib.mimeutils",
-      "czlabtest.xlib.procutils",
-      "czlabtest.xlib.seqnumgen",
-      "czlabtest.xlib.strutils",
-      "czlabtest.xlib.win32ini",
-      "czlabtest.xlib.i18nstuff"
+      "czlabtest.crypto.cryptostuff",
+      "czlabtest.crypto.mimestuff"
     });
   }
 }

@@ -81,7 +81,7 @@
 (def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" )
 (def ^:private ^String T3_DES "DESede" ) ;; TripleDES
 (def ^:private ^chars C_KEYCS (.toCharArray C_KEY))
-(def ^:private ^bytes C_KEYBS (Bytesify C_KEY))
+(def ^:private ^bytes C_KEYBS (bytesify C_KEY))
 
 (def ^:private ^String C_ALGO T3_DES) ;; default javax supports this
 ;;(def ^:private ALPHA_CHS 26)
@@ -261,7 +261,7 @@
   ^String
   [pkey data]
 
-  {:pre [(= (CharsClass) (class pkey))
+  {:pre [(= (charsClass) (class pkey))
          (instance? String data)]}
 
   (-> (doto (StrongTextEncryptor.)
@@ -277,7 +277,7 @@
   ^String
   [pkey data]
 
-  {:pre [(= (CharsClass) (class pkey))
+  {:pre [(= (charsClass) (class pkey))
          (instance? String data)]}
 
   (-> (doto (StrongTextEncryptor.)
@@ -297,14 +297,8 @@
 
     Cryptor
 
-    (decrypt [this cipher]
-      (.decrypt this C_KEYCS cipher))
-
     (decrypt [_ pkey cipher]
       (jaDecr pkey cipher))
-
-    (encrypt [this data]
-      (.encrypt this C_KEYCS data))
 
     (encrypt [_ pkey data]
       (jaEncr pkey data))
@@ -333,7 +327,7 @@
   ^bytes
   [pkey data ^String algo]
 
-  {:pre [(= (BytesClass) (class pkey))]}
+  {:pre [(= (bytesClass) (class pkey))]}
 
   (if (empty? data)
     nil
@@ -360,7 +354,7 @@
   ^bytes
   [pkey encoded ^String algo]
 
-  {:pre [(= (BytesClass) (class pkey))]}
+  {:pre [(= (bytesClass) (class pkey))]}
 
   (if (empty? encoded)
     nil
@@ -391,16 +385,10 @@
 
     Cryptor
 
-    (decrypt [this cipher]
-      (.decrypt this C_KEYBS cipher))
-
     (decrypt [this pkey cipher]
       (let [s (.algo this)]
         (ensureKeySize pkey s)
         (javaDecr pkey cipher s)))
-
-    (encrypt [this clear]
-      (.encrypt this C_KEYBS clear))
 
     (encrypt [this pkey clear]
       (let [s (.algo this)]
@@ -534,16 +522,10 @@
 
     Cryptor
 
-    (decrypt [this cipher]
-      (.decrypt this C_KEYBS cipher))
-
     (decrypt [this pkey cipher]
       (let [s (.algo this)]
         (ensureKeySize pkey s)
         (bcDecr pkey cipher s)))
-
-    (encrypt [this clear]
-      (.encrypt this C_KEYBS clear))
 
     (encrypt [this pkey clear]
       (let [s (.algo this)]
@@ -619,7 +601,7 @@
         (empty? pwdStr)
         ""
         :else
-        (str PWD_PFX (.encrypt (JasyptCryptor*)
+        (str PWD_PFX (.encrypt (jasyptCryptor)
                                (.toCharArray pkey)
                                pwdStr))))
 
