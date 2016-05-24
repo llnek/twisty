@@ -18,12 +18,12 @@
     [com.sun.mail/javax.mail "1.5.5" ]
     [org.clojure/clojure "1.8.0" ]
 
-    [czlab/czlab-xlib "0.9.0-SNAPSHOT" ]
+    [czlab/czlab-xlib "1.0.0" ]
   ]
 
   :source-paths #{"src/main/clojure" "src/main/java"}
   :test-runner "czlabtest.crypto.ClojureJUnit"
-  :version "0.9.0-SNAPSHOT"
+  :version "1.0.0"
   :debug true
   :project 'czlab/czlab-crypto)
 
