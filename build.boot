@@ -25,7 +25,7 @@
     ;;[boot/base "2.6.0" :scope "provided"]
     ;;[boot/core "2.6.0" :scope "provided"]
     ;;[boot/pod "2.6.0" :scope "provided"]
-    [boot/worker "2.6.0" :scope "provided"]
+    ;;[boot/worker "2.6.0" :scope "provided"]
     ;; this is causing the RELEASE_6 warning
     ;;[boot/aether "2.6.0" :scope "provided"]
 
@@ -40,7 +40,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (require
-  '[boot.task.built-in :refer [pom target]]
   '[czlab.tpcl.boot
     :as b
     :refer [artifactID fp! ge]]
