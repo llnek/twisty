@@ -19,16 +19,7 @@
     [org.clojure/clojure "1.8.0" ]
 
     [czlab/czlab-xlib "1.0.0" ]
-
     [codox/codox "0.9.5" :scope "provided"]
-    ;; boot/clj stuff
-    ;;[boot/base "2.6.0" :scope "provided"]
-    ;;[boot/core "2.6.0" :scope "provided"]
-    ;;[boot/pod "2.6.0" :scope "provided"]
-    ;;[boot/worker "2.6.0" :scope "provided"]
-    ;; this is causing the RELEASE_6 warning
-    ;;[boot/aether "2.6.0" :scope "provided"]
-
   ]
 
   :source-paths #{"src/main/clojure" "src/main/java"}
