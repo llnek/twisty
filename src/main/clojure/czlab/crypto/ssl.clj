@@ -12,8 +12,7 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-
-(ns ^{:doc ""
+(ns ^{:doc "SSL related functions"
       :author "kenl" }
 
   czlab.crypto.ssl
@@ -23,13 +22,17 @@
     [czlab.xlib.core :refer [newRandom]]
     [czlab.xlib.logging :as log]
     [czlab.crypto.core
-     :refer [pkcsFile? getJksStore getPkcsStore]])
+     :refer [pkcsFile?
+             getJksStore
+             getPkcsStore]])
 
   (:import
     [javax.net.ssl X509TrustManager TrustManager]
     [javax.net.ssl SSLEngine SSLContext]
-    [czlab.crypto SSLTrustMgrFactory
-     PasswordAPI CryptoStoreAPI]
+    [czlab.crypto
+     PasswordAPI
+     CryptoStoreAPI
+     SSLTrustMgrFactory]
     [java.net URL]
     [javax.net.ssl KeyManagerFactory TrustManagerFactory]))
 

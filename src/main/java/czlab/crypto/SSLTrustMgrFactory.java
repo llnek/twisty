@@ -37,21 +37,28 @@ public class SSLTrustMgrFactory extends TrustManagerFactorySpi {
   public static final Logger TLOG=getLogger(lookup().lookupClass());
 
   public static TrustManager[] getTrustManagers() {
-    return new TrustManager[] { new X509TrustManager() {
-      public void checkClientTrusted(X509Certificate[] chain, String authType) {
-        TLOG.warn("SkipCheck: CLIENT CERTIFICATE: {}" , chain[0].getSubjectDN() );
+    return new TrustManager[] {
+      new X509TrustManager() {
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {
+          TLOG.warn("SkipCheck: CLIENT CERTIFICATE: {}" , chain[0].getSubjectDN() );
+        }
+
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {
+          TLOG.warn("SkipCheck: SERVER CERTIFICATE: {}" , chain[0].getSubjectDN() );
+        }
+
+        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
       }
-      public void checkServerTrusted(X509Certificate[] chain, String authType) {
-        TLOG.warn("SkipCheck: SERVER CERTIFICATE: {}" , chain[0].getSubjectDN() );
-      }
-      public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-    }};
+    };
   }
 
-  public TrustManager[] engineGetTrustManagers() { return SSLTrustMgrFactory.getTrustManagers(); }
+  public TrustManager[] engineGetTrustManagers() {
+    return SSLTrustMgrFactory.getTrustManagers();
+  }
 
-  public void engineInit(KeyStore ks) {}
   public void engineInit(ManagerFactoryParameters p) {}
+  public void engineInit(KeyStore ks) {}
+
 }
 
 

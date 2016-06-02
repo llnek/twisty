@@ -22,10 +22,8 @@ package czlab.crypto;
 public interface Cryptor {
 
   public Object decrypt(Object pkey, Object cipherData);
-  //public Object decrypt(Object cipherData);
 
   public Object encrypt(Object pkey, Object data);
-  //public Object encrypt(Object data);
 
   public Object algo();
 

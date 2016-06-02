@@ -25,6 +25,7 @@ import static czlab.xlib.CU.nsb;
 import czlab.xlib.XStream;
 
 /**
+ * Secured Data Source.
  *
  * @author kenl
  *
@@ -35,48 +36,34 @@ public class SDataSource implements DataSource {
   private byte[] _bits;
   private File _fn;
 
-  /**
-   * @param content
-   * @param contentType
-   */
   public SDataSource(File content, String contentType) {
     _ctype= nsb(contentType);
     _fn= content;
   }
 
-  /**
-   * @param content
-   * @param contentType
-   */
   public SDataSource(byte[] content, String contentType) {
     _ctype= nsb(contentType);
     _bits= content;
   }
 
-  /**
-   * @param content
-   */
   public SDataSource(File content) {
     this(content, "");
   }
 
-  /**
-   * @param content
-   */
   public SDataSource(byte[] content) {
     this(content, "");
   }
 
   public String getContentType() { return _ctype; }
-
-  public InputStream getInputStream() {
-    return (_fn==null) ? new ByteArrayInputStream(_bits) : new XStream(_fn);
-  }
-
   public String getName() { return "Unknown"; }
 
   public OutputStream getOutputStream() throws IOException {
     throw new IOException("Not implemented");
+  }
+
+  public InputStream getInputStream() {
+    return (_fn==null)
+      ? new ByteArrayInputStream(_bits) : new XStream(_fn);
   }
 
 }

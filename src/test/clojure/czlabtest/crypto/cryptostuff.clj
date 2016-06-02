@@ -94,7 +94,7 @@
 (is (= (.length (randomStr 64)) 64))
 
 (is (instance? PasswordAPI (pwdify "secret-text")))
-(is (.startsWith ^String (.encoded ^PasswordAPI (pwdify "secret-text")) "CRYPT:"))
+(is (.startsWith ^String (.encoded ^PasswordAPI (pwdify "secret-text")) "crypt:"))
 
 
 (is (= "SHA-512" (.getAlgorithm (msgDigest SHA_512))))

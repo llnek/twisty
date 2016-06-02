@@ -12,8 +12,7 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-
-(ns ^{:doc ""
+(ns ^{:doc "A Crypto store"
       :author "kenl" }
 
   czlab.crypto.stores
@@ -21,10 +20,13 @@
   (:require
     [czlab.xlib.core :refer [throwBadArg]]
     [czlab.crypto.core
-     :refer [newAlias certAliases
+     :refer [newAlias
+             certAliases
              pkeyAliases
-             getPKey getCert
-             getPkcsStore getJksStore]]
+             getPKey
+             getCert
+             getPkcsStore
+             getJksStore]]
     [czlab.xlib.logging :as log]
     [czlab.xlib.str :refer [hgl?]])
 
@@ -33,13 +35,14 @@
     [czlab.crypto PasswordAPI CryptoStoreAPI]
     [java.io File FileInputStream IOException InputStream]
     [javax.net.ssl KeyManagerFactory TrustManagerFactory]
-    [java.security KeyStore PrivateKey
-    KeyStore$TrustedCertificateEntry
-    KeyStore$ProtectionParameter
-    KeyStore$PasswordProtection
-    KeyStore$PrivateKeyEntry]
+    [java.security
+     KeyStore
+     PrivateKey
+     KeyStore$TrustedCertificateEntry
+     KeyStore$ProtectionParameter
+     KeyStore$PasswordProtection
+     KeyStore$PrivateKeyEntry]
     [javax.security.auth.x500 X500Principal]))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
@@ -63,29 +66,35 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- getCAs ""
+(defn- getCAs
+
+  ""
 
   [^KeyStore keystore tca root]
 
   (loop [en (.aliases keystore)
          rc (transient []) ]
-    (if (not (.hasMoreElements en))
+    (if-not (.hasMoreElements en)
       (persistent! rc)
       (if-some [^KeyStore$TrustedCertificateEntry
                ce (getCert keystore (.nextElement en)) ]
-        (let [^X509Certificate cert (.getTrustedCertificate ce)
+        (let [^X509Certificate
+              cert (.getTrustedCertificate ce)
               issuer (.getIssuerX500Principal cert)
               subj (.getSubjectX500Principal cert)
               matched (and (some? issuer)
                            (= issuer subj)) ]
-          (if (or (and root (not matched)) (and tca matched))
+          (if (or (and root (not matched))
+                  (and tca matched))
             (recur en rc)
             (recur en (conj! rc cert))))
         (recur en rc)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- mkstore ""
+(defn- mkstore
+
+  ""
 
   ^KeyStore
   [^KeyStore keystore]
@@ -118,24 +127,27 @@
         (onNewKey this (newAlias) pkey ch)))
 
     (addCertEntity [_ bits]
-      (let [fac (CertificateFactory/getInstance "X.509")
-            ^X509Certificate c (.generateCertificate fac bits) ]
-        (.setCertificateEntry keystore (newAlias) c)))
+      (let [fac (CertificateFactory/getInstance "X.509")]
+        (->> ^X509Certificate
+             (.generateCertificate fac bits)
+             (.setCertificateEntry keystore (newAlias) ))))
 
     (trustManagerFactory [_]
-      (doto (TrustManagerFactory/getInstance (TrustManagerFactory/getDefaultAlgorithm))
+      (doto (TrustManagerFactory/getInstance
+              (TrustManagerFactory/getDefaultAlgorithm))
             (.init keystore)))
 
     (keyManagerFactory [_]
-      (doto (KeyManagerFactory/getInstance (KeyManagerFactory/getDefaultAlgorithm))
+      (doto (KeyManagerFactory/getInstance
+              (KeyManagerFactory/getDefaultAlgorithm))
             (.init keystore  (.toCharArray passwdObj))))
 
     (certAliases [_] (certAliases keystore))
     (keyAliases [_] (pkeyAliases keystore))
 
     (keyEntity [_ nm pwdObj]
-      (let [ca (.toCharArray ^PasswordAPI pwdObj) ]
-        (getPKey keystore nm ca)))
+      (->> (.toCharArray ^PasswordAPI pwdObj)
+           (getPKey keystore nm )))
 
     (certEntity [_ nm]
       (getCert keystore nm))
@@ -156,8 +168,10 @@
     (addPKCS7Entity [_ bits]
       (let [fac (CertificateFactory/getInstance "X.509")
             certs (.generateCertificates fac bits) ]
-        (doseq [^X509Certificate c (seq certs) ]
-          (.setCertificateEntry keystore (newAlias) c))))))
+        (doseq [c (seq certs) ]
+          (.setCertificateEntry keystore
+                                (newAlias)
+                                ^X509Certificate c))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

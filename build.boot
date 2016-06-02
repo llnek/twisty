@@ -43,16 +43,13 @@
   '[boot.task.built-in :refer [pom target]]
   '[czlab.tpcl.boot
     :as b
-    :refer [artifactID fp! ge testjava testclj]]
+    :refer [artifactID fp! ge]]
   '[clojure.tools.logging :as log]
   '[clojure.java.io :as io]
   '[clojure.string :as cs]
-  '[czlab.xlib.antlib :as a]
-  '[boot.pom :as bp]
-  '[boot.core :as bc])
+  '[czlab.xlib.antlib :as a])
 
-(import '[org.apache.tools.ant Project Target Task]
-        '[java.io File])
+(import '[java.io File])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)
@@ -65,6 +62,14 @@
 ;;
 ;;  task defs below !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ;;
+(deftask tst
+
+  "for test only"
+  []
+
+  (comp (b/testJava)
+        (b/testClj)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (deftask dev
@@ -80,7 +85,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(deftask release
+(deftask rel
 
   ""
   [d doco bool "Generate doc"]

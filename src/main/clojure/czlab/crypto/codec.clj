@@ -12,40 +12,43 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-
-(ns ^{:doc ""
+(ns ^{:doc "Password Encoders & Decoders."
       :author "kenl" }
 
   czlab.crypto.codec
 
   (:require
     [czlab.xlib.meta :refer [charsClass bytesClass]]
+    [clojure.math.numeric-tower :as math]
     [czlab.xlib.core
      :refer [newRandom
-             bytesify stringify throwBadArg]]
-    [clojure.math.numeric-tower :as math]
+             bytesify
+             stringify
+             throwBadArg]]
     [czlab.xlib.logging :as log]
     [czlab.xlib.io :refer [byteOS]])
 
   (:import
     [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
     [org.bouncycastle.crypto.paddings PaddedBufferedBlockCipher]
+    [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
     [org.bouncycastle.crypto.generators DESedeKeyGenerator]
     [org.jasypt.encryption.pbe StandardPBEStringEncryptor]
+    [org.bouncycastle.crypto KeyGenerationParameters]
     [org.apache.commons.codec.binary Base64]
     [org.apache.commons.lang3.tuple ImmutablePair]
     [javax.crypto.spec SecretKeySpec]
     [org.jasypt.util.text StrongTextEncryptor]
     [java.io ByteArrayOutputStream]
     [java.security Key KeyFactory SecureRandom]
-    [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
     [javax.crypto Cipher]
     [czlab.crypto Cryptor PasswordAPI]
     [org.mindrot.jbcrypt BCrypt]
-    [org.bouncycastle.crypto KeyGenerationParameters]
     [org.bouncycastle.crypto.engines
      BlowfishEngine
-     AESEngine RSAEngine DESedeEngine]
+     AESEngine
+     RSAEngine
+     DESedeEngine]
     [org.bouncycastle.crypto.modes CBCBlockCipher]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,24 +70,26 @@
 (def ^:private VISCHS_LEN (alength ^chars VISCHS))
 
 (def ^:private ^String
+  ACHS "nhJ0qrIz6FmtPCduWoS9x8vT2-KMaO7qlgApVX5_keyZDjfE13UsibYRGQ4NcLBH" )
+(def ^:private ^String
   PCHS (str "Ha$4Jep8!`g)GYkmrIRN72^cObZ%oXlSPT39qLMD&"
             "iC*UxKWhE#F5@qvV6j0f1dyBs-~tAQn(z_u" ))
-(def ^:private ^String
-  ACHS "nhJ0qrIz6FmtPCduWoS9x8vT2-KMaO7qlgApVX5_keyZDjfE13UsibYRGQ4NcLBH" )
 
 (def ^:private ^chars s_asciiChars (.toCharArray ACHS))
 (def ^:private ^chars s_pwdChars (.toCharArray PCHS))
 
-(def ^:private ^String PWD_PFX "CRYPT:" )
-(def ^:private PWD_PFXLEN (.length PWD_PFX))
+(def ^:private ^String PWD_PFX "crypt:" )
+(def ^:private PWD_PFXLEN 6)
 
 (def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" )
-(def ^:private ^String T3_DES "DESede" ) ;; TripleDES
+;; TripleDES
+(def ^:private ^String T3_DES "DESede" )
+
 (def ^:private ^chars C_KEYCS (.toCharArray C_KEY))
 (def ^:private ^bytes C_KEYBS (bytesify C_KEY))
 
-(def ^:private ^String C_ALGO T3_DES) ;; default javax supports this
-;;(def ^:private ALPHA_CHS 26)
+;; default javax supports this
+(def ^:private ^String C_ALGO T3_DES)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -93,16 +98,16 @@
   "Given an algo, make sure the key has enough bits"
 
   ^bytes
-  [^bytes keyBits ^String algo]
+  [^bytes kkey ^String algo]
 
-  (let [len (* 8 (alength keyBits))]
+  (let [bits (* 8 (alength kkey))]
     (when (and (= T3_DES algo)
-               (< len 192)) ;; 8x 3 = 24 bytes
+               (< bits 192)) ;; 8x 3 = 24 bytes
       (throwBadArg "TripleDES key length must be 192."))
     (when (and (= "AES" algo)
-               (< len 128))
+               (< bits 128))
       (throwBadArg "AES key length must be 128 or 256."))
-    keyBits))
+    kkey))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -114,14 +119,14 @@
   [^bytes pwd ^String algo]
 
   (let [blen (alength pwd)
-        len (* 8 blen) ]
+        bits (* 8 blen) ]
     (condp = algo
       "AES"
       (cond
-        (> len 256) ;; 32 bytes
+        (> bits 256) ;; 32 bytes
         (into-array Byte/TYPE (take 32 pwd))
         ;; 128 => 16 bytes
-        (and (> len 128) (< len 256))
+        (and (> bits 128) (< bits 256))
         (into-array Byte/TYPE (take 16 pwd))
         :else pwd)
 
@@ -159,7 +164,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- slide-forward ""
+(defn- slide-forward
+
+  ""
 
   ^Character
   [delta cpos]
@@ -170,7 +177,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- slide-back ""
+(defn- slide-back
+
+  ""
 
   ^Character
   [delta cpos]
@@ -181,7 +190,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- shiftenc ""
+(defn- shiftenc
+
+  ""
 
   ^Character
   [shiftpos delta cpos]
@@ -192,7 +203,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- shiftdec ""
+(defn- shiftdec
+
+  ""
 
   ^Character
   [shiftpos delta cpos]
@@ -203,7 +216,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- caesar-amap-expr ""
+(defn- caesar-amap-expr
+
+  ""
 
   ^Character
   [^chars ca pos shiftFunc]
@@ -340,10 +355,12 @@
           baos (byteOS)
           out (byte-array (max 4096 (.getOutputSize c plen)))
           n (.update c p 0 plen out 0) ]
-      (when (> n 0) (.write baos out 0 n))
+      (when (> n 0)
+        (.write baos out 0 n))
       (let [n2 (.doFinal c out 0) ]
-        (when (> n2 0) (.write baos out 0 n2)))
-        (.toByteArray baos))))
+        (when (> n2 0)
+          (.write baos out 0 n2)))
+      (.toByteArray baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -367,9 +384,11 @@
           baos (byteOS)
           out (byte-array (max 4096 (.getOutputSize c plen)))
           n (.update c p 0 plen out 0)]
-      (when (> n 0) (.write baos out 0 n))
+      (when (> n 0)
+        (.write baos out 0 n))
       (let [n2 (.doFinal c out 0) ]
-        (when (> n2 0) (.write baos out 0 n2)))
+        (when (> n2 0)
+          (.write baos out 0 n2)))
       (.toByteArray baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -400,7 +419,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
-(defn- bcXrefCipherEngine ""
+(defn- bcXrefCipherEngine
+
+  ""
 
   [^String algo]
 
@@ -476,10 +497,12 @@
           out (byte-array 1024)
           baos (byteOS)
           c (.processBytes cipher p 0 (alength p) out 0) ]
-      (when (> c 0) (.write baos out 0 c))
+      (when (> c 0)
+        (.write baos out 0 c))
       (let [c2 (.doFinal cipher out 0) ]
-        (when (> c2 0) (.write baos out 0 c2)))
-        (.toByteArray baos))))
+        (when (> c2 0)
+          (.write baos out 0 c2)))
+      (.toByteArray baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -504,10 +527,12 @@
               (bytesify data)
               data)
           c (.processBytes cipher p 0 (alength p) out 0) ]
-      (when (> c 0) (.write baos out 0 c))
+      (when (> c 0)
+        (.write baos out 0 c))
       (let [c2 (.doFinal cipher out 0) ]
-        (when (> c2 0) (.write baos out 0 c2)) )
-        (.toByteArray baos))))
+        (when (> c2 0)
+          (.write baos out 0 c2)))
+      (.toByteArray baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -536,7 +561,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords
-(defn- createXXX ""
+(defn- createXXX
+
+  ""
 
   [len ^chars chArray]
 
@@ -554,7 +581,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- reifyPassword ""
+(defn- reifyPassword
+
+  ""
 
   [^String pwdStr ^String pkey]
 

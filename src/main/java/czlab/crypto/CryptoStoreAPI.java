@@ -21,7 +21,7 @@ import javax.net.ssl.TrustManagerFactory;
 
 
 /**
- * Abstraction on top of a java key store.
+ * Abstraction of a key store.
  *
  * @author kenl
  *
@@ -30,9 +30,6 @@ public interface CryptoStoreAPI {
 
   /**
    * Add a private key.
-   *
-   * @param keyBits
-   * @param pwdObj
    */
   public void addKeyEntity(byte[] keyBits, PasswordAPI pwdObj);
 
@@ -44,23 +41,16 @@ public interface CryptoStoreAPI {
 
   /**
    * Add a certificate.
-   *
-   * @param certBits
    */
   public void addCertEntity(byte[] certBits);
 
   /**
-   *
-   * @param alias
-   * @param pwdObj
-   * @return
+   * Get the private key.
    */
   public KeyStore.PrivateKeyEntry keyEntity(String alias, PasswordAPI pwdObj);
 
   /**
-   *
-   * @param alias
-   * @return
+   * Get the certificate.
    */
   public KeyStore.TrustedCertificateEntry certEntity(String alias);
 
@@ -69,14 +59,12 @@ public interface CryptoStoreAPI {
   public Iterable<X509Certificate> trustedCerts();
 
   /**
-   *
-   * @param pkcs7Bits
+   * Add a PKCS7 object.
    */
   public void addPKCS7Entity(byte[] pkcs7Bits);
 
   /**
-   *
-   * @param alias
+   * Remove object from store.
    */
   public void removeEntity(String alias);
 

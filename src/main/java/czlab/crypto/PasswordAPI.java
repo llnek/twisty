@@ -25,29 +25,33 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 public interface PasswordAPI {
 
   /**
-   * Does this password hashed to match the target?
-   *
-   * @param targetHashed
-   * @return
+   * true if the hash matches the internal value.
    */
   public boolean validateHash(String targetHashed);
+
+  /**
+   * Get the password.
+   */
   public char[] toCharArray();
 
   /**
    * A tuple(2) ['hashed value' 'salt']
-   *
-   * @return
    */
   public ImmutablePair<String,String> stronglyHashed();
 
   /**
    * A tuple(2) ['hashed value' 'salt']
-   *
-   * @return
    */
   public ImmutablePair<String,String> hashed();
 
+  /**
+   * The encoded value.
+   */
   public String encoded();
+
+  /**
+   * The text value.
+   */
   public String text();
 
 }
