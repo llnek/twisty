@@ -13,7 +13,7 @@
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
 (ns ^{:doc "A Crypto store"
-      :author "kenl" }
+      :author "Kenneth Leung" }
 
   czlab.crypto.stores
 

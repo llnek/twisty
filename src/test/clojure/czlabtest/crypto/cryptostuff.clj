@@ -119,7 +119,7 @@
            (> (alength ^bytes (first v)) 0)
            (> (alength ^bytes (nth v 1)) 0))) )
 
-(is (let [fout (tempFile "kenl" ".p12")]
+(is (let [fout (tempFile "Kenneth Leung" ".p12")]
       (ssv1PKCS12 "C=AU,ST=NSW,L=Sydney,O=Google"
                   HELPME
                   fout
