@@ -19,7 +19,6 @@
 
   (:require
     [czlab.xlib.meta :refer [charsClass bytesClass]]
-    [clojure.math.numeric-tower :as math]
     [czlab.xlib.core
      :refer [newRandom
              bytesify
@@ -64,24 +63,30 @@
 ;;(def ^:private ACHS "abcdefghijklmnopqrstuvqxyz1234567890-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" )
 ;;(def ^:private PCHS "abcdefghijklmnopqrstuvqxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`1234567890-_~!@#$%^&*()" )
 
-(def ^:private ^chars
+(def
+  ^:private
+  ^chars
   VISCHS (.toCharArray (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
                             "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")))
+
 (def ^:private VISCHS_LEN (alength ^chars VISCHS))
 
-(def ^:private ^String
+(def
+  ^:private
+  ^String
   ACHS "nhJ0qrIz6FmtPCduWoS9x8vT2-KMaO7qlgApVX5_keyZDjfE13UsibYRGQ4NcLBH" )
-(def ^:private ^String
+(def
+  ^:private
+  ^String
   PCHS (str "Ha$4Jep8!`g)GYkmrIRN72^cObZ%oXlSPT39qLMD&"
             "iC*UxKWhE#F5@qvV6j0f1dyBs-~tAQn(z_u" ))
 
+(def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" )
 (def ^:private ^chars s_asciiChars (.toCharArray ACHS))
 (def ^:private ^chars s_pwdChars (.toCharArray PCHS))
 
 (def ^:private ^String PWD_PFX "crypt:" )
 (def ^:private PWD_PFXLEN 6)
-
-(def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" )
 ;; TripleDES
 (def ^:private ^String T3_DES "DESede" )
 
@@ -103,10 +108,10 @@
   (let [bits (* 8 (alength kkey))]
     (when (and (= T3_DES algo)
                (< bits 192)) ;; 8x 3 = 24 bytes
-      (throwBadArg "TripleDES key length must be 192."))
+      (throwBadArg "TripleDES key length must be 192"))
     (when (and (= "AES" algo)
                (< bits 128))
-      (throwBadArg "AES key length must be 128 or 256."))
+      (throwBadArg "AES key length must be 128 or 256"))
     kkey))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -158,8 +163,9 @@
   ^long
   [^Character ch]
 
-  (-> (some #(if (= ch (aget ^chars VISCHS %1)) %1 nil)
-                  (range VISCHS_LEN))
+  (-> (some #(if (= ch (aget ^chars VISCHS %1))
+               %1 nil)
+            (range VISCHS_LEN))
       (or -1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -241,9 +247,9 @@
   (if (or (== shiftpos 0)
           (empty? text))
     text
-    (let [delta (mod (math/abs shiftpos) VISCHS_LEN)
-          ca (.toCharArray text)
+    (let [delta (mod (Math/abs (int shiftpos)) VISCHS_LEN)
           pf (partial shiftenc shiftpos delta)
+          ca (.toCharArray text)
           out (amap ca pos ret
                     (caesar-amap-expr ca pos pf)) ]
       (String. ^chars out))))
@@ -260,9 +266,9 @@
   (if (or (== shiftpos 0)
           (empty? text))
     text
-    (let [delta (mod (math/abs shiftpos) VISCHS_LEN)
-          ca (.toCharArray text)
+    (let [delta (mod (Math/abs (int shiftpos)) VISCHS_LEN)
           pf (partial shiftdec shiftpos delta)
+          ca (.toCharArray text)
           out (amap ca pos ret
                     (caesar-amap-expr ca pos pf)) ]
       (String. ^chars out))))
