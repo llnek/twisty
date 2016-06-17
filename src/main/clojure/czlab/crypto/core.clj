@@ -44,6 +44,10 @@
     [org.bouncycastle.operator OperatorCreationException ContentSigner]
     [org.bouncycastle.operator DigestCalculatorProvider ContentSigner]
     [org.bouncycastle.asn1.cms AttributeTable IssuerAndSerialNumber]
+    [javax.activation DataHandler CommandMap MailcapCommandMap]
+    [javax.mail BodyPart MessagingException Multipart Session]
+    [clojure.lang
+     APersistentVector]
     [java.io
      PrintStream
      File
@@ -56,8 +60,6 @@
     [java.math BigInteger]
     [java.net URL]
     [java.util Random Date]
-    [javax.activation DataHandler CommandMap MailcapCommandMap]
-    [javax.mail BodyPart MessagingException Multipart Session]
     [javax.mail.internet
      ContentType
      MimeBodyPart
@@ -287,7 +289,9 @@
 ;;
 (defn msgDigest
 
-  "Get a message digest instance"
+  "Get a message digest instance:
+  MD5
+  SHA-1, SHA-256, SHA-384, SHA-512"
 
   ^MessageDigest
   [algo]
@@ -339,7 +343,8 @@
   ^String
   []
 
-  (str "" (System/currentTimeMillis) "#" (nextInt)))
+  (str (-> (juid)
+           (.substring 0 4)) "#" (nextInt)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -390,6 +395,7 @@
 
   "Enumerate all cert aliases in the key-store"
 
+  ^APersistentVector
   [^KeyStore keystore]
 
   (findAliases keystore

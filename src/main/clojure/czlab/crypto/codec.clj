@@ -19,6 +19,7 @@
 
   (:require
     [czlab.xlib.meta :refer [charsClass bytesClass]]
+    [czlab.xlib.str :refer [hgl?]]
     [czlab.xlib.core
      :refer [newRandom
              bytesify
@@ -35,7 +36,6 @@
     [org.jasypt.encryption.pbe StandardPBEStringEncryptor]
     [org.bouncycastle.crypto KeyGenerationParameters]
     [org.apache.commons.codec.binary Base64]
-    [org.apache.commons.lang3.tuple ImmutablePair]
     [javax.crypto.spec SecretKeySpec]
     [org.jasypt.util.text StrongTextEncryptor]
     [java.io ByteArrayOutputStream]
@@ -318,8 +318,8 @@
 
     Cryptor
 
-    (decrypt [_ pkey cipher]
-      (jaDecr pkey cipher))
+    (decrypt [_ pkey cipherText]
+      (jaDecr pkey cipherText))
 
     (encrypt [_ pkey data]
       (jaEncr pkey data))
@@ -329,15 +329,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
 (defn- getCipher
-
-  "Given an algo, create a Java Cipher instance"
-
+  ""
   ^Cipher
   [^bytes pkey mode ^String algo]
-
   (doto (Cipher/getInstance algo)
         (.init (int mode)
                (SecretKeySpec. (keyAsBits pkey algo) algo))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro java-decrypt "" [pk algo]
+  `(getCipher ~pk Cipher/DECRYPT_MODE ~algo))
+
+(defmacro java-encrypt "" [pk algo]
+  `(getCipher ~pk Cipher/ENCRYPT_MODE ~algo))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -350,9 +355,8 @@
 
   {:pre [(= (bytesClass) (class pkey))]}
 
-  (if (empty? data)
-    nil
-    (let [c (getCipher pkey Cipher/ENCRYPT_MODE algo)
+  (when-not (empty? data)
+    (let [c (java-encrypt pkey algo)
           ^bytes
           p (if (string? data)
               (bytesify data)
@@ -379,9 +383,8 @@
 
   {:pre [(= (bytesClass) (class pkey))]}
 
-  (if (empty? encoded)
-    nil
-    (let [c (getCipher pkey Cipher/DECRYPT_MODE algo)
+  (when-not (empty? encoded)
+    (let [c (java-decrypt pkey algo)
           ^bytes
           p (if (string? encoded)
               (bytesify encoded)
@@ -447,8 +450,7 @@
   ^bytes
   [^bytes pubKey data]
 
-  (if (empty? data)
-    nil
+  (when-not (empty? data)
     (let [^Key pk (-> (KeyFactory/getInstance "RSA")
                       (.generatePublic (X509EncodedKeySpec. pubKey)))
           cipher (doto (Cipher/getInstance "RSA/ECB/PKCS1Padding")
@@ -468,8 +470,7 @@
   ^bytes
   [^bytes prvKey encoded]
 
-  (if (empty? encoded)
-    nil
+  (when-not (empty? encoded)
     (let [^Key pk (-> (KeyFactory/getInstance "RSA")
                       (.generatePrivate (PKCS8EncodedKeySpec. prvKey)))
           cipher (doto (Cipher/getInstance "RSA/ECB/PKCS1Padding")
@@ -489,8 +490,7 @@
   ^bytes
   [pkey encoded ^String algo]
 
-  (if (empty? encoded)
-    nil
+  (when-not (empty? encoded)
     (let [cipher (doto (-> (bcXrefCipherEngine algo)
                            (CBCBlockCipher. )
                            (PaddedBufferedBlockCipher. ))
@@ -519,8 +519,7 @@
   ^bytes
   [pkey data ^String algo]
 
-  (if (empty? data)
-    nil
+  (when-not (empty? data)
     (let [cipher (doto (-> (bcXrefCipherEngine algo)
                            (CBCBlockCipher. )
                            (PaddedBufferedBlockCipher. ))
@@ -571,7 +570,7 @@
 
   ""
 
-  [len ^chars chArray]
+  [^chars chArray len]
 
   (cond
     (== len 0) ""
@@ -580,9 +579,11 @@
     (let [ostr (char-array len)
           cl (alength chArray)
           r (newRandom)
-          rc (amap ^chars ostr pos ret
-                    (let [n (mod (.nextInt r Integer/MAX_VALUE) cl) ]
-                      (aget chArray n))) ]
+          rc (amap ^chars ostr
+               pos
+               ret
+               (let [n (mod (.nextInt r Integer/MAX_VALUE) cl) ]
+                 (aget chArray n))) ]
       (String. ^chars rc))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -615,16 +616,18 @@
         (.toCharArray pwdStr)))
 
     (stronglyHashed [_]
-      (if (nil? pwdStr)
-        (ImmutablePair/of ""  "")
+      (if-not (nil? pwdStr)
         (let [s (BCrypt/gensalt 12) ]
-          (ImmutablePair/of (BCrypt/hashpw pwdStr s) s ))))
+          {:hashed (BCrypt/hashpw pwdStr s)
+           :salt s})
+        {:hashed "" :salt ""}))
 
     (hashed [_]
-      (if (nil? pwdStr)
-        (ImmutablePair/of "" "")
+      (if-not (nil? pwdStr)
         (let [s (BCrypt/gensalt 10) ]
-          (ImmutablePair/of (BCrypt/hashpw pwdStr s) s))))
+          {:hashed (BCrypt/hashpw pwdStr s)
+           :salt s})
+        {:hashed "" :salt ""}))
 
     (validateHash [this pwdHashed]
       (BCrypt/checkpw (.text this) pwdHashed))
@@ -651,6 +654,9 @@
   ^PasswordAPI
   [^String pwdStr & [pkey]]
 
+  {:pre [(or (nil? pwdStr)(string? pwdStr))
+         (or (nil? pkey)(string? pkey))]}
+
   (let [^String pkey (or pkey C_KEY)]
     (if
       (.startsWith (str pwdStr) PWD_PFX)
@@ -670,7 +676,7 @@
   ^String
   [len]
 
-  (createXXX len s_asciiChars))
+  (createXXX  s_asciiChars len))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -681,7 +687,7 @@
   ^PasswordAPI
   [len]
 
-  (pwdify (createXXX len s_pwdChars)))
+  (pwdify (createXXX  s_pwdChars len)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

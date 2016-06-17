@@ -37,12 +37,12 @@ public interface PasswordAPI {
   /**
    * A tuple(2) ['hashed value' 'salt']
    */
-  public ImmutablePair<String,String> stronglyHashed();
+  public Object stronglyHashed();
 
   /**
    * A tuple(2) ['hashed value' 'salt']
    */
-  public ImmutablePair<String,String> hashed();
+  public Object hashed();
 
   /**
    * The encoded value.
