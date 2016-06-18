@@ -319,7 +319,7 @@
 
   "List all BouncyCastle algos"
 
-  ^:no-doc
+  {:no-doc true}
 
   [^PrintStream os]
 
@@ -823,7 +823,8 @@
 
   ""
 
-  ^:private
+  {:private true
+   :no-doc true}
   [store algo style dnStr pwdObj out options]
 
   `(let [dft# {:keylen 1024 :start (Date.)
@@ -1644,7 +1645,7 @@
 ;;
 (defn fingerprintSHA1
 
-  "Generate a fingerprint using SHA-1"
+  "Generate a fingerprint/digest using SHA-1"
 
   ^String
   [^bytes data]
@@ -1655,7 +1656,7 @@
 ;;
 (defn fingerprintMD5
 
-  "Generate a fingerprint using MD5"
+  "Generate a fingerprint/digest using MD5"
 
   ^String
   [^bytes data]
@@ -1753,7 +1754,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn intoArrayCerts
+(defn- intoArrayCerts
 
   "From a list of TrustedCertificateEntry(s)"
 
@@ -1766,7 +1767,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn intoArrayPKeys
+(defn- intoArrayPKeys
 
   "From a list of PrivateKeyEntry(s)"
 
