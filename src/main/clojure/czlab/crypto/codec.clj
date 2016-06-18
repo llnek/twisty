@@ -338,10 +338,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro java-decrypt "" [pk algo]
+(defmacro java-decrypt "" {:private true
+                           :no-doc true} [pk algo]
   `(getCipher ~pk Cipher/DECRYPT_MODE ~algo))
 
-(defmacro java-encrypt "" [pk algo]
+(defmacro java-encrypt "" {:private true
+                           :no-doc true} [pk algo]
   `(getCipher ~pk Cipher/ENCRYPT_MODE ~algo))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -483,7 +485,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
-(defn bcDecr
+(defn- bcDecr
 
   "Decrypt using BouncyCastle"
 
@@ -512,7 +514,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn bcEncr
+(defn- bcEncr
 
   "Encrypt using BouncyCastle, returning a base64 encoded cipher"
 

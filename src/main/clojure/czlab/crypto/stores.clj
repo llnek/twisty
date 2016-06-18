@@ -53,16 +53,15 @@
 
   "Insert private key & certs into this keystore"
 
-  [^KeyStore keystore
-   ^String nm
-   ^KeyStore$PrivateKeyEntry pkey
+  [^KeyStore keystore ^String nm
+   ^KeyStore$PrivateKeyEntry pke
    ^chars pwd]
 
-  (when-some [cc (.getCertificateChain pkey)]
+  (when-some [cc (.getCertificateChain pke)]
     (doseq [^Certificate c cc]
       (.setCertificateEntry keystore (newAlias) c))
     (->> (KeyStore$PasswordProtection. pwd)
-         (.setEntry keystore nm pkey ))))
+         (.setEntry keystore nm pke ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -124,7 +123,7 @@
             tmp (doto (mkstore keystore) (.load bits ch))
             pkey (getPKey tmp (-> (.aliases tmp)
                                   (.nextElement)) ch) ]
-        (onNewKey this (newAlias) pkey ch)))
+        (onNewKey keystore (newAlias) pkey ch)))
 
     (addCertEntity [_ bits]
       (let [fac (CertificateFactory/getInstance "X.509")]

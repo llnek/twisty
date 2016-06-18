@@ -43,11 +43,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (def ^:private ROOTPFX (resBytes "czlab/crypto/test.pfx"))
-(def ^PasswordAPI ^:private HELPME (pwdify "helpme"))
-(def ^CryptoStoreAPI
-  ^:private ROOTCS
+(def ^:private ^PasswordAPI HELPME (pwdify "helpme"))
+(def ^:private ^CryptoStoreAPI
+  ROOTCS
   (cryptoStore (initStore! (getPkcsStore) ROOTPFX HELPME) HELPME))
-(defonce DES_EDE3_CBC CMSAlgorithm/DES_EDE3_CBC)
+(defonce ^:private DES_EDE3_CBC CMSAlgorithm/DES_EDE3_CBC)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -69,7 +69,7 @@
             msg (newMimeMsg "" "" inp)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
-            rc (smimeDigSig  pk cs SHA512 msg)]
+            rc (smimeDigSig  pk msg SHA512 cs)]
         (isSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
@@ -80,7 +80,7 @@
             mp (.getContent msg)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
-            rc (smimeDigSig  pk cs SHA512 mp)]
+            rc (smimeDigSig  pk mp SHA512 cs)]
         (isSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
@@ -93,7 +93,7 @@
             bp (.getBodyPart mp 1)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
-            rc (smimeDigSig  pk cs SHA512 bp)]
+            rc (smimeDigSig  pk bp SHA512 cs)]
         (isSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
@@ -103,7 +103,7 @@
             msg (newMimeMsg "" "" inp)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
-            mp (smimeDigSig  pk cs SHA512 msg)
+            mp (smimeDigSig  pk msg SHA512 cs)
             baos (byteOS)
             msg2 (doto (newMimeMsg "" "")
                    (.setContent (cast Multipart mp))
@@ -121,7 +121,7 @@
             msg (newMimeMsg "" "" inp)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
-            mp (smimeDigSig  pk cs SHA512 msg)
+            mp (smimeDigSig  pk msg SHA512 cs)
             baos (byteOS)
             msg2 (doto (newMimeMsg "" "")
                    (.setContent (cast Multipart mp))
@@ -152,7 +152,7 @@
                 (.writeTo baos))
           msg2 (newMimeMsg (streamify (.toByteArray baos)))
           enc (isEncrypted? (.getContentType msg2))
-          rc (smimeDecrypt [pk] msg2)]
+          rc (smimeDecrypt msg2 [pk] )]
       ;; rc is a bodypart
       (and (not (nil? rc))
            (> (.indexOf (stringify rc) "hello world") 0))))
@@ -180,7 +180,7 @@
                  (.writeTo baos))
           msg3 (newMimeMsg (streamify (.toByteArray baos)))
           enc (isEncrypted? (.getContentType msg3))
-          rc (smimeDecrypt [pk] msg3)]
+          rc (smimeDecrypt msg3 [pk] )]
       ;; rc is a multipart
       (and (not (nil? rc))
            (> (.indexOf (stringify rc) "what's up dawg") 0)

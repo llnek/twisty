@@ -201,10 +201,10 @@
 (def ^:private ^String DEF_ALGO "SHA1WithRSAEncryption")
 (def ^:private ^String DEF_MAC "HmacSHA512")
 
-(defonce EXPLICIT_SIGNING :EXPLICIT)
-(defonce IMPLICIT_SIGNING :IMPLICIT)
-(defonce DER_FORM :DER)
-(defonce PEM_FORM :PEM)
+(defonce ^:private EXPLICIT_SIGNING :EXPLICIT)
+(defonce ^:private IMPLICIT_SIGNING :IMPLICIT)
+(defonce ^:private DER_FORM :DER)
+(defonce ^:private PEM_FORM :PEM)
 
 (defonce ^String SHA512 "SHA512withRSA")
 (defonce ^String SHA256 "SHA256withRSA")
@@ -319,6 +319,8 @@
 
   "List all BouncyCastle algos"
 
+  ^:no-doc
+
   [^PrintStream os]
 
   (try! (.list _BCProvider os)))
@@ -371,10 +373,10 @@
   "Get a private key from the store"
 
   ^KeyStore$PrivateKeyEntry
-  [^KeyStore ks ^String n ^chars pwd]
+  [^KeyStore store ^String n ^chars pwd]
 
   (->> (KeyStore$PasswordProtection. pwd)
-       (.getEntry ks n)
+       (.getEntry store n)
        (cast? KeyStore$PrivateKeyEntry )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -384,9 +386,9 @@
   "Get a certificate from store"
 
   ^KeyStore$TrustedCertificateEntry
-  [^KeyStore ks ^String n ^chars pwd]
+  [^KeyStore store ^String n ^chars pwd]
 
-  (->> (.getEntry ks n nil)
+  (->> (.getEntry store n nil)
        (cast? KeyStore$TrustedCertificateEntry )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -530,8 +532,7 @@
   "Convert to a PrivateKey"
 
   ^KeyStore$PrivateKeyEntry
-  [^bytes bits
-   ^PasswordAPI pwdObj]
+  [^bytes bits ^PasswordAPI pwdObj]
 
   (let [^chars
         ca (some-> pwdObj
@@ -563,14 +564,15 @@
   "Generate a Message Auth Code"
 
   ^String
-  [^bytes skey ^String data & [algo] ]
+  [^bytes skey ^bytes data & [algo] ]
+
+  {:pre [(some? data)]}
 
   (let [^String algo (or algo DEF_MAC)
         mac (Mac/getInstance algo _BCProvider) ]
     (->> (SecretKeySpec. skey algo)
          (.init mac ))
-    (->> (bytesify data)
-         (.update mac ))
+    (.update mac data)
     (Hex/encodeHexString (.doFinal mac))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -580,11 +582,13 @@
   "Generate a Message Digest"
 
   ^String
-  [^String data & [algo] ]
+  [^bytes data & [algo] ]
+
+  {:pre [(some? data)]}
 
   (-> (->> (str (or algo SHA_512))
            (MessageDigest/getInstance ))
-      (.digest (bytesify data))
+      (.digest data)
       (Base64/encodeBase64String )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -780,7 +784,11 @@
         ^chars ca (some-> pwdObj
                           (.toCharArray ))
         baos (byteOS) ]
-    (.setKeyEntry ks (juid) pkey ca (into-array Certificate [cert] ))
+    (.setKeyEntry ks
+                  (juid)
+                  pkey
+                  ca
+                  (into-array Certificate [cert] ))
     (.store ks baos ca)
     (.toByteArray baos)))
 
@@ -804,7 +812,8 @@
     (.setKeyEntry ss
                   (juid)
                   (.getPrivate kp)
-                  ca (into-array Certificate [ct]))
+                  ca
+                  (into-array Certificate [ct]))
     (.store ss baos ca)
     (writeOneFile out (.toByteArray baos))))
 

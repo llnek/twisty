@@ -47,9 +47,11 @@
 (def ^:private HELPME (pwdify "helpme"))
 (def ^:private SECRET (pwdify "secret"))
 
-(def ^CryptoStoreAPI ^:private ROOTCS (cryptoStore (initStore! (getPkcsStore) ROOTPFX HELPME) HELPME))
+(def ^:private ^CryptoStoreAPI
+  ROOTCS (cryptoStore (initStore! (getPkcsStore) ROOTPFX HELPME) HELPME))
 
-(def ^CryptoStoreAPI ^:private ROOTKS (cryptoStore (initStore! (getJksStore) ROOTJKS HELPME) HELPME))
+(def ^:private ^CryptoStoreAPI
+  ROOTKS (cryptoStore (initStore! (getJksStore) ROOTJKS HELPME) HELPME))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -80,9 +82,6 @@
                       pkey (bytesify (nsb TESTPWD))]
                   (stringify (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
-(is (= "heeloo" (let [pkey (bytesify (nsb TESTPWD))]
-                  (stringify (bcDecr pkey (bcEncr pkey "heeloo" "AES") "AES")))))
-
 (is (= "heeloo" (let [kp (asymKeyPair "RSA" 1024)
                       pu (.getEncoded (.getPublic kp))
                       pv (.getEncoded (.getPrivate kp))]
@@ -109,12 +108,12 @@
 
 (is (instance? Policy (easyPolicy)))
 
-(is (> (.length (genMac (bytesify "secret") "heeloo world")) 0))
-(is (> (.length (genHash "heeloo world")) 0))
+(is (> (.length (genMac (bytesify "secret") (bytesify "heeloo world"))) 0))
+(is (> (.length (genHash (bytesify "heeloo world"))) 0))
 
 (is (not (nil? (asymKeyPair "RSA" 1024))))
 
-(is (let [v (csrReQ 1024 "C=AU,ST=NSW,L=Sydney,O=Google,OU=HQ,CN=www.google.com" :PEM)]
+(is (let [v (csrReQ "C=AU,ST=NSW,L=Sydney,O=Google,OU=HQ,CN=www.google.com" 1024 :PEM)]
       (and (= (count v) 2)
            (> (alength ^bytes (first v)) 0)
            (> (alength ^bytes (nth v 1)) 0))) )
