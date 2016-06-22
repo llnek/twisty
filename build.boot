@@ -7,7 +7,9 @@
 
   :dependencies '[
 
-    [org.clojure/math.numeric-tower "0.0.4" ]
+    [czlab/czlab-xlib "1.0.0" ]
+
+    ;;[org.clojure/math.numeric-tower "0.0.4" ]
     [org.bouncycastle/bcprov-jdk15on "1.54"]
     [org.bouncycastle/bcmail-jdk15on "1.54"]
     [org.bouncycastle/bcpkix-jdk15on "1.54"]
@@ -18,7 +20,10 @@
     [com.sun.mail/javax.mail "1.5.5" ]
     [org.clojure/clojure "1.8.0" ]
 
-    [czlab/czlab-xlib "1.0.0" ]
+    [com.cemerick/pomegranate "0.3.1" :scope "provided"]
+    [net.mikera/cljunit "0.4.1" :scope "provided"]
+    [junit/junit "4.12"  :scope "provided"]
+
     [codox/codox "0.9.5" :scope "provided"]
   ]
 
