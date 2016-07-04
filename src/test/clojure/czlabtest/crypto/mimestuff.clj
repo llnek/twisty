@@ -16,12 +16,13 @@
 
   czlabtest.crypto.mimestuff
 
-  (:use [czlab.crypto.codec]
-        [czlab.crypto.stores]
+  (:use [czlab.crypto.stores]
+        [czlab.crypto.codec]
+        [czlab.crypto.smime]
+        [czlab.crypto.core]
         [czlab.xlib.core]
         [czlab.xlib.io]
         [czlab.xlib.meta]
-        [czlab.crypto.core]
         [clojure.test])
 
   (:import
