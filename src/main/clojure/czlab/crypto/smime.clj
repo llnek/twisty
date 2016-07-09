@@ -20,7 +20,6 @@
   (:require
     [czlab.xlib.io :refer [streamify byteOS resetStream!]]
     [czlab.xlib.str :refer [lcase ucase strim hgl?]]
-    [czlab.xlib.files :refer [writeOneFile]]
     [czlab.xlib.dates :refer [plusMonths]]
     [czlab.xlib.logging :as log]
     [clojure.string :as cs]
@@ -31,8 +30,6 @@
              throwBadArg
              newRandom
              bytesify
-             trycr
-             tryc
              try!
              trap!
              cast?
@@ -498,7 +495,7 @@
 
   (let [cproc (if (.isFile xdata)
                 (CMSProcessableFile. (.fileRef xdata))
-                (CMSProcessableByteArray. (.javaBytes xdata)))
+                (CMSProcessableByteArray. (.getBytes xdata)))
         cms (CMSSignedData. ^CMSProcessable cproc signature)
         sls (some-> cms (.getSignerInfos) (.getSigners))
         cs (JcaCertStore. [cert])
@@ -599,7 +596,7 @@
     (-> (.generate gen
                    (if (.isFile xs)
                      (CMSProcessableFile. (.fileRef xs))
-                     (CMSProcessableByteArray. (.javaBytes xs)))
+                     (CMSProcessableByteArray. (.getBytes xs)))
                    false)
         (.getEncoded))))
 
@@ -613,7 +610,7 @@
     [^String cType ^XData xs]
     (let [ds (if (.isFile xs)
                (SDataSource. (.fileRef xs) cType)
-               (SDataSource. (.javaBytes xs) cType))
+               (SDataSource. (.getBytes xs) cType))
           bp (MimeBodyPart.) ]
       (.setDataHandler bp (DataHandler. ds))
       (.generate (SMIMECompressedGenerator.)
@@ -632,7 +629,7 @@
      ^String cid ^XData xs]
     (let [ds (if (.isFile xs)
                (SDataSource. (.fileRef xs) cType)
-               (SDataSource. (.javaBytes xs) cType))
+               (SDataSource. (.getBytes xs) cType))
           bp (MimeBodyPart.) ]
       (when (hgl? contentLoc)
         (.setHeader bp "content-location" contentLoc))

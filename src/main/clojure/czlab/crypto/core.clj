@@ -20,7 +20,7 @@
   (:require
     [czlab.xlib.io :refer [streamify byteOS resetStream!]]
     [czlab.xlib.str :refer [lcase ucase strim hgl?]]
-    [czlab.xlib.files :refer [writeOneFile]]
+    [czlab.xlib.files :refer [writeFile]]
     [czlab.xlib.dates :refer [plusMonths]]
     [czlab.xlib.logging :as log]
     [clojure.string :as cs]
@@ -32,7 +32,6 @@
              newRandom
              bytesify
              trycr
-             tryc
              try!
              trap!
              cast?
@@ -815,7 +814,7 @@
                   ca
                   (into-array Certificate [ct]))
     (.store ss baos ca)
-    (writeOneFile out (.toByteArray baos))))
+    (writeFile out (.toByteArray baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -836,7 +835,7 @@
          v1# (mkSSV1 ~store
                       (asymKeyPair ~style keylen#)
                       ~pwdObj opts#) ]
-     (writeOneFile ~out v1#)))
+     (writeFile ~out v1#)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -952,7 +951,7 @@
              (dissoc :hack)
              (dissoc :issuerKey))
          (mkSSV3 ks pwdObj issuerObjs )
-         (writeOneFile out ))))
+         (writeFile out ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1013,7 +1012,7 @@
         ^X509Certificate x509 (first cl) ]
     (.addSignerInfoGenerator gen (.build bdr cs x509))
     (.addCertificates gen (JcaCertStore. cl))
-    (writeOneFile fileOut (-> (.generate gen dummy)
+    (writeFile fileOut (-> (.generate gen dummy)
                               (.getEncoded)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1138,7 +1137,7 @@
 
   (if (empty? dft)
     (if (hgl? cType)
-      (str (tryc
+      (str (try!
              (-> (ContentType. cType)
                  (.getParameter "charset")
                  (MimeUtility/javaCharset ))))
