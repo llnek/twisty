@@ -1066,7 +1066,7 @@
 
   [^Object obj]
 
-  (if-let [inp (mime/maybeStream obj) ]
+  (if-some [inp (mime/maybeStream obj) ]
     (try
       (->> (newMimeMsg "" "" inp)
            (.getContentType )
@@ -1087,7 +1087,7 @@
 
   [^Object obj]
 
-  (if-let [inp (mime/maybeStream obj) ]
+  (if-some [inp (mime/maybeStream obj) ]
     (try
       (->> (newMimeMsg "" "" inp)
            (.getContentType )
@@ -1111,7 +1111,7 @@
 
   [^Object obj]
 
-  (if-let [inp (mime/maybeStream obj) ]
+  (if-some [inp (mime/maybeStream obj) ]
     (try
       (->> (newMimeMsg "" "" inp)
            (.getContentType )
