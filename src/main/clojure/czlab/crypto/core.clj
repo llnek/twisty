@@ -31,7 +31,7 @@
              throwBadArg
              newRandom
              bytesify
-             trycr
+             try!!
              try!
              trap!
              cast?
@@ -1255,7 +1255,7 @@
 
   [^X509Certificate x509]
 
-  (trycr false (.checkValidity x509 (Date.))))
+  (try!! false (.checkValidity x509 (Date.))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

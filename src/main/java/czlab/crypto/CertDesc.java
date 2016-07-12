@@ -24,9 +24,16 @@ import java.util.Date;
  */
 public interface CertDesc {
 
+  /**/
   public X500Principal issuer();
+
+  /**/
   public X500Principal subj();
+
+  /**/
   public Date notBefore();
+
+  /**/
   public Date notAfter();
 
 }

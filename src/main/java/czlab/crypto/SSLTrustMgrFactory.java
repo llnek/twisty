@@ -22,9 +22,8 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
 import javax.net.ssl.X509TrustManager;
 
-import static java.lang.invoke.MethodHandles.*;
-import org.slf4j.Logger;
 import static org.slf4j.LoggerFactory.*;
+import org.slf4j.Logger;
 
 /**
  * A simple trust manager.
@@ -34,8 +33,9 @@ import static org.slf4j.LoggerFactory.*;
  */
 public class SSLTrustMgrFactory extends TrustManagerFactorySpi {
 
-  public static final Logger TLOG=getLogger(lookup().lookupClass());
+  public static final Logger TLOG=getLogger(SSLTrustMgrFactory.class);
 
+  /**/
   public static TrustManager[] getTrustManagers() {
     return new TrustManager[] {
       new X509TrustManager() {
@@ -52,11 +52,15 @@ public class SSLTrustMgrFactory extends TrustManagerFactorySpi {
     };
   }
 
+  /**/
   public TrustManager[] engineGetTrustManagers() {
     return SSLTrustMgrFactory.getTrustManagers();
   }
 
+  /**/
   public void engineInit(ManagerFactoryParameters p) {}
+
+  /**/
   public void engineInit(KeyStore ks) {}
 
 }

@@ -29,34 +29,45 @@ import javax.net.ssl.TrustManagerFactory;
 public interface CryptoStoreAPI {
 
   /**
-   * Add a private key.
-   */
-  public void addKeyEntity(byte[] keyBits, PasswordAPI pwdObj);
-
-  public TrustManagerFactory trustManagerFactory();
-  public KeyManagerFactory keyManagerFactory();
-
-  public Iterable<String> certAliases();
-  public Iterable<String> keyAliases();
-
-  /**
-   * Add a certificate.
-   */
-  public void addCertEntity(byte[] certBits);
-
-  /**
    * Get the private key.
    */
-  public KeyStore.PrivateKeyEntry keyEntity(String alias, PasswordAPI pwdObj);
+  public KeyStore.PrivateKeyEntry keyEntity(String alias, char[] pwd);
 
   /**
    * Get the certificate.
    */
   public KeyStore.TrustedCertificateEntry certEntity(String alias);
 
+  /**/
   public Iterable<X509Certificate> intermediateCAs();
+
+  /**/
   public Iterable<X509Certificate> rootCAs();
+
+  /**/
   public Iterable<X509Certificate> trustedCerts();
+
+  /**
+   * Add a private key.
+   */
+  public void addKeyEntity(byte[] keyBits, char[] pwd);
+
+  /**/
+  public TrustManagerFactory trustManagerFactory();
+
+  /**/
+  public KeyManagerFactory keyManagerFactory();
+
+  /**/
+  public Iterable<String> certAliases();
+
+  /**/
+  public Iterable<String> keyAliases();
+
+  /**
+   * Add a certificate.
+   */
+  public void addCertEntity(byte[] certBits);
 
   /**
    * Add a PKCS7 object.

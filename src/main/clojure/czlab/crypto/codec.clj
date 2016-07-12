@@ -19,7 +19,7 @@
 
   (:require
     [czlab.xlib.meta :refer [charsClass bytesClass]]
-    [czlab.xlib.str :refer [hgl?]]
+    [czlab.xlib.str :refer [stror hgl?]]
     [czlab.xlib.core
      :refer [newRandom
              bytesify
@@ -27,6 +27,8 @@
              throwBadArg]]
     [czlab.xlib.logging :as log]
     [czlab.xlib.io :refer [byteOS]])
+
+  (:use [czlab.xlib.consts])
 
   (:import
     [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
@@ -42,6 +44,7 @@
     [java.security Key KeyFactory SecureRandom]
     [javax.crypto Cipher]
     [czlab.crypto Cryptor PasswordAPI]
+    [czlab.xlib CU]
     [org.mindrot.jbcrypt BCrypt]
     [org.bouncycastle.crypto.engines
      BlowfishEngine
@@ -60,40 +63,38 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;(def ^:private ACHS "abcdefghijklmnopqrstuvqxyz1234567890-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" )
-;;(def ^:private PCHS "abcdefghijklmnopqrstuvqxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`1234567890-_~!@#$%^&*()" )
-
 (def
   ^:private
-  ^chars
-  VISCHS (.toCharArray (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
-                            "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")))
+  VISCHS
+  (->
+    (CU/shuffle (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
+                     "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-"))
+    (.toCharArray)))
 
+(def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" )
 (def ^:private VISCHS_LEN (alength ^chars VISCHS))
 
 (def
   ^:private
-  ^String
-  ACHS "nhJ0qrIz6FmtPCduWoS9x8vT2-KMaO7qlgApVX5_keyZDjfE13UsibYRGQ4NcLBH" )
+  s_asciiChars
+  (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz1234567890"
+                       "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ))
+      (.toCharArray)))
+
 (def
   ^:private
-  ^String
-  PCHS (str "Ha$4Jep8!`g)GYkmrIRN72^cObZ%oXlSPT39qLMD&"
-            "iC*UxKWhE#F5@qvV6j0f1dyBs-~tAQn(z_u" ))
-
-(def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" )
-(def ^:private ^chars s_asciiChars (.toCharArray ACHS))
-(def ^:private ^chars s_pwdChars (.toCharArray PCHS))
+  s_pwdChars
+  (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz"
+                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                       "`1234567890-_~!@#$%^&*()" ))
+      (.toCharArray)))
 
 (def ^:private ^String PWD_PFX "crypt:" )
 (def ^:private PWD_PFXLEN 6)
-;; TripleDES
-(def ^:private ^String T3_DES "DESede" )
-
-(def ^:private ^chars C_KEYCS (.toCharArray C_KEY))
-(def ^:private ^bytes C_KEYBS (bytesify C_KEY))
 
 ;; default javax supports this
+;; TripleDES
+(def ^:private ^String T3_DES "DESede" )
 (def ^:private ^String C_ALGO T3_DES)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -101,7 +102,6 @@
 (defn- ensureKeySize
 
   "Given an algo, make sure the key has enough bits"
-
   ^bytes
   [^bytes kkey ^String algo]
 
@@ -119,12 +119,11 @@
 (defn- keyAsBits
 
   "Given the algo, sanitize the key, chop length if necessary"
-
   ^bytes
   [^bytes pwd ^String algo]
 
   (let [blen (alength pwd)
-        bits (* 8 blen) ]
+        bits (* 8 blen)]
     (condp = algo
       "AES"
       (cond
@@ -145,10 +144,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; caesar cipher
-(defn- identify-ch
+(defn- identCh
 
   "Lookup a character by the given index"
-
   ^Character
   [pos]
 
@@ -156,10 +154,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- locate-ch
+(defn- locateCh
 
   "Given a character, return the index"
-
   ^long
   [^Character ch]
 
@@ -170,67 +167,58 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- slide-forward
+(defn- slideForward
 
   ""
-
-  ^Character
   [delta cpos]
 
   (let [ptr (+ cpos delta)]
-    (->> (if (>= ptr VISCHS_LEN) (- ptr VISCHS_LEN) ptr)
-         (identify-ch ))))
+    (-> (if (>= ptr VISCHS_LEN) (- ptr VISCHS_LEN) ptr)
+        (identCh ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- slide-back
+(defn- slideBack
 
   ""
-
-  ^Character
   [delta cpos]
 
   (let [ptr (- cpos delta)]
-    (->> (if (< ptr 0) (+ VISCHS_LEN ptr) ptr)
-         (identify-ch ))))
+    (-> (if (< ptr 0) (+ VISCHS_LEN ptr) ptr)
+        (identCh ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- shiftenc
 
   ""
-
-  ^Character
   [shiftpos delta cpos]
 
   (if (< shiftpos 0)
-    (slide-forward delta cpos)
-    (slide-back delta cpos)))
+    (slideForward delta cpos)
+    (slideBack delta cpos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- shiftdec
 
   ""
-
-  ^Character
   [shiftpos delta cpos]
 
   (if (< shiftpos 0)
-    (slide-back delta cpos)
-    (slide-forward delta cpos)))
+    (slideBack delta cpos)
+    (slideForward delta cpos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- caesar-amap-expr
+(defn- caesarAMapExpr
 
   ""
-
   ^Character
   [^chars ca pos shiftFunc]
 
   (let [ch (aget ca pos)
-        p (locate-ch ch) ]
+        p (locateCh ch)]
     (if (< p 0)
       ch
       (shiftFunc p))))
@@ -240,7 +228,6 @@
 (defn caesarEncrypt
 
   "Encrypt clear text by character rotation"
-
   ^String
   [^String text shiftpos]
 
@@ -251,7 +238,7 @@
           pf (partial shiftenc shiftpos delta)
           ca (.toCharArray text)
           out (amap ca pos ret
-                    (caesar-amap-expr ca pos pf)) ]
+                    (caesarAMapExpr ca pos pf)) ]
       (String. ^chars out))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -259,7 +246,6 @@
 (defn caesarDecrypt
 
   "Decrypt text which was encrypted by the caesar method"
-
   ^String
   [^String text shiftpos]
 
@@ -270,7 +256,7 @@
           pf (partial shiftdec shiftpos delta)
           ca (.toCharArray text)
           out (amap ca pos ret
-                    (caesar-amap-expr ca pos pf)) ]
+                    (caesarAMapExpr ca pos pf)) ]
       (String. ^chars out))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -278,10 +264,8 @@
 (defn- jaDecr
 
   "Decrypt using Jasypt"
-
   ^String
   [pkey data]
-
   {:pre [(= (charsClass) (class pkey))
          (instance? String data)]}
 
@@ -294,10 +278,8 @@
 (defn- jaEncr
 
   "Encrypt using Jasypt"
-
   ^String
   [pkey data]
-
   {:pre [(= (charsClass) (class pkey))
          (instance? String data)]}
 
@@ -310,7 +292,6 @@
 (defn jasyptCryptor
 
   "Make a cryptor using Jasypt lib"
-
   ^Cryptor
   []
 
@@ -329,21 +310,33 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
 (defn- getCipher
+
   ""
   ^Cipher
   [^bytes pkey mode ^String algo]
+
   (doto (Cipher/getInstance algo)
         (.init (int mode)
                (SecretKeySpec. (keyAsBits pkey algo) algo))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro java-decrypt "" {:private true
-                           :no-doc true} [pk algo]
+(defmacro java-decrypt
+
+  ""
+  {:private true :no-doc true}
+  [pk algo]
+
   `(getCipher ~pk Cipher/DECRYPT_MODE ~algo))
 
-(defmacro java-encrypt "" {:private true
-                           :no-doc true} [pk algo]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro java-encrypt
+
+  ""
+  {:private true :no-doc true}
+  [pk algo]
+
   `(getCipher ~pk Cipher/ENCRYPT_MODE ~algo))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -351,10 +344,8 @@
 (defn- javaEncr
 
   "Encrypt using Java"
-
   ^bytes
   [pkey data ^String algo]
-
   {:pre [(= (bytesClass) (class pkey))]}
 
   (when-not (empty? data)
@@ -365,11 +356,13 @@
               data)
           plen (alength p)
           baos (byteOS)
-          out (byte-array (max 4096 (.getOutputSize c plen)))
-          n (.update c p 0 plen out 0) ]
+          out (->> (.getOutputSize c plen)
+                   (max BUF_SZ)
+                   (byte-array ))
+          n (.update c p 0 plen out 0)]
       (when (> n 0)
         (.write baos out 0 n))
-      (let [n2 (.doFinal c out 0) ]
+      (let [n2 (.doFinal c out 0)]
         (when (> n2 0)
           (.write baos out 0 n2)))
       (.toByteArray baos))))
@@ -379,10 +372,8 @@
 (defn- javaDecr
 
   "Decrypt using Java"
-
   ^bytes
   [pkey encoded ^String algo]
-
   {:pre [(= (bytesClass) (class pkey))]}
 
   (when-not (empty? encoded)
@@ -393,11 +384,13 @@
               encoded)
           plen (alength p)
           baos (byteOS)
-          out (byte-array (max 4096 (.getOutputSize c plen)))
+          out (->> (.getOutputSize c plen)
+                   (max BUF_SZ)
+                   (byte-array ))
           n (.update c p 0 plen out 0)]
       (when (> n 0)
         (.write baos out 0 n))
-      (let [n2 (.doFinal c out 0) ]
+      (let [n2 (.doFinal c out 0)]
         (when (> n2 0)
           (.write baos out 0 n2)))
       (.toByteArray baos))))
@@ -407,7 +400,6 @@
 (defn javaCryptor
 
   "Make a Standard Java cryptor"
-
   ^Cryptor
   []
 
@@ -433,7 +425,6 @@
 (defn- bcXrefCipherEngine
 
   ""
-
   [^String algo]
 
   (condp = algo
@@ -448,7 +439,6 @@
 (defn asymEncr
 
   "Encrypt using a public key, returns a base64 encoded cipher"
-
   ^bytes
   [^bytes pubKey data]
 
@@ -468,7 +458,6 @@
 (defn asymDecr
 
   "Decrypt using a private key, input is a base64 encoded cipher"
-
   ^bytes
   [^bytes prvKey encoded]
 
@@ -488,7 +477,6 @@
 (defn- bcDecr
 
   "Decrypt using BouncyCastle"
-
   ^bytes
   [pkey encoded ^String algo]
 
@@ -502,12 +490,12 @@
           p (if (string? encoded)
               (bytesify encoded)
               encoded)
-          out (byte-array 1024)
+          out (byte-array KiloBytes)
           baos (byteOS)
-          c (.processBytes cipher p 0 (alength p) out 0) ]
+          c (.processBytes cipher p 0 (alength p) out 0)]
       (when (> c 0)
         (.write baos out 0 c))
-      (let [c2 (.doFinal cipher out 0) ]
+      (let [c2 (.doFinal cipher out 0)]
         (when (> c2 0)
           (.write baos out 0 c2)))
       (.toByteArray baos))))
@@ -517,7 +505,6 @@
 (defn- bcEncr
 
   "Encrypt using BouncyCastle, returning a base64 encoded cipher"
-
   ^bytes
   [pkey data ^String algo]
 
@@ -527,16 +514,16 @@
                            (PaddedBufferedBlockCipher. ))
                    (.init true
                           (KeyParameter. (keyAsBits pkey algo))))
-          out (byte-array 4096)
+          out (byte-array BUF_SZ)
           baos (byteOS)
           ^bytes
           p (if (string? data)
               (bytesify data)
               data)
-          c (.processBytes cipher p 0 (alength p) out 0) ]
+          c (.processBytes cipher p 0 (alength p) out 0)]
       (when (> c 0)
         (.write baos out 0 c))
-      (let [c2 (.doFinal cipher out 0) ]
+      (let [c2 (.doFinal cipher out 0)]
         (when (> c2 0)
           (.write baos out 0 c2)))
       (.toByteArray baos))))
@@ -546,7 +533,6 @@
 (defn bouncyCryptor
 
   "Make a cryptor using BouncyCastle"
-
   ^Cryptor
   []
 
@@ -571,7 +557,6 @@
 (defn- createXXX
 
   ""
-
   [^chars chArray len]
 
   (cond
@@ -593,7 +578,6 @@
 (defn- reifyPassword
 
   ""
-
   [^String pwdStr ^String pkey]
 
   (reify
@@ -652,14 +636,13 @@
 (defn pwdify
 
   "Create a password object"
-
   ^PasswordAPI
   [^String pwdStr & [pkey]]
 
   {:pre [(or (nil? pwdStr)(string? pwdStr))
          (or (nil? pkey)(string? pkey))]}
 
-  (let [^String pkey (or pkey C_KEY)]
+  (let [^String pkey (stror pkey C_KEY)]
     (if
       (.startsWith (str pwdStr) PWD_PFX)
       (reifyPassword
@@ -674,7 +657,6 @@
 (defn randomStr
 
   "Randomly generate some text"
-
   ^String
   [len]
 
@@ -685,7 +667,6 @@
 (defn strongPwd
 
   "Generate a strong password"
-
   ^PasswordAPI
   [len]
 
