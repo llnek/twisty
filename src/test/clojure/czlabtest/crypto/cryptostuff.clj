@@ -40,12 +40,12 @@
 ;;
 (def ^:private ^chars C_KEY (.toCharArray "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 (def ^:private ^chars B_KEY (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
-(def ^:private TESTPWD (pwdify "secretsecretsecretsecretsecret"))
+(def ^:private ^chars TESTPWD (.toCharArray "secretsecretsecretsecretsecret"))
 (def ^:private ENDDT (.getTime (GregorianCalendar. 2050 1 1)))
 (def ^:private ROOTPFX (resBytes "czlab/crypto/test.pfx"))
 (def ^:private ROOTJKS (resBytes "czlab/crypto/test.jks"))
-(def ^:private HELPME (pwdify "helpme"))
-(def ^:private SECRET (pwdify "secret"))
+(def ^:private HELPME (.toCharArray "helpme"))
+(def ^:private SECRET (.toCharArray "secret"))
 
 (def ^:private ^CryptoStoreAPI
   ROOTCS (cryptoStore (initStore! (getPkcsStore) ROOTPFX HELPME) HELPME))
@@ -65,21 +65,21 @@
                   (.decrypt c C_KEY (.encrypt c C_KEY "heeloo")))))
 
 (is (= "heeloo" (let [c (jasyptCryptor)
-                      pkey (.toCharArray (nsb SECRET))]
+                      pkey SECRET]
                   (.decrypt c pkey (.encrypt c pkey "heeloo")))))
 
 (is (= "heeloo" (let [c (javaCryptor)]
                   (stringify (.decrypt c B_KEY (.encrypt c B_KEY "heeloo"))))))
 
 (is (= "heeloo" (let [c (javaCryptor)
-                      pkey (bytesify (nsb TESTPWD))]
+                      pkey (bytesify (String. ^chars TESTPWD))]
                   (stringify (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
 (is (= "heeloo" (let [c (bouncyCryptor)]
                   (stringify (.decrypt c B_KEY (.encrypt c B_KEY "heeloo"))))))
 
 (is (= "heeloo" (let [c (bouncyCryptor)
-                      pkey (bytesify (nsb TESTPWD))]
+                      pkey (bytesify (String. ^chars TESTPWD))]
                   (stringify (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
 (is (= "heeloo" (let [kp (asymKeyPair "RSA" 1024)
@@ -118,7 +118,7 @@
            (> (alength ^bytes (first v)) 0)
            (> (alength ^bytes (nth v 1)) 0))) )
 
-(is (let [fout (tempFile "Kenneth Leung" ".p12")]
+(is (let [fout (tempFile "Joe Blogg" ".p12")]
       (ssv1PKCS12 "C=AU,ST=NSW,L=Sydney,O=Google"
                   HELPME
                   fout
@@ -141,7 +141,9 @@
       (ssv3PKCS12 "C=AU,ST=NSW,L=Sydney,O=Google"
                   SECRET
                   fout
-                  { :start (Date.) :end ENDDT :issuerCerts (seq cs) :issuerKey pk })
+                  {:start (Date.)
+                   :end ENDDT
+                   :issuerCerts (seq cs) :issuerKey pk })
       (> (.length fout) 0)))
 
 (is (let [^KeyStore$PrivateKeyEntry pke
@@ -153,7 +155,9 @@
       (ssv3JKS "C=AU,ST=NSW,L=Sydney,O=Google"
                SECRET
                fout
-               { :start (Date.) :end ENDDT :issuerCerts (seq cs) :issuerKey pk })
+               {:start (Date.)
+                :end ENDDT
+                :issuerCerts (seq cs) :issuerKey pk })
       (> (.length fout) 0)))
 
 (is (let [^File fout (tempFile "x" ".p7b")]

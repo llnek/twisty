@@ -12,7 +12,7 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-(ns ^{:doc "A Crypto store"
+(ns ^{:doc "A Crypto store."
       :author "Kenneth Leung" }
 
   czlab.crypto.stores
@@ -28,7 +28,7 @@
              getPkcsStore
              getJksStore]]
     [czlab.xlib.logging :as log]
-    [czlab.xlib.str :refer [hgl?]])
+    [czlab.xlib.str :refer [stror hgl?]])
 
   (:import
     [java.security.cert CertificateFactory X509Certificate Certificate]
@@ -52,7 +52,6 @@
 (defn- onNewKey
 
   "Insert private key & certs into this keystore"
-
   [^KeyStore keystore ^String nm
    ^KeyStore$PrivateKeyEntry pke
    ^chars pwd]
@@ -68,7 +67,6 @@
 (defn- getCAs
 
   ""
-
   [^KeyStore keystore tca root]
 
   (loop [en (.aliases keystore)
@@ -94,7 +92,6 @@
 (defn- mkstore
 
   ""
-
   ^KeyStore
   [^KeyStore keystore]
 
@@ -108,22 +105,20 @@
 (defn cryptoStore
 
   "Create a crypto store"
-
   ^CryptoStoreAPI
-  [^KeyStore keystore ^PasswordAPI passwdObj]
+  [^KeyStore keystore ^chars passwd]
 
   (reify
 
     CryptoStoreAPI
 
-    (addKeyEntity [this bits pwdObj]
+    (addKeyEntity [this bits pwd]
       ;; we load the p12 content into an empty keystore, then extract the entry
       ;; and insert it into the current one.
-      (let [ch (.toCharArray ^PasswordAPI pwdObj)
-            tmp (doto (mkstore keystore) (.load bits ch))
+      (let [tmp (doto (mkstore keystore) (.load bits pwd))
             pkey (getPKey tmp (-> (.aliases tmp)
-                                  (.nextElement)) ch) ]
-        (onNewKey keystore (newAlias) pkey ch)))
+                                  (.nextElement)) pwd)]
+        (onNewKey keystore (newAlias) pkey pwd)))
 
     (addCertEntity [_ bits]
       (let [fac (CertificateFactory/getInstance "X.509")]
@@ -139,14 +134,13 @@
     (keyManagerFactory [_]
       (doto (KeyManagerFactory/getInstance
               (KeyManagerFactory/getDefaultAlgorithm))
-            (.init keystore  (.toCharArray passwdObj))))
+            (.init keystore  passwd)))
 
     (certAliases [_] (certAliases keystore))
     (keyAliases [_] (pkeyAliases keystore))
 
-    (keyEntity [_ nm pwdObj]
-      (->> (.toCharArray ^PasswordAPI pwdObj)
-           (getPKey keystore nm )))
+    (keyEntity [_ nm pwd]
+      (getPKey keystore nm pwd))
 
     (certEntity [_ nm]
       (getCert keystore nm))

@@ -44,7 +44,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (def ^:private ROOTPFX (resBytes "czlab/crypto/test.pfx"))
-(def ^:private ^PasswordAPI HELPME (pwdify "helpme"))
+(def ^:private HELPME (.toCharArray "helpme"))
 (def ^:private ^CryptoStoreAPI
   ROOTCS
   (cryptoStore (initStore! (getPkcsStore) ROOTPFX HELPME) HELPME))
@@ -55,7 +55,7 @@
 (deftest czlabtestcrypto-mimestuff
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [msg (newMimeMsg "" "" inp)
+      (let [msg (newMimeMsg "" (char-array 0) inp)
             ^Multipart mp (.getContent msg)]
         (and (>= (.indexOf (.getContentType msg) "multipart/mixed") 0)
              (== (.getCount mp) 2)
@@ -67,7 +67,7 @@
       (let [^KeyStore$PrivateKeyEntry pke
             (.keyEntity ROOTCS
                         ^String (first (.keyAliases ROOTCS)) HELPME)
-            msg (newMimeMsg "" "" inp)
+            msg (newMimeMsg "" (char-array 0) inp)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
             rc (smimeDigSig  pk msg SHA512 cs)]
@@ -77,7 +77,7 @@
       (let [^KeyStore$PrivateKeyEntry pke
             (.keyEntity ROOTCS
                         ^String (first (.keyAliases ROOTCS)) HELPME)
-            msg (newMimeMsg "" "" inp)
+            msg (newMimeMsg "" (char-array 0) inp)
             mp (.getContent msg)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
@@ -89,7 +89,7 @@
             pke (.keyEntity ROOTCS
                             ^String (first (.keyAliases ROOTCS))
                             HELPME)
-            msg (newMimeMsg "" "" inp)
+            msg (newMimeMsg "" (char-array 0) inp)
             ^Multipart mp (.getContent msg)
             bp (.getBodyPart mp 1)
             cs (.getCertificateChain pke)
@@ -101,16 +101,16 @@
       (let [^KeyStore$PrivateKeyEntry
             pke (.keyEntity ROOTCS
                             ^String (first (.keyAliases ROOTCS)) HELPME)
-            msg (newMimeMsg "" "" inp)
+            msg (newMimeMsg "" (char-array 0) inp)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
             mp (smimeDigSig  pk msg SHA512 cs)
             baos (byteOS)
-            msg2 (doto (newMimeMsg "" "")
+            msg2 (doto (newMimeMsg "" (char-array 0))
                    (.setContent (cast Multipart mp))
                    (.saveChanges)
                    (.writeTo baos))
-            msg3 (newMimeMsg "" "" (streamify (.toByteArray baos)))
+            msg3 (newMimeMsg "" (char-array 0) (streamify (.toByteArray baos)))
             mp3 (.getContent msg3)
             rc (peekSmimeSignedContent mp3)]
         (instance? Multipart rc))))
@@ -119,13 +119,13 @@
       (let [^KeyStore$PrivateKeyEntry pke
             (.keyEntity ROOTCS
                         ^String (first (.keyAliases ROOTCS)) HELPME)
-            msg (newMimeMsg "" "" inp)
+            msg (newMimeMsg "" (char-array 0) inp)
             cs (.getCertificateChain pke)
             pk (.getPrivateKey pke)
             mp (smimeDigSig  pk msg SHA512 cs)
             baos (byteOS)
-            msg2 (doto (newMimeMsg "" "")
-                   (.setContent (cast Multipart mp))
+            msg2 (doto (newMimeMsg "" (char-array 0))
+                   (.setContent (cast? Multipart mp))
                    (.saveChanges)
                    (.writeTo baos))
             msg3 (newMimeMsg "" "" (streamify (.toByteArray baos)))
@@ -201,11 +201,11 @@
         false)))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [msg (newMimeMsg "" "" inp)
+      (let [msg (newMimeMsg "" (char-array 0) inp)
             bp (smimeCompress msg)
             ^XData x (smimeDecompress bp)]
         (if (and (not (nil? x))
-                 (> (alength ^bytes (.javaBytes x)) 0))
+                 (> (alength ^bytes (.getBytes x)) 0))
           true
           false))))
 
@@ -213,7 +213,7 @@
           baos (byteOS)
           ^XData x (smimeDecompress bp)]
       (if (and (not (nil? x))
-               (> (alength ^bytes (.javaBytes x)) 0) )
+               (> (alength ^bytes (.getBytes x)) 0) )
         true
         false)))
 
@@ -223,7 +223,7 @@
           baos (byteOS)
           ^XData x (smimeDecompress bp)]
       (if (and (not (nil? x))
-               (> (alength ^bytes (.javaBytes x)) 0) )
+               (> (alength ^bytes (.getBytes x)) 0) )
         true
         false)))
 

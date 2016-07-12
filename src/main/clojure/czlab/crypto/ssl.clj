@@ -12,7 +12,7 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-(ns ^{:doc "SSL related functions"
+(ns ^{:doc "Various SSL helpers."
       :author "Kenneth Leung" }
 
   czlab.crypto.ssl
@@ -20,6 +20,7 @@
   (:require
     [czlab.crypto.stores :refer [cryptoStore]]
     [czlab.xlib.core :refer [newRandom]]
+    [czlab.xlib.str :refer [stror]]
     [czlab.xlib.logging :as log]
     [czlab.crypto.core
      :refer [pkcsFile?
@@ -47,19 +48,20 @@
 
   ^SSLContext
   [^URL keyUrl
-   ^PasswordAPI pwdObj & [flavor]]
+   ^chars pwd & [flavor]]
 
   (let
     [ks (with-open
           [inp (.openStream keyUrl)]
           (if (pkcsFile? keyUrl)
-            (getPkcsStore inp pwdObj)
-            (getJksStore inp pwdObj)))
-     cs (cryptoStore ks pwdObj)
+            (getPkcsStore inp pwd)
+            (getJksStore inp pwd)))
+     cs (cryptoStore ks pwd)
      tmf (.trustManagerFactory cs)
      kmf (.keyManagerFactory cs)
-     ctx (->> (str (or flavor "TLS"))
-              (SSLContext/getInstance ))]
+     ctx (-> ^String
+             (stror flavor "TLS")
+             (SSLContext/getInstance ))]
     (.init ctx
            (.getKeyManagers kmf)
            (.getTrustManagers tmf)
@@ -71,11 +73,10 @@
 (defn sslClientCtx
 
   "Make a client-side SSLContext"
-
   ^SSLContext
-  [ssl]
+  [ssl?]
 
-  (when ssl
+  (when ssl?
     (doto (SSLContext/getInstance "TLS")
           (.init nil (SSLTrustMgrFactory/getTrustManagers) (newRandom)))))
 
