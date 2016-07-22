@@ -604,16 +604,16 @@
     (stronglyHashed [_]
       (if-not (nil? pwdStr)
         (let [s (BCrypt/gensalt 12) ]
-          {:hashed (BCrypt/hashpw pwdStr s)
+          {:hash (BCrypt/hashpw pwdStr s)
            :salt s})
-        {:hashed "" :salt ""}))
+        {:hash "" :salt ""}))
 
     (hashed [_]
       (if-not (nil? pwdStr)
         (let [s (BCrypt/gensalt 10) ]
-          {:hashed (BCrypt/hashpw pwdStr s)
+          {:hash (BCrypt/hashpw pwdStr s)
            :salt s})
-        {:hashed "" :salt ""}))
+        {:hash "" :salt ""}))
 
     (validateHash [this pwdHashed]
       (BCrypt/checkpw (.text this) pwdHashed))
