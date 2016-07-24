@@ -22,7 +22,7 @@ import java.util.Date;
  * @author kenl
  *
  */
-public interface CertDesc {
+public interface CertGist {
 
   /**/
   public X500Principal issuer();

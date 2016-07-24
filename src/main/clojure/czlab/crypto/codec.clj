@@ -21,12 +21,12 @@
     [czlab.xlib.meta :refer [charsClass bytesClass]]
     [czlab.xlib.str :refer [stror hgl?]]
     [czlab.xlib.core
-     :refer [newRandom
+     :refer [srandom<>
              bytesify
              stringify
              throwBadArg]]
     [czlab.xlib.logging :as log]
-    [czlab.xlib.io :refer [byteOS]])
+    [czlab.xlib.io :refer [baos<>]])
 
   (:use [czlab.xlib.consts])
 
@@ -289,7 +289,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn jasyptCryptor
+(defn jasypt<>
 
   "Make a cryptor using Jasypt lib"
   ^Cryptor
@@ -397,7 +397,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn javaCryptor
+(defn javaCryptor<>
 
   "Make a Standard Java cryptor"
   ^Cryptor
@@ -530,7 +530,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn bouncyCryptor
+(defn bcastle<>
 
   "Make a cryptor using BouncyCastle"
   ^Cryptor
@@ -565,7 +565,7 @@
     :else
     (let [ostr (char-array len)
           cl (alength chArray)
-          r (newRandom)
+          r (srandom<>)
           rc (amap ^chars ostr
                pos
                ret
@@ -625,7 +625,7 @@
         (empty? pwdStr)
         ""
         :else
-        (str PWD_PFX (.encrypt (jasyptCryptor)
+        (str PWD_PFX (.encrypt (jasypt<>)
                                (.toCharArray pkey)
                                pwdStr))))
 
@@ -633,7 +633,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pwdify
+(defn passwd<>
 
   "Create a password object"
   ^PasswordAPI
@@ -646,7 +646,7 @@
     (if
       (.startsWith (str pwdStr) PWD_PFX)
       (reifyPassword
-        (.decrypt (jasyptCryptor)
+        (.decrypt (jasypt<>)
                   (.toCharArray pkey)
                   (.substring pwdStr PWD_PFXLEN)) pkey)
       ;else
@@ -670,7 +670,7 @@
   ^PasswordAPI
   [len]
 
-  (pwdify (createXXX  s_pwdChars len)))
+  (passwd<> (createXXX  s_pwdChars len)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
