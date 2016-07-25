@@ -31,12 +31,12 @@ public interface CryptoStoreAPI {
   /**
    * Get the private key.
    */
-  public KeyStore.PrivateKeyEntry keyEntity(String alias, char[] pwd);
+  public PKeyGist keyEntity(String alias, char[] pwd);
 
   /**
    * Get the certificate.
    */
-  public KeyStore.TrustedCertificateEntry certEntity(String alias);
+  public Certificate certEntity(String alias);
 
   /**/
   public Iterable<X509Certificate> intermediateCAs();
@@ -50,7 +50,7 @@ public interface CryptoStoreAPI {
   /**
    * Add a private key.
    */
-  public void addKeyEntity(byte[] keyBits, char[] pwd);
+  public void addKeyEntity(PKeyGist gist, char[] pwd);
 
   /**/
   public TrustManagerFactory trustManagerFactory();
@@ -67,7 +67,7 @@ public interface CryptoStoreAPI {
   /**
    * Add a certificate.
    */
-  public void addCertEntity(byte[] certBits);
+  public void addCertEntity(Certificate cert);
 
   /**
    * Add a PKCS7 object.

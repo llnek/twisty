@@ -12,20 +12,20 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-(ns ^{:doc "Various SSL helpers."
+(ns ^{:doc "SSL helpers."
       :author "Kenneth Leung" }
 
   czlab.crypto.ssl
 
   (:require
-    [czlab.crypto.stores :refer [cryptoStore]]
-    [czlab.xlib.core :refer [newRandom]]
+    [czlab.crypto.stores :refer [cryptoStore<>]]
+    [czlab.xlib.core :refer [srandom<>]]
     [czlab.xlib.str :refer [stror]]
     [czlab.xlib.logging :as log]
     [czlab.crypto.core
-     :refer [pkcsFile?
-             getJksStore
-             getPkcsStore]])
+     :refer [jksFile?
+             jksStore<>
+             pkcsStore<>]])
 
   (:import
     [javax.net.ssl X509TrustManager TrustManager]
@@ -47,16 +47,15 @@
   "Make a server-side SSLContext"
 
   ^SSLContext
-  [^URL keyUrl
-   ^chars pwd & [flavor]]
+  [^URL keyUrl ^chars pwd & [flavor]]
 
   (let
     [ks (with-open
           [inp (.openStream keyUrl)]
-          (if (pkcsFile? keyUrl)
-            (getPkcsStore inp pwd)
-            (getJksStore inp pwd)))
-     cs (cryptoStore ks pwd)
+          (if (jksFile? keyUrl)
+            (getJksStore inp pwd)
+            (getPkcsStore inp pwd)))
+     cs (cryptoStore<> ks pwd)
      tmf (.trustManagerFactory cs)
      kmf (.keyManagerFactory cs)
      ctx (-> ^String
@@ -65,7 +64,7 @@
     (.init ctx
            (.getKeyManagers kmf)
            (.getTrustManagers tmf)
-           (newRandom))
+           (srandom<>))
     ctx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,7 +77,7 @@
 
   (when ssl?
     (doto (SSLContext/getInstance "TLS")
-          (.init nil (SSLTrustMgrFactory/getTrustManagers) (newRandom)))))
+          (.init nil (SSLTrustMgrFactory/getTrustManagers) (srandom<>)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

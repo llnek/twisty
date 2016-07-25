@@ -441,14 +441,13 @@
 
   (if (nil? inp)
     (xdata<>)
-    (let [cms (-> (CMSCompressedDataParser. inp)
+    (if-some [cms (-> (CMSCompressedDataParser. inp)
                   (.getContent (ZlibExpanderProvider.)))]
-      (when (nil? cms)
-        (trap! GeneralSecurityException
-               "Decompress stream: corrupted content"))
       (->> (.getContentStream cms)
-           (IOUtils/toByteArray )
-           (XData. )))))
+           (toBytes )
+           (xdata<> ))
+      (trap! GeneralSecurityException
+             "Decompress stream: corrupted content"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -456,13 +455,13 @@
 
   "Verify the signed object with the signature"
   ^bytes
-  [^Certificate cert ^XData xdata ^bytes signature]
+  [^Certificate cert ^XData dx ^bytes signature]
 
-  (let [^CMSProcessable
-        cproc (if (.isFile xdata)
-                (CMSProcessableFile. (.fileRef xdata))
-                (CMSProcessableByteArray. (.getBytes xdata)))
-        cms (CMSSignedData. cproc signature)
+  (let [cms (->> ^CMSProcessable
+                 (if (.isFile dx)
+                   (CMSProcessableFile. (.fileRef dx))
+                   (CMSProcessableByteArray. (.getBytes dx)))
+                 (CMSSignedData. signature))
         sls (some-> cms (.getSignerInfos) (.getSigners))
         cs (JcaCertStore. [cert])
         rc (some
@@ -486,7 +485,7 @@
                      (if (nil? dg)
                        (recur c it nil false)
                        (recur c it dg true))))))
-             (seq sls)) ]
+             (seq sls))]
     (when (nil? rc)
       (trap! GeneralSecurityException
              "Decode signature: no matching cert"))
@@ -497,15 +496,15 @@
 (defn testSmimeDigSig
 
   "Verify the signature and return content if ok"
-  [^Multipart mp certs & [^String cte] ]
+  [^MimeMultipart mp certs & [^String cte]]
 
   (let
     [sc (if (hgl? cte)
-          (SMIMESigned. ^MimeMultipart mp cte)
-          (SMIMESigned. ^MimeMultipart mp))
+          (SMIMESigned. mp cte)
+          (SMIMESigned. mp))
      sns (-> (.getSignerInfos sc)
              (.getSigners))
-     s (JcaCertStore. (vec certs))
+     s (JcaCertStore. certs)
      rc (some
           (fn [^SignerInformation si]
             (loop
@@ -530,7 +529,7 @@
       (trap! GeneralSecurityException "Verify signature: no matching cert"))
 
     [(some-> sc
-             (.getContentAsMimeMessage (newSession))
+             (.getContentAsMimeMessage (session<>))
              (.getContent))
      (nth rc 1) ] ))
 
@@ -550,12 +549,11 @@
                (.setProvider _BCProvider)
                (.build pkey))
         gen (CMSSignedDataGenerator.)
-        cl (vec certs)
-        cert (first cl) ]
+        cert (first certs)]
     (.setDirectSignature bdr true)
     (->> (.build bdr cs ^X509Certificate cert)
          (.addSignerInfoGenerator gen ))
-    (->> (JcaCertStore. cl)
+    (->> (JcaCertStore. certs)
          (.addCertificates gen ))
     (-> (.generate gen
                    ^CMSProcessable

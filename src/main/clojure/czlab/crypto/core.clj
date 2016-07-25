@@ -352,7 +352,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn tcerte
+(defn tcert
 
   "Get a certificate from store"
   ^Certificate
