@@ -12,23 +12,23 @@
 ;;
 ;; Copyright (c) 2013-2016, Kenneth Leung. All rights reserved.
 
-(ns ^{:doc "Various S/MIME helpers."
+(ns ^{:doc "S/MIME helpers."
       :author "Kenneth Leung" }
 
   czlab.crypto.smime
 
   (:require
-    [czlab.xlib.io :refer [streamify byteOS resetStream!]]
+    [czlab.xlib.io :refer [xdata<> toBytes streamify baos<> resetStream!]]
     [czlab.xlib.str :refer [stror lcase ucase strim hgl?]]
-    [czlab.xlib.dates :refer [plusMonths]]
+    [czlab.xlib.dates :refer [+months]]
     [czlab.xlib.logging :as log]
     [clojure.string :as cs]
     [czlab.xlib.mime :as mime]
     [czlab.xlib.core
-     :refer [nextInt
+     :refer [throwBadArg
+             seqint
              throwIOE
-             throwBadArg
-             newRandom
+             srandom<>
              bytesify
              try!
              trap!
@@ -167,14 +167,14 @@
     [org.apache.commons.io IOUtils]
     [czlab.crypto SSLTrustMgrFactory
      PasswordAPI
-     CertDesc
+     PKeyGist
+     CertGist
      SDataSource]
     [czlab.xlib XData]
     [java.lang Math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -184,7 +184,7 @@
   ^String
   [algo]
 
-  (condp = algo
+  (case algo
     "SHA-512" SMIMESignedGenerator/DIGEST_SHA512
     "SHA-1" SMIMESignedGenerator/DIGEST_SHA1
     "MD5" SMIMESignedGenerator/DIGEST_MD5
@@ -192,39 +192,34 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- makeSignerGentor
+(defn- signerGentor<>
 
   "Create a SignedGenerator"
   ^SMIMESignedGenerator
-  [^PrivateKey pkey
-   ^String algo
-   certs]
+  [^PrivateKey pkey ^String algo certs]
 
   (let [gen (SMIMESignedGenerator. "base64")
-        lst (vec certs)
         caps (doto (SMIMECapabilityVector.)
                (.addCapability SMIMECapability/dES_EDE3_CBC)
                (.addCapability SMIMECapability/rC2_CBC, 128)
                (.addCapability SMIMECapability/dES_CBC))
         signedAttrs (doto (ASN1EncodableVector.)
                       (.add (SMIMECapabilitiesAttribute. caps)))
-        ^X509Certificate subj (first lst)
-        ^X509Certificate issuer (if (> (count lst) 1)
-                                  (nth lst 1)
+        ^X509Certificate subj (first certs)
+        ^X509Certificate issuer (if (> (count certs) 1)
+                                  (nth certs 1)
                                   subj)
         issuerDN (.getSubjectX500Principal issuer)
-         ;;
          ;; add an encryption key preference for encrypted responses -
          ;; normally this would be different from the signing certificate...
-         ;;
-        issAndSer (new IssuerAndSerialNumber
+        issAndSer (IssuerAndSerialNumber.
                        (->> (.getEncoded issuerDN)
                             (X500Name/getInstance))
                        (.getSerialNumber subj))
         dm1 (->> issAndSer
                  (SMIMEEncryptionKeyPreferenceAttribute. )
                  (.add signedAttrs ))
-        bdr (doto (new JcaSignerInfoGeneratorBuilder
+        bdr (doto (JcaSignerInfoGeneratorBuilder.
                        (-> (JcaDigestCalculatorProviderBuilder. )
                            (.setProvider _BCProvider)
                            (.build)))
@@ -238,27 +233,23 @@
          (.setSignedAttributeGenerator bdr ))
     (->> (.build bdr cs subj)
          (.addSignerInfoGenerator gen ))
-    (->> (JcaCertStore. lst)
+    (->> (JcaCertStore. certs)
          (.addCertificates gen ))
     gen))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmulti smimeDigSig
-  "Generates a MimeMultipart" (fn [a b c d] (class b)))
+  "Generates a MimeMultipart"  ^Object (fn [a b & xs] (class b)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
 
   MimeMessage
+  [^PrivateKey pkey ^MimeMessage mmsg ^String algo certs]
 
-  [^PrivateKey pkey
-   ^MimeMessage mmsg
-   ^String algo
-   certs]
-
-  (let [g (makeSignerGentor pkey algo certs)]
+  (let [g (signerGentor<> pkey algo certs)]
     ;; force internal processing, just in case
     (.getContent mmsg)
     (.generate g mmsg)))
@@ -268,14 +259,10 @@
 (defmethod smimeDigSig
 
   Multipart
+  [^PrivateKey pkey ^Multipart mp ^String algo certs]
 
-  [^PrivateKey pkey
-   ^Multipart mp
-   ^String algo
-   certs]
-
-  (let [g (makeSignerGentor pkey algo certs)
-        mm (newMimeMsg)]
+  (let [g (signerGentor<> pkey algo certs)
+        mm (mimeMsg<>)]
     (.setContent mm mp)
     (.generate g mm)))
 
@@ -284,13 +271,9 @@
 (defmethod smimeDigSig
 
   BodyPart
+  [^PrivateKey pkey ^BodyPart bp ^String algo certs]
 
-  [^PrivateKey pkey
-   ^BodyPart bp
-   ^String algo
-   certs]
-
-  (-> (makeSignerGentor pkey algo certs)
+  (-> (signerGentor<> pkey algo certs)
       (.generate ^MimeBodyPart bp)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -299,11 +282,11 @@
 
   "Get the content ignoring the signing stuff"
   ^Object
-  [^Multipart mp]
+  [^MimeMultipart mp]
 
   (some-> (SMIMESignedParser.
             (BcDigestCalculatorProvider.)
-            ^MimeMultipart mp
+            mp
             (getCharset (.getContentType mp) "binary"))
           (.getContent)
           (.getContent)))
@@ -338,7 +321,7 @@
   [^SMIMEEnveloped ev pkeys]
 
   (let [rc (some #(if-some [cms (smimeDec ^PrivateKey %1 ev)]
-                     (IOUtils/toByteArray (.getContentStream cms))
+                     (toBytes (.getContentStream cms))
                      nil)
                  pkeys)]
     (when (nil? rc)
@@ -355,7 +338,6 @@
 (defmethod smimeDecrypt
 
   MimeMessage
-
   [^MimeMessage mimemsg pkeys]
 
   (smimeLoopDec (SMIMEEnveloped. mimemsg) pkeys))
@@ -364,12 +346,10 @@
 ;;
 (defmethod smimeDecrypt
 
-  BodyPart
+  MimeBodyPart
+  [^MimeBodyPart part pkeys]
 
-  [^BodyPart part pkeys]
-
-  (-> ^MimeBodyPart part
-      (SMIMEEnveloped. )
+  (-> (SMIMEEnveloped. part)
       (smimeLoopDec pkeys)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -382,14 +362,12 @@
 (defmethod smimeEncrypt
 
   BodyPart
-
-  [^Certificate cert ^String algo ^BodyPart bp]
+  [^X509Certificate cert ^String algo ^BodyPart bp]
 
   (let [gen (SMIMEEnvelopedGenerator.)]
     (.addRecipientInfoGenerator
       gen
-      (-> ^X509Certificate cert
-          (JceKeyTransRecipientInfoGenerator. )
+      (-> (JceKeyTransRecipientInfoGenerator. cert)
           (.setProvider _BCProvider)))
     (.generate
       gen
@@ -403,16 +381,14 @@
 (defmethod smimeEncrypt
 
   MimeMessage
-
-  [^Certificate cert ^String algo ^MimeMessage msg]
+  [^X509Certificate cert ^String algo ^MimeMessage msg]
 
   (let [gen (SMIMEEnvelopedGenerator.)]
     ;; force message to be processed, just in case.
     (.getContent msg)
     (.addRecipientInfoGenerator
       gen
-      (-> ^X509Certificate cert
-          (JceKeyTransRecipientInfoGenerator. )
+      (-> (JceKeyTransRecipientInfoGenerator. cert)
           (.setProvider _BCProvider)))
     (.generate
       gen
@@ -426,18 +402,16 @@
 (defmethod smimeEncrypt
 
   Multipart
-
-  [^Certificate cert ^String algo ^Multipart mp]
+  [^X509Certificate cert ^String algo ^Multipart mp]
 
   (let [gen (SMIMEEnvelopedGenerator.)]
     (.addRecipientInfoGenerator
       gen
-      (-> ^X509Certificate cert
-          (JceKeyTransRecipientInfoGenerator. )
+      (-> (JceKeyTransRecipientInfoGenerator. cert)
           (.setProvider _BCProvider)))
     (.generate
       gen
-      (doto (newMimeMsg)(.setContent mp))
+      (doto (mimeMsg<>) (.setContent mp))
       (-> (JceCMSContentEncryptorBuilder. algo)
           (.setProvider _BCProvider)
           (.build)))))
@@ -452,11 +426,10 @@
 (defmethod smimeDecompress
 
   BodyPart
-
   [^BodyPart bp]
 
   (if (nil? bp)
-    (XData.)
+    (xdata<>)
     (smimeDecompress (.getInputStream bp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -464,11 +437,10 @@
 (defmethod smimeDecompress
 
   InputStream
-
   [^InputStream inp]
 
   (if (nil? inp)
-    (XData.)
+    (xdata<>)
     (let [cms (-> (CMSCompressedDataParser. inp)
                   (.getContent (ZlibExpanderProvider.)))]
       (when (nil? cms)

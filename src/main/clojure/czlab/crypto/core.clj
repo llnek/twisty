@@ -346,7 +346,7 @@
           (.getEntry store n)
           (cast? KeyStore$PrivateKeyEntry ))]
     (reify PKeyGist
-      (certChain [_] (.getCertificateChain e))
+      (chain [_] (.getCertificateChain e))
       (cert [_] (.getCertificate e))
       (pkey [_] (.getPrivateKey e)))))
 
@@ -359,11 +359,10 @@
   [^KeyStore store ^String n]
 
   (when-some
-    [e (->> (.getEntry store n nil)
+    [^KeyStore$TrustedCertificateEntry
+     e (->> (.getEntry store n nil)
             (cast? KeyStore$TrustedCertificateEntry ))]
-    (-> ^KeyStore$TrustedCertificateEntry
-        e
-        (.getTrustedCertificate))))
+    (.getTrustedCertificate e)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -511,7 +510,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn asymKeyPair
+(defn asymKeyPair<>
 
   "Make a Asymmetric key-pair"
   ^KeyPair
@@ -616,7 +615,7 @@
 
   (log/debug "csrreq: dnStr= %s, key-len= %s" dnStr keylen)
   (let [csb (JcaContentSignerBuilder. DEF_ALGO)
-        kp (asymKeyPair RSA keylen)
+        kp (asymKeyPair<> RSA keylen)
         rbr (new JcaPKCS10CertificationRequestBuilder
                  (X500Principal. dnStr)
                  (.getPublic kp))
@@ -636,26 +635,28 @@
 (defn- mkSSV1Cert
 
   ""
-  [^Provider pv
-   ^KeyPair kp
-   {:keys [^String dnStr
-           ^String algo
-           ^Date start
-           ^Date end] :as options}]
+  [^KeyStore store
+   {:keys [^String dnStr ^String algo
+           ^Date start ^Date end] :as args}]
 
-  (let [prv (.getPrivate kp)
+  (let [kp (->> (or (:keylen args) 1024)
+                (asymKeyPair<> (:style args)))
+        end (->> (or (:validFor args) 12)
+                 (+months )
+                 (or end ))
+        start (or start (Date.))
+        prv (.getPrivate kp)
         pub (.getPublic kp)
         bdr (JcaX509v1CertificateBuilder.
               (X500Principal. dnStr)
               (nextSerial)
-              start
-              end
+              start end
               (X500Principal. dnStr) pub)
         cs (-> (JcaContentSignerBuilder. algo)
-               (.setProvider pv)
+               (.setProvider (.getProvider store))
                (.build prv))
         cert (-> (JcaX509CertificateConverter.)
-                 (.setProvider  pv)
+                 (.setProvider (.getProvider store))
                  (.getCertificate (.build bdr cs)))]
     (.checkValidity cert (Date.))
     (.verify cert pub)
@@ -667,33 +668,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- mkSSV1
-
-  "Make a SSV1 self-signed server key"
-  ^bytes
-  [^KeyStore ks
-   ^KeyPair kp
-   ^chars pwd options]
-
-  (let [[^Certificate cert ^PrivateKey pkey]
-        (mkSSV1Cert (.getProvider ks) kp options)
-        out (baos<>)]
-    (.setKeyEntry ks
-                  (alias<>)
-                  pkey
-                  pwd
-                  (into-array Certificate [cert] ))
-    (.store ks out pwd)
-    (.toByteArray out)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn pkcs12<>
 
   "Make a PKCS12 object from key and cert"
-  [^bytes keyPEM
-   ^bytes certPEM
-   ^chars pwd ^File fout]
+  [^File fout keyPEM certPEM
+   ^chars pwd ^chars pwd2]
 
   (let [ct (.getTrustedCertificate (convCert certPEM))
         rdr (InputStreamReader. (streamify keyPEM))
@@ -710,156 +689,133 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro ssv1XXX
+(defn- ssv1XXX
 
   ""
-  {:private true
-   :no-doc true}
-  [howlong store algo style dnStr pwd out options]
+  {:no-doc true}
+  [store dnStr pwd fout pwd2 args]
 
-  `(let [dft# {:keylen 1024 :start (Date.)
-               :end (plusMonths ~howlong)
-               :algo ~algo}
-         opts# (-> (merge dft# ~options)
-                   (assoc :dnStr ~dnStr))
-         keylen# (:keylen opts#)
-         v1# (mkSSV1 ~store
-                      (asymKeyPair ~style keylen#)
-                      ~pwd opts#) ]
-     (writeFile ~out v1#)))
+  (let [[cert pkey]
+        (->> (assoc args :dnStr dnStr)
+             (mkSSV1Cert store args))
+        out (baos<>)]
+    (.setKeyEntry
+      ks
+      (alias<>)
+      ^PrivateKey pkey
+      pwd
+      (into-array Certificate [cert]))
+    (.store ks out pwd2)
+    (->> (.toByteArray out)
+         (writeFile (io/file fout)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn ssv1PKCS12
 
   "Make a SSV1 (root level) type PKCS12 object"
-  [^String dnStr ^chars pwd
-   ^File out options]
+  [^String dnStr ^chars pwd args ^File fout & [^chars pwd2]]
 
-  (ssv1XXX
-    (or (:validFor options) 12)
-    (pkcsStore<>) DEF_ALGO RSA dnStr pwd out options))
+  (->> (merge {:algo DEF_ALGO
+               :style RSA} args)
+       (ssv1XXX (pkcsStore<>) dnStr pwd fout pwd2)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn ssv1JKS
 
   "Make a SSV1 (root level) type JKS object"
-  [^String dnStr ^chars pwd
-   ^File out options]
+  [^String dnStr ^chars pwd args ^File out & [^chars pwd2]]
 
-  (ssv1XXX
-    (or (:validFor options) 12)
-    (jksStore<>) "SHA1withDSA" DSA dnStr pwd out options))
+  (->> (merge {:algo "SHA1withDSA"
+               :style DSA} args)
+       (ssv1XXX (jksStore<>) dnStr pwd fout pwd2)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- mkSSV3Cert
 
   "Make a SSV3 server key"
-  [^Provider pv ^KeyPair kp
-   ^X509Certificate
-   issuerCert
-   ^PrivateKey
-   issuerKey
+  [^PKeyGist issuer
+   ^Provider pv
    {:keys [^String dnStr
            ^String algo
            ^Date start
-           ^Date end] :as options}]
+           ^Date end] :as args}]
 
-  (let [subject (X500Principal. dnStr)
+  (let [^X509Certificate rootc (.cert issuer)
+        subject (X500Principal. dnStr)
+        klen (or (:keylen args) 1024)
         exu (JcaX509ExtensionUtils.)
+        kp (-> (.pkey issuer)
+               (.getAlgorithm )
+               (asymKeyPair klen))
         bdr (JcaX509v3CertificateBuilder.
-              issuerCert
+              rootc
               (nextSerial)
               start
               end
-              subject (.getPublic kp))
+              subject
+              (.getPublic kp))
         cs (-> (JcaContentSignerBuilder. algo)
                (.setProvider pv)
-               (.build issuerKey))]
+               (.build (.pkey issuer)))]
     (.addExtension
       bdr
       X509Extension/authorityKeyIdentifier
       false
-      (.createAuthorityKeyIdentifier exu issuerCert))
+      (.createAuthorityKeyIdentifier exu rootc))
     (.addExtension
       bdr
       X509Extension/subjectKeyIdentifier
       false
-      (.createSubjectKeyIdentifier
-        exu
-        (.getPublic kp)))
+      (.createSubjectKeyIdentifier exu (.getPublic kp)))
     (let [ct (-> (JcaX509CertificateConverter.)
                  (.setProvider pv)
                  (.getCertificate (.build bdr cs)))]
       (.checkValidity ct (Date.))
-      (.verify ct (.getPublicKey issuerCert))
-      [ ct (.getPrivate kp) ] )))
+      (.verify ct (.getPublicKey rootc))
+      [ct (.getPrivate kp)])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- mkSSV3
-
-  "Make a SSV3 server key"
-  [^KeyStore ks ^chars pwd
-   issuerCerts ^PrivateKey issuerKey options]
-
-  (let [[^Certificate cert ^PrivateKey pkey]
-        (mkSSV3Cert
-          (.getProvider ks)
-          (asymKeyPair (.getAlgorithm issuerKey)
-                       (:keylen options))
-          (first issuerCerts)
-          issuerKey
-          options)
-        out (baos<>)
-        cs (cons cert issuerCerts)]
-    (.setKeyEntry ks
-                  (alias<>)
-                  pkey
-                  pwd
-                  (into-array Certificate cs))
-    (.store ks out pwd)
-    (.toByteArray out)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- make-ssv3XXX
+(defn- makeSSV3
 
   ""
-  [^String dnStr ^chars pwd ^File fout
-   {:keys [validFor hack
-           issuerKey issuerCerts] :as options}]
+  [^PKeyGist issuer ^String dnStr ^chars pwd ^File fout pwd2 args]
 
-  (let [opts (-> (merge {:end (plusMonths (or validFor 12))
-                         :keylen 1024
-                         :start (Date.)
-                         :algo (:algo hack)}
-                        options)
-                 (assoc :dnStr dnStr))
-        ks (:ks hack)]
-    (->> (dissoc opts
-                 :issuerCerts
-                 :hack :validFor :issuerKey)
-         (mkSSV3 ks pwd issuerCerts issuerKey)
-         (writeFile fout))))
+  (let [chain (into [] (.chain issuer))
+        ^KeyStore ks (:ks args)
+        [cert pkey]
+        (-> (assoc args :dnStr dnStr)
+            (mkSSV3Cert issuer (.getProvider ks) ))
+        out (baos<>)
+        cs (cons cert chain)]
+    (.setKeyEntry
+      ks
+      (alias<>)
+      pkey
+      pwd
+      (into-array Certificate cs))
+    (.store ks fout pwd2)
+    (->> (.toByteArray out)
+         (writeFile (io/file fout)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn ssv3PKCS12
 
   "Make a SSV3 type PKCS12 object"
-  [^String dnStr ^chars pwd
-   ^File out options]
+  [^PKeyGist issuer ^String dnStr ^chars pwd
+   ^File fout args & [^chars pwd2]]
 
-  (make-ssv3XXX dnStr
-                pwd
-                out
-                (-> (or options {})
-                    (assoc :hack
-                           {:algo DEF_ALGO
-                            :ks (pkcsStore<>) } ))))
+  (makeSSV3
+    issuer
+    dnStr
+    pwd
+    fout
+    pwd2
+    (merge args {:algo DEF_ALGO :ks (pkcsStore<>) } )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JKS uses SUN and hence needs to use DSA
@@ -867,16 +823,16 @@
 (defn ssv3JKS
 
   "Make a SSV3 JKS object"
-  [^String dnStr ^chars pwd
-   ^File out options]
+  [^PKeyGist issuer ^String dnStr ^chars pwd
+   ^File fout args & [^chars pwd2]]
 
-  (make-ssv3XXX dnStr
-                pwd
-                out
-                (-> (or options {})
-                    (assoc :hack
-                           {:algo "SHA1withDSA"
-                            :ks (jksStore<>) } ))))
+  (makeSSV3
+    issuer
+    dnStr
+    pwd
+    fout
+    pwd2
+    (merge args {:algo "SHA1withDSA" :ks (jksStore<>) } )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -891,7 +847,7 @@
        gen (CMSSignedDataGenerator.)
        pkey (convPKey inp pwd pwd2)
        cl (.chain pkey)
-       bdr (new JcaSignerInfoGeneratorBuilder
+       bdr (JcaSignerInfoGeneratorBuilder.
                 (-> (JcaDigestCalculatorProviderBuilder.)
                     (.setProvider _BCProvider)
                     (.build)))
