@@ -216,7 +216,7 @@
 (def ^:private DER_FORM :DER)
 (def ^:private PEM_FORM :PEM)
 
-(def ^:private PEM_ALGOS
+(def ^:private ENC_ALGOS
   #{"AES-128-CBC" "AES-128-CFB" "AES-128-ECB" "AES-128-OFB"
     "AES-192-CBC" "AES-192-CFB" "AES-192-ECB" "AES-192-OFB"
     "AES-256-CBC" "AES-256-CFB" "AES-256-ECB" "AES-256-OFB"
@@ -230,23 +230,8 @@
 
 (def ^String SHA512 "SHA512withRSA")
 (def ^String SHA256 "SHA256withRSA")
-(def ^String SHA1 "SHA1withRSA")
-(def ^String SHA_512 "SHA-512")
-(def ^String SHA_1 "SHA-1")
-(def ^String SHA_256 "SHA-256")
-(def ^String MD_5 "MD5")
 (def ^String MD5 "MD5withRSA")
-
-(def ^String AES256_CBC  "AES256_CBC")
 (def ^String BFISH "BlowFish")
-(def ^String PKCS12 "PKCS12")
-(def ^String JKS "JKS")
-(def ^String SHA1 "SHA1")
-(def ^String MD5 "MD5")
-(def ^String RAS  "RAS")
-(def ^String DES  "DES")
-(def ^String RSA  "RSA")
-(def ^String DSA  "DSA")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -269,8 +254,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(def ^Provider _BCProvider (BouncyCastleProvider.))
-(Security/addProvider _BCProvider)
+(def ^Provider _BC_ (BouncyCastleProvider.))
+(Security/addProvider _BC_)
 (assertJce)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -303,7 +288,7 @@
   [^X509CertificateHolder h]
 
   (-> (JcaX509CertificateConverter.)
-      (.setProvider _BCProvider)
+      (.setProvider _BC_)
       (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -315,9 +300,9 @@
   [^chars pwd]
 
   (when (some? pwd)
-    (-> (rand-nth PEM_ALGOS)
+    (-> (rand-nth ENC_ALGOS)
         (JcePEMEncryptorBuilder. )
-        (.setProvider _BCProvider)
+        (.setProvider _BC_)
         (.setSecureRandom (srandom<>))
         (.build pwd))))
 
@@ -342,7 +327,7 @@
   ^MessageDigest
   [^String algo]
 
-  (MessageDigest/getInstance algo _BCProvider))
+  (MessageDigest/getInstance algo _BC_))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -366,17 +351,7 @@
   {:no-doc true}
   [^PrintStream os]
 
-  (try! (.list _BCProvider os)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- getsrand
-
-  "Get a secure random"
-  ^SecureRandom
-  []
-
-  (SecureRandom/getInstance "SHA1PRNG" ))
+  (try! (.list _BC_ os)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -452,11 +427,11 @@
 
   "Create a PKCS12 key-store"
   ^KeyStore
-  [& [^InputStream inp ^chars pwd]]
+  [& [^InputStream inp ^chars pwd2]]
 
-  (let [ks (KeyStore/getInstance "PKCS12" _BCProvider)]
+  (let [ks (KeyStore/getInstance "PKCS12" _BC_)]
     (when (some? inp)
-      (.load ks inp pwd))
+      (.load ks inp pwd2))
     ks))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -465,12 +440,12 @@
 
   "Create a JKS key-store"
   ^KeyStore
-  [& [^InputStream inp ^chars pwd]]
+  [& [^InputStream inp ^chars pwd2]]
 
   (let [ks (->> (Security/getProvider "SUN")
                 (KeyStore/getInstance "JKS" ))]
     (when (some? inp)
-      (.load inp pwd))
+      (.load inp pwd2))
     ks))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -479,21 +454,17 @@
 
   "Initialize the key-store"
   ^KeyStore
-  [^KeyStore store arg ^chars pwd]
+  [^KeyStore store arg ^chars pwd2]
 
   (let
-    [z (class arg)
-     [b inp]
-     (cond
-       (= (bytesClass) z)
-       [true (streamify arg)]
-       (= InputStream z)
-       [false arg]
-       (= File z)
-       [true (FileInputStream. arg)]
-       :else (throwBadArg ""))]
+    [[b ^InputStream inp]
+     (condp = (class arg)
+       (bytesClass) [true (streamify arg)]
+       InputStream [false arg]
+       File [true (FileInputStream. arg)]
+       (throwBadArg "Bad type"))]
     (try
-      (.load store inp pwd)
+      (.load store inp pwd2)
       (finally
         (if b (.close inp))))))
 
@@ -506,13 +477,11 @@
   [arg]
 
   (let
-    [z (class arg)
-     inp (cond
-           (= (bytesClass) z)
-           (streamify arg)
-           (= InputStream z)
-           arg
-           :else (throwBadArg ""))]
+    [^InputStream
+     inp (condp (class arg)
+           (bytesClass) (streamify arg)
+           InputStream arg
+           (throwBadArg "Bad type"))]
     (-> (CertificateFactory/getInstance "X.509")
         (.generateCertificate inp))))
 
@@ -520,18 +489,16 @@
 ;;
 (defn convPKey
 
-  "Convert to a PrivateKey"
+  "Convert to a Private Key"
   ^PKeyGist
   [arg ^chars pwd & [^chars pwd2]]
 
   (let
-    [z (class arg)
-     inp (cond
-           (= (bytesClass) z)
-           (streamify arg)
-           (= InputStream z)
-           arg
-           :else (throwBadArg ""))
+    [^InputStream
+     inp (condp = (class arg)
+           (bytesClass) (streamify arg)
+           InputStream arg
+           (throwBadArg "Bad type"))
      ks (doto (pkcsStore<>)
           (.load inp pwd2))
      n (first (filterEntries ks :keys))]
@@ -563,14 +530,12 @@
 
   (let
     [^String algo (stror algo DEF_MAC)
-     mac (Mac/getInstance algo _BCProvider)
-     z (class data)
-     bits (cond
-            (= (bytesClass) z)
-            data
-            (= InputStream z)
-            (toBytes data)
-            :else (throwBadArg ""))]
+     mac (Mac/getInstance algo _BC_)
+     ^bytes
+     bits (condp = (class data)
+            InputStream (toBytes data)
+            (bytesClass) data
+            (throwBadArg "Bad type"))]
     (->> (SecretKeySpec. skey algo)
          (.init mac ))
     (.update mac bits)
@@ -586,13 +551,11 @@
   {:pre [(some? data)]}
 
   (let
-    [z (class data)
-     bits (cond
-            (= (bytesClass) z)
-            data
-            (= InputStream z)
-            (toBytes data)
-            :else (throwBadArg ""))]
+    [^bytes
+     bits (condp = (class data)
+            InputStream (toBytes data)
+            (bytesClass) data
+            (throwBadArg "Bad type"))]
     (->> (-> ^String
              (stror algo SHA_512)
              (MessageDigest/getInstance )
@@ -605,12 +568,13 @@
 
   "Make a Asymmetric key-pair"
   ^KeyPair
-  [^String algo keylen]
+  [^String algo & [keylen]]
 
-  (log/debug "gen keypair for algo %s, len %s" algo keylen)
-  (-> (doto (KeyPairGenerator/getInstance algo _BCProvider)
-            (.initialize (int keylen) (srandom<>)))
-      (.generateKeyPair )))
+  (let [len (or keylen 1024)]
+    (log/debug "gen keypair for algo %s, len %d" algo len)
+    (-> (doto (KeyPairGenerator/getInstance algo _BC_)
+              (.initialize (int len) (srandom<> true)))
+        (.generateKeyPair ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -692,7 +656,7 @@
               (X500Principal. dnStr)
               (.getPublic kp))
         k (.getPrivate kp)
-        cs (-> (.setProvider csb _BCProvider)
+        cs (-> (.setProvider csb _BC_)
                (.build k))
         rc (.build rbr cs)]
     (log/debug "csr: dnStr= %s, key-len= %d" dnStr len)
@@ -773,7 +737,7 @@
               (.build pwd))
        pc (doto
             (JcaPEMKeyConverter.)
-            (.setProvider _BCProvider))
+            (.setProvider _BC_))
        obj (-> (PEMParser. rdr)
                (.readObject ))
        z (class obj)]
@@ -1006,11 +970,11 @@
        cl (.chain pkey)
        bdr (JcaSignerInfoGeneratorBuilder.
                 (-> (JcaDigestCalculatorProviderBuilder.)
-                    (.setProvider _BCProvider)
+                    (.setProvider _BC_)
                     (.build)))
        ;;    "SHA1withRSA"
        cs (-> (JcaContentSignerBuilder. SHA512)
-              (.setProvider _BCProvider)
+              (.setProvider _BC_)
               (.build (.getPrivateKey pkey)))
        ^X509Certificate x509 (first cl)]
       (->> (.build bdr cs x509)
