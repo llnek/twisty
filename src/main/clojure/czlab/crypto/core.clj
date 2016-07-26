@@ -18,8 +18,8 @@
   czlab.crypto.core
 
   (:require
-    [czlab.xlib.dates :refer [plusMonths]]
     [czlab.xlib.files :refer [writeFile]]
+    [czlab.xlib.dates :refer [+months]]
     [czlab.xlib.io
      :refer [streamify
              baos<>
@@ -49,12 +49,19 @@
 
   (:import
     [org.bouncycastle.pkcs.jcajce JcaPKCS10CertificationRequestBuilder]
+    [org.bouncycastle.pkcs.bc
+     BcPKCS12PBEInputDecryptorProviderBuilder]
     [org.bouncycastle.operator OperatorCreationException ContentSigner]
     [org.bouncycastle.operator DigestCalculatorProvider ContentSigner]
     [org.bouncycastle.asn1.cms AttributeTable IssuerAndSerialNumber]
     [javax.activation DataHandler CommandMap MailcapCommandMap]
     [javax.mail BodyPart MessagingException Multipart Session]
-    [org.bouncycastle.util.encoders Base64]
+    [org.bouncycastle.pkcs PKCS8EncryptedPrivateKeyInfo]
+    [org.bouncycastle.util.encoders Hex Base64]
+    [org.bouncycastle.openssl
+     X509TrustedCertificateBlock
+     PEMKeyPair
+     PEMEncryptedKeyPair]
     [clojure.lang
      APersistentVector]
     [java.io
@@ -76,9 +83,21 @@
      MimeMessage
      MimeMultipart
      MimeUtility]
-    [org.bouncycastle.asn1 ASN1ObjectIdentifier]
+    [org.bouncycastle.asn1.cms ContentInfo]
+    [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
+    [org.bouncycastle.asn1.x509
+     X509Extension
+     SubjectPublicKeyInfo]
+    [org.bouncycastle.cert
+     X509CRLHolder
+     X509CertificateHolder
+     X509AttributeCertificateHolder]
     [org.bouncycastle.cms CMSAlgorithm]
-    [org.bouncycastle.cert X509CertificateHolder]
+    [org.bouncycastle.openssl.jcajce
+     JcePEMDecryptorProviderBuilder
+     JcePEMEncryptorBuilder
+     JcaMiscPEMGenerator
+     JcaPEMKeyConverter]
     [java.security
      Policy
      PermissionCollection
@@ -103,7 +122,6 @@
      Certificate
      X509Certificate]
     [org.bouncycastle.jce.provider BouncyCastleProvider]
-    [org.bouncycastle.asn1.x509 X509Extension]
     [org.bouncycastle.asn1 ASN1EncodableVector]
     [org.bouncycastle.asn1.smime
      SMIMECapabilitiesAttribute
@@ -160,7 +178,10 @@
     [org.bouncycastle.cms.jcajce
      ZlibCompressor
      JcaSignerInfoGeneratorBuilder]
-    [org.bouncycastle.openssl PEMWriter PEMParser]
+    [org.bouncycastle.openssl
+     PEMWriter
+     PEMParser
+     PEMEncryptor]
     [org.bouncycastle.operator.jcajce
      JcaContentSignerBuilder
      JcaDigestCalculatorProviderBuilder]
@@ -174,8 +195,6 @@
      SecretKey]
     [javax.crypto.spec SecretKeySpec]
     [javax.net.ssl X509TrustManager TrustManager]
-    [org.apache.commons.codec.binary Hex Base64]
-    [org.apache.commons.io IOUtils]
     [czlab.crypto
      PasswordAPI
      PKeyGist
@@ -196,6 +215,18 @@
 (def ^:private IMPLICIT_SIGNING :IMPLICIT)
 (def ^:private DER_FORM :DER)
 (def ^:private PEM_FORM :PEM)
+
+(def ^:private PEM_ALGOS
+  #{"AES-128-CBC" "AES-128-CFB" "AES-128-ECB" "AES-128-OFB"
+    "AES-192-CBC" "AES-192-CFB" "AES-192-ECB" "AES-192-OFB"
+    "AES-256-CBC" "AES-256-CFB" "AES-256-ECB" "AES-256-OFB"
+    "BF-CBC" "BF-CFB" "BF-ECB" "BF-OFB"
+    "DES-CBC" "DES-CFB" "DES-ECB" "DES-OFB"
+    "DES-EDE" "DES-EDE-CBC" "DES-EDE-CFB" "DES-EDE-ECB"
+    "DES-EDE-OFB" "DES-EDE3" "DES-EDE3-CBC" "DES-EDE3-CFB"
+    "DES-EDE3-ECB" "DES-EDE3-OFB"
+    "RC2-CBC" "RC2-CFB" "RC2-ECB" "RC2-OFB"
+    "RC2-40-CBC" "RC2-64-CBC" })
 
 (def ^String SHA512 "SHA512withRSA")
 (def ^String SHA256 "SHA256withRSA")
@@ -262,6 +293,33 @@
   (.addMailcap (str "multipart/signed;; "
                     "x-java-content-handler="
                     "org.bouncycastle.mail.smime.handlers.multipart_signed") ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- toXCert
+
+  ""
+  ^X509Certificate
+  [^X509CertificateHolder h]
+
+  (-> (JcaX509CertificateConverter.)
+      (.setProvider _BCProvider)
+      (.getCertificate h)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- pemencr<>
+
+  ""
+  ^PEMEncryptor
+  [^chars pwd]
+
+  (when (some? pwd)
+    (-> (rand-nth PEM_ALGOS)
+        (JcePEMEncryptorBuilder. )
+        (.setProvider _BCProvider)
+        (.setSecureRandom (srandom<>))
+        (.build pwd))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -373,12 +431,11 @@
   [^KeyStore store entryType]
   {:pre [(keyword? entryType)]}
 
-  (loop [rc (transient [])
-         en (.aliases store)]
+  (loop [en (.aliases store)
+         rc (transient [])]
     (if-not (.hasMoreElements en)
       (persistent! rc)
-      (let
-        [n (.nextElement en)]
+      (let [n (.nextElement en)]
         (if
           (cond
             (= :certs entryType)
@@ -386,8 +443,8 @@
             (= :keys entryType)
             (.isKeyEntry store n)
             :else false)
-          (recur (conj! rc n) en)
-          (recur rc en))))))
+          (recur en (conj! rc n))
+          (recur en rc))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -424,16 +481,17 @@
   ^KeyStore
   [^KeyStore store arg ^chars pwd]
 
-  (let [z (class arg)
-        [b inp]
-        (cond
-          (= (bytesClass) z)
-          [true (streamify arg)]
-          (= InputStream z)
-          [false arg]
-          (= File z)
-          [true (FileInputStream. arg)]
-          :else (throwBadArg ""))]
+  (let
+    [z (class arg)
+     [b inp]
+     (cond
+       (= (bytesClass) z)
+       [true (streamify arg)]
+       (= InputStream z)
+       [false arg]
+       (= File z)
+       [true (FileInputStream. arg)]
+       :else (throwBadArg ""))]
     (try
       (.load store inp pwd)
       (finally
@@ -445,10 +503,18 @@
 
   "Convert to a Certificate"
   ^Certificate
-  [^bytes bits]
+  [arg]
 
-  (-> (CertificateFactory/getInstance "X.509")
-      (.generateCertificate (streamify bits))))
+  (let
+    [z (class arg)
+     inp (cond
+           (= (bytesClass) z)
+           (streamify arg)
+           (= InputStream z)
+           arg
+           :else (throwBadArg ""))]
+    (-> (CertificateFactory/getInstance "X.509")
+        (.generateCertificate inp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -456,13 +522,21 @@
 
   "Convert to a PrivateKey"
   ^PKeyGist
-  [InputStream inp ^chars pwd & [^chars pwd2]]
+  [arg ^chars pwd & [^chars pwd2]]
 
-  (let [ks (doto (pkcsStore<>)
-             (.load inp pwd2))
-        n (first (filterEntries ks :keys))]
+  (let
+    [z (class arg)
+     inp (cond
+           (= (bytesClass) z)
+           (streamify arg)
+           (= InputStream z)
+           arg
+           :else (throwBadArg ""))
+     ks (doto (pkcsStore<>)
+          (.load inp pwd2))
+     n (first (filterEntries ks :keys))]
     (when (hgl? n)
-      (pkeye ks n pwd))))
+      (pkeyGist ks n pwd))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -483,15 +557,24 @@
 
   "Generate a Message Auth Code"
   ^String
-  [^bytes skey ^bytes data & [algo] ]
-  {:pre [(some? data)]}
+  [^bytes skey data & [algo] ]
+  {:pre [(some? skey)
+         (some? data)]}
 
-  (let [^String algo (stror algo DEF_MAC)
-        mac (Mac/getInstance algo _BCProvider)]
+  (let
+    [^String algo (stror algo DEF_MAC)
+     mac (Mac/getInstance algo _BCProvider)
+     z (class data)
+     bits (cond
+            (= (bytesClass) z)
+            data
+            (= InputStream z)
+            (toBytes data)
+            :else (throwBadArg ""))]
     (->> (SecretKeySpec. skey algo)
          (.init mac ))
-    (.update mac data)
-    (Hex/encodeHexString (.doFinal mac))))
+    (.update mac bits)
+    (Hex/toHexString (.doFinal mac))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -499,14 +582,22 @@
 
   "Generate a Message Digest"
   ^String
-  [^bytes data & [algo] ]
+  [data & [algo] ]
   {:pre [(some? data)]}
 
-  (->> (-> ^String
-           (stror algo SHA_512)
-           (MessageDigest/getInstance )
-           (.digest data))
-      (.encodeToString (Base64/getMimeEncoder))))
+  (let
+    [z (class data)
+     bits (cond
+            (= (bytesClass) z)
+            data
+            (= InputStream z)
+            (toBytes data)
+            :else (throwBadArg ""))]
+    (->> (-> ^String
+             (stror algo SHA_512)
+             (MessageDigest/getInstance )
+             (.digest data))
+         (Base64/toBase64String ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -516,37 +607,10 @@
   ^KeyPair
   [^String algo keylen]
 
-  (log/debug "generating keypair for algo %s, length %s" algo keylen)
+  (log/debug "gen keypair for algo %s, len %s" algo keylen)
   (-> (doto (KeyPairGenerator/getInstance algo _BCProvider)
             (.initialize (int keylen) (srandom<>)))
       (.generateKeyPair )))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- XXXfmtPEM
-
-  "Output as PEM"
-  ^bytes
-  [^String top ^String end ^bytes bits]
-
-  (let [nl (bytesify (sysProp "line.separator"))
-        bs (Base64/encode bits)
-        bb (byte-array 1)
-        baos (baos<>)
-        len (alength bs)]
-    (.write baos (bytesify top))
-    (loop [pos 0]
-      (if (== pos len)
-        (do
-          (.write baos (bytesify end))
-          (.toByteArray baos))
-        (do
-          (when (and (> pos 0)
-                     (== (mod pos 64) 0))
-            (.write baos nl))
-          (aset bb 0 (aget bs pos))
-          (.write baos bb)
-          (recur (inc pos)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -554,12 +618,17 @@
 
   "Serialize object in PEM format"
   ^bytes
-  [obj]
+  [obj & [^chars pwd]]
   {:pre [(some? obj)]}
 
   (let [sw (StringWriter.)
+        ec (pemencr<> pwd)
         pw (PEMWriter. sw)]
-    (.writeObject pw obj)
+    (->>
+      (if (some? ec)
+        (JcaMiscPEMGenerator. obj ec)
+        (JcaMiscPEMGenerator. obj))
+      (.writeObject pw ))
     (.flush pw)
     (bytesify (.toString sw))))
 
@@ -569,12 +638,13 @@
 
   "Export Private Key"
   ^bytes
-  [^PrivateKey pkey fmt]
-  {:pre [(keyword? fmt)]}
+  [^PrivateKey pkey & [fmt pwd]]
+  {:pre [(some? pkey)]}
 
-      ;;"-----BEGIN RSA PRIVATE KEY-----\n" "\n-----END RSA PRIVATE KEY-----\n"
-  (if (= fmt PEM_FORM)
-    (fmtPEM pkey)
+  ;;"-----BEGIN RSA PRIVATE KEY-----\n" "\n-----END RSA PRIVATE KEY-----\n"
+  (if (= (or fmt PEM_FORM)
+         PEM_FORM)
+    (fmtPEM pkey pwd)
     (.getEncoded pkey)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -583,11 +653,12 @@
 
   "Export Public Key"
   ^bytes
-  [^PublicKey pkey fmt]
-  {:pre [(keyword? fmt)]}
+  [^PublicKey pkey & [fmt]]
+  {:pre [(some? pkey)]}
 
-      ;;"-----BEGIN RSA PUBLIC KEY-----\n" "\n-----END RSA PUBLIC KEY-----\n"
-  (if (= fmt PEM_FORM)
+  ;;"-----BEGIN RSA PUBLIC KEY-----\n" "\n-----END RSA PUBLIC KEY-----\n"
+  (if (= (or fmt PEM_FORM)
+         PEM_FORM)
     (fmtPEM pkey)
     (.getEncoded pkey)))
 
@@ -597,11 +668,12 @@
 
   "Export Certificate"
   ^bytes
-  [^X509Certificate cert fmt]
-  {:pre [(keyword? fmt)]}
+  [^X509Certificate cert & [fmt]]
+  {:pre [(some? cert)]}
 
-      ;;"-----BEGIN CERTIFICATE-----\n" "-----END CERTIFICATE-----\n"
-  (if (= fmt PEM_FORM)
+  ;;"-----BEGIN CERTIFICATE-----\n" "-----END CERTIFICATE-----\n"
+  (if (= (or fmt PEM_FORM)
+         PEM_FORM)
     (fmtPEM cert)
     (.getEncoded cert)))
 
@@ -610,41 +682,130 @@
 (defn csreq<>
 
   "Make a PKCS10 - csr-request"
-  [^String dnStr keylen fmt]
-  {:pre [(keyword? fmt)]}
+  [^String dnStr & [keylen fmt pwd]]
+  {:pre [(hgl? dnStr)]}
 
-  (log/debug "csrreq: dnStr= %s, key-len= %s" dnStr keylen)
   (let [csb (JcaContentSignerBuilder. DEF_ALGO)
-        kp (asymKeyPair<> RSA keylen)
-        rbr (new JcaPKCS10CertificationRequestBuilder
-                 (X500Principal. dnStr)
-                 (.getPublic kp))
+        len (or keylen 1024)
+        kp (asymKeyPair<> RSA len)
+        rbr (JcaPKCS10CertificationRequestBuilder.
+              (X500Principal. dnStr)
+              (.getPublic kp))
         k (.getPrivate kp)
         cs (-> (.setProvider csb _BCProvider)
                (.build k))
         rc (.build rbr cs)]
-    [(if (= fmt PEM_FORM)
+    (log/debug "csr: dnStr= %s, key-len= %d" dnStr len)
+    [(if (= (or fmt PEM_FORM)
+            PEM_FORM)
        (fmtPEM rc)
        (.getEncoded rc))
        ;;"-----BEGIN CERTIFICATE REQUEST-----\n" "\n-----END CERTIFICATE REQUEST-----\n"
-     (exportPrivateKey k fmt)]))
+     (exportPrivateKey k fmt pwd)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- pemparse2
+
+  ""
+  [^JcaPEMKeyConverter pc obj]
+
+  (let
+    [z (class obj)]
+    (cond
+      (= PEMKeyPair z)
+      (.getKeyPair pc ^PEMKeyPair obj)
+
+      (= KeyPair z)
+      obj
+
+      (= PrivateKeyInfo z)
+      (.getPrivateKey pc ^PrivateKeyInfo obj)
+
+      (= ContentInfo z);;cms.ContentInfo
+      obj
+
+      (= X509AttributeCertificateHolder z)
+      (toXCert obj)
+
+      (= X509TrustedCertificateBlock z)
+      (-> ^X509TrustedCertificateBlock obj
+          (.getCertificateHolder )
+          (toXCert))
+
+      (= SubjectPublicKeyInfo z)
+      (.getPublicKey pc ^SubjectPublicKeyInfo obj)
+
+      (= X509CertificateHolder z)
+      (toXCert obj)
+
+      (= X509CRLHolder z)
+      obj
+
+      (= PKCS10CertificationRequest z)
+      obj
+
+      :else obj)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- pemparse
+
+  "PEM encoded streams may contain
+  X509 certificates,
+  PKCS8 encoded keys and PKCS7 objs.
+
+  PKCS7 objs => a CMS ContentInfo object.
+  PubKeys => well formed SubjectPublicKeyInfo objs
+  PrvKeys => well formed PrivateKeyInfo obj.
+  => PEMKeyPair if contains both private and public key.
+  CRLs, Certificates,
+  PKCS#10 requests,
+  and Attribute Certificates => appropriate holder class"
+
+  [^InputStream inp]
+
+  (with-open [rdr (InputStreamReader. inp)]
+    (let
+      [dc (-> (JcePEMDecryptorProviderBuilder.)
+              (.build pwd))
+       dp (-> (BcPKCS12PBEInputDecryptorProviderBuilder.)
+              (.build pwd))
+       pc (doto
+            (JcaPEMKeyConverter.)
+            (.setProvider _BCProvider))
+       obj (-> (PEMParser. rdr)
+               (.readObject ))
+       z (class obj)]
+      (->>
+        (cond
+          (= PKCS8EncryptedPrivateKeyInfo z)
+          (-> ^PKCS8EncryptedPrivateKeyInfo obj
+              (.decryptPrivateKeyInfo dp))
+          (= PEMEncryptedKeyPair z)
+          (-> pc
+              (.getKeyPair ^PEMEncryptedKeyPair obj)
+              (.decryptKeyPair dc))
+          :else obj)
+        (pemparse2 )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; generate self-signed cert
 ;; self signed-> issuer is self
-(defn- mkSSV1Cert
+(defn- ssv1Cert
 
   ""
-  [^KeyStore store
-   {:keys [^String dnStr ^String algo
-           ^Date start ^Date end] :as args}]
-
+  [^KeyStore store {:keys [^String dnStr
+                           ^String algo
+                           ^Date start
+                           ^Date end] :as args}]
   (let [kp (->> (or (:keylen args) 1024)
                 (asymKeyPair<> (:style args)))
         end (->> (or (:validFor args) 12)
                  (+months )
                  (or end ))
         start (or start (Date.))
+        pv (.getProvider store)
         prv (.getPrivate kp)
         pub (.getPublic kp)
         bdr (JcaX509v1CertificateBuilder.
@@ -653,17 +814,15 @@
               start end
               (X500Principal. dnStr) pub)
         cs (-> (JcaContentSignerBuilder. algo)
-               (.setProvider (.getProvider store))
+               (.setProvider pv)
                (.build prv))
-        cert (-> (JcaX509CertificateConverter.)
-                 (.setProvider (.getProvider store))
-                 (.getCertificate (.build bdr cs)))]
+        cert (toXCert (.build bdr cs))]
     (.checkValidity cert (Date.))
     (.verify cert pub)
-    (log/debug "mkSSV1Cert: dn= %s%s%s%s%s%s%s"
-               dnStr
-               ", algo= " algo
-               ", start=" start ", end=" end )
+    (log/debug (str "mkSSV1Cert: dn= %s "
+                    ",algo= %s,start= %s"
+                    ",end=%s")
+               dnStr algo start end)
     [cert prv]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -672,7 +831,7 @@
 
   "Make a PKCS12 object from key and cert"
   [^File fout keyPEM certPEM
-   ^chars pwd ^chars pwd2]
+   ^chars pwd & [^chars pwd2]]
 
   (let [ct (.getTrustedCertificate (convCert certPEM))
         rdr (InputStreamReader. (streamify keyPEM))
@@ -697,7 +856,7 @@
 
   (let [[cert pkey]
         (->> (assoc args :dnStr dnStr)
-             (mkSSV1Cert store args))
+             (ssv1Cert store args))
         out (baos<>)]
     (.setKeyEntry
       ks
@@ -770,9 +929,7 @@
       X509Extension/subjectKeyIdentifier
       false
       (.createSubjectKeyIdentifier exu (.getPublic kp)))
-    (let [ct (-> (JcaX509CertificateConverter.)
-                 (.setProvider pv)
-                 (.getCertificate (.build bdr cs)))]
+    (let [ct (toXCert (.build bdr cs))]
       (.checkValidity ct (Date.))
       (.verify ct (.getPublicKey rootc))
       [ct (.getPrivate kp)])))
