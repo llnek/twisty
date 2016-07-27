@@ -76,9 +76,9 @@
     (certAliases [_] (filterEntries store :certs))
     (keyAliases [_] (filterEntries store :keys))
 
-    (keyEntity [_ nm pwd] (pkeyGist store nm pwd))
+    (keyEntity [_ nm pwd] (pkeyGist<> store nm pwd))
 
-    (certEntity [_ nm] (tcert store nm))
+    (certEntity [_ nm] (tcert<> store nm))
 
     (removeEntity [_ nm]
       (when (.containsAlias store ^String nm)

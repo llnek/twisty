@@ -25,7 +25,7 @@ import java.security.PrivateKey;
 public interface PKeyGist {
 
   /**/
-  public Certificate[] certChain();
+  public Certificate[] chain();
 
   /**/
   public Certificate cert();

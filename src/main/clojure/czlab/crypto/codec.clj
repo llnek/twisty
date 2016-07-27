@@ -289,7 +289,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn jasypt<>
+(defn jasyptCryptor<>
 
   "Make a cryptor using Jasypt lib"
   ^Cryptor
@@ -355,7 +355,7 @@
               (bytesify data)
               data)
           plen (alength p)
-          baos (byteOS)
+          baos (baos<>)
           out (->> (.getOutputSize c plen)
                    (max BUF_SZ)
                    (byte-array ))
@@ -383,7 +383,7 @@
               (bytesify encoded)
               encoded)
           plen (alength p)
-          baos (byteOS)
+          baos (baos<>)
           out (->> (.getOutputSize c plen)
                    (max BUF_SZ)
                    (byte-array ))
@@ -491,7 +491,7 @@
               (bytesify encoded)
               encoded)
           out (byte-array KiloBytes)
-          baos (byteOS)
+          baos (baos<>)
           c (.processBytes cipher p 0 (alength p) out 0)]
       (when (> c 0)
         (.write baos out 0 c))
@@ -515,7 +515,7 @@
                    (.init true
                           (KeyParameter. (keyAsBits pkey algo))))
           out (byte-array BUF_SZ)
-          baos (byteOS)
+          baos (baos<>)
           ^bytes
           p (if (string? data)
               (bytesify data)
@@ -530,7 +530,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn bcastle<>
+(defn bcastleCryptor<>
 
   "Make a cryptor using BouncyCastle"
   ^Cryptor
@@ -625,7 +625,7 @@
         (empty? pwdStr)
         ""
         :else
-        (str PWD_PFX (.encrypt (jasypt<>)
+        (str PWD_PFX (.encrypt (jasyptCryptor<>)
                                (.toCharArray pkey)
                                pwdStr))))
 
@@ -646,7 +646,7 @@
     (if
       (.startsWith (str pwdStr) PWD_PFX)
       (reifyPassword
-        (.decrypt (jasypt<>)
+        (.decrypt (jasyptCryptor<>)
                   (.toCharArray pkey)
                   (.substring pwdStr PWD_PFXLEN)) pkey)
       ;else

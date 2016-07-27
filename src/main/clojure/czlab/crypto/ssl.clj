@@ -32,6 +32,7 @@
     [javax.net.ssl SSLEngine SSLContext]
     [czlab.crypto
      PasswordAPI
+     PKeyGist
      CryptoStoreAPI
      SSLTrustMgrFactory]
     [java.net URL]
@@ -47,24 +48,21 @@
   "Make a server-side SSLContext"
 
   ^SSLContext
-  [^URL keyUrl ^chars pwd & [flavor]]
+  [^PKeyGist pkey ^chars pwd & [flavor]]
 
   (let
-    [ks (with-open
-          [inp (.openStream keyUrl)]
-          (if (jksFile? keyUrl)
-            (getJksStore inp pwd)
-            (getPkcsStore inp pwd)))
-     cs (cryptoStore<> ks pwd)
-     tmf (.trustManagerFactory cs)
-     kmf (.keyManagerFactory cs)
+    [cs (-> (pkcsStore<>)
+            (cryptoStore<> nil))
      ctx (-> ^String
              (stror flavor "TLS")
              (SSLContext/getInstance ))]
+    (.addKeyEntity cs pkey pwd)
     (.init ctx
-           (.getKeyManagers kmf)
-           (.getTrustManagers tmf)
-           (srandom<>))
+           (-> (.keyManagerFactory cs)
+               (.getKeyManagers ))
+           (-> (.trustManagerFactory cs)
+               (.getTrustManagers ))
+           (srandom<> true))
     ctx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

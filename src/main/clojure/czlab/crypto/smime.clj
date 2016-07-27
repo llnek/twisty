@@ -197,19 +197,20 @@
   "Create a SignedGenerator"
   ^SMIMESignedGenerator
   [^PrivateKey pkey ^String algo certs]
+  {:pre [(not (empty? certs))]}
 
   (let [gen (SMIMESignedGenerator. "base64")
         caps (doto (SMIMECapabilityVector.)
                (.addCapability SMIMECapability/dES_EDE3_CBC)
                (.addCapability SMIMECapability/rC2_CBC, 128)
                (.addCapability SMIMECapability/dES_CBC))
-        signedAttrs (doto (ASN1EncodableVector.)
-                      (.add (SMIMECapabilitiesAttribute. caps)))
+        signedAttrs
+        (doto (ASN1EncodableVector.)
+          (.add (SMIMECapabilitiesAttribute. caps)))
         ^X509Certificate subj (first certs)
-        ^X509Certificate issuer (if (> (count certs) 1)
-                                  (nth certs 1)
-                                  subj)
-        issuerDN (.getSubjectX500Principal issuer)
+        issuer (or (fnext certs) subj)
+        issuerDN (-> ^X509Certificate issuer
+                     (.getSubjectX500Principal ))
          ;; add an encryption key preference for encrypted responses -
          ;; normally this would be different from the signing certificate...
         issAndSer (IssuerAndSerialNumber.
@@ -221,11 +222,11 @@
                  (.add signedAttrs ))
         bdr (doto (JcaSignerInfoGeneratorBuilder.
                        (-> (JcaDigestCalculatorProviderBuilder. )
-                           (.setProvider _BCProvider)
+                           (.setProvider _BC_)
                            (.build)))
                   (.setDirectSignature true))
         cs (-> (JcaContentSignerBuilder. (str algo))
-               (.setProvider _BCProvider)
+               (.setProvider _BC_)
                (.build pkey))]
     (->> signedAttrs
          (AttributeTable. )
@@ -300,7 +301,7 @@
   [^PrivateKey pkey ^SMIMEEnveloped env]
 
   (loop [rec (-> (JceKeyTransEnvelopedRecipient. pkey)
-                 (.setProvider _BCProvider))
+                 (.setProvider _BC_))
          it (-> (.getRecipientInfos env)
                 (.getRecipients)
                 (.iterator))
@@ -368,12 +369,12 @@
     (.addRecipientInfoGenerator
       gen
       (-> (JceKeyTransRecipientInfoGenerator. cert)
-          (.setProvider _BCProvider)))
+          (.setProvider _BC_)))
     (.generate
       gen
       ^MimeBodyPart
       bp (-> (JceCMSContentEncryptorBuilder. algo)
-             (.setProvider _BCProvider)
+             (.setProvider _BC_)
              (.build)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -389,12 +390,12 @@
     (.addRecipientInfoGenerator
       gen
       (-> (JceKeyTransRecipientInfoGenerator. cert)
-          (.setProvider _BCProvider)))
+          (.setProvider _BC_)))
     (.generate
       gen
       msg
       (-> (JceCMSContentEncryptorBuilder. algo)
-          (.setProvider _BCProvider)
+          (.setProvider _BC_)
           (.build)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -408,12 +409,12 @@
     (.addRecipientInfoGenerator
       gen
       (-> (JceKeyTransRecipientInfoGenerator. cert)
-          (.setProvider _BCProvider)))
+          (.setProvider _BC_)))
     (.generate
       gen
       (doto (mimeMsg<>) (.setContent mp))
       (-> (JceCMSContentEncryptorBuilder. algo)
-          (.setProvider _BCProvider)
+          (.setProvider _BC_)
           (.build)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -457,11 +458,11 @@
   ^bytes
   [^Certificate cert ^XData dx ^bytes signature]
 
-  (let [cms (->> ^CMSProcessable
-                 (if (.isFile dx)
-                   (CMSProcessableFile. (.fileRef dx))
-                   (CMSProcessableByteArray. (.getBytes dx)))
-                 (CMSSignedData. signature))
+  (let [^CMSProcessable
+        proc (if (.isFile dx)
+               (CMSProcessableFile. (.fileRef dx))
+               (CMSProcessableByteArray. (.getBytes dx)))
+        cms (CMSSignedData. proc signature)
         sls (some-> cms (.getSignerInfos) (.getSigners))
         cs (JcaCertStore. [cert])
         rc (some
@@ -476,7 +477,7 @@
                    digest
                    (let
                      [bdr (-> (JcaSimpleSignerInfoVerifierBuilder.)
-                              (.setProvider _BCProvider))
+                              (.setProvider _BC_))
                       ok (->> ^X509CertificateHolder
                               (.next it)
                               (.build bdr )
@@ -517,7 +518,7 @@
                 ret
                 (let
                   [ci (-> (JcaSimpleSignerInfoVerifierBuilder.)
-                          (.setProvider _BCProvider)
+                          (.setProvider _BC_)
                           (.build ^X509CertificateHolder (.next it))) ]
                   (if (.verify si ci)
                     (if-some [digest (.getContentDigest si) ]
@@ -540,13 +541,14 @@
   "Sign some data"
   ^bytes
   [^PrivateKey pkey certs ^String algo ^XData xs]
+  {:pre [(not (empty? certs))]}
 
   (let [bdr (-> (JcaDigestCalculatorProviderBuilder.)
-                (.setProvider _BCProvider)
+                (.setProvider _BC_)
                 (.build)
                 (JcaSignerInfoGeneratorBuilder.))
         cs (-> (JcaContentSignerBuilder. (str algo))
-               (.setProvider _BCProvider)
+               (.setProvider _BC_)
                (.build pkey))
         gen (CMSSignedDataGenerator.)
         cert (first certs)]
