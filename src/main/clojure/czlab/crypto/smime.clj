@@ -18,9 +18,14 @@
   czlab.crypto.smime
 
   (:require
-    [czlab.xlib.io :refer [xdata<> toBytes streamify baos<> resetStream!]]
     [czlab.xlib.str :refer [stror lcase ucase strim hgl?]]
     [czlab.xlib.dates :refer [+months]]
+    [czlab.xlib.io
+     :refer [xdata<>
+             toBytes
+             streamify
+             baos<>
+             resetStream!]]
     [czlab.xlib.logging :as log]
     [clojure.string :as cs]
     [czlab.xlib.mime :as mime]
@@ -39,14 +44,16 @@
   (:use [czlab.crypto.core])
 
   (:import
-    [org.bouncycastle.pkcs.jcajce JcaPKCS10CertificationRequestBuilder]
-    [org.bouncycastle.operator OperatorCreationException ContentSigner]
-    [org.bouncycastle.operator DigestCalculatorProvider ContentSigner]
-    [org.bouncycastle.asn1.cms AttributeTable IssuerAndSerialNumber]
-    [javax.activation DataHandler CommandMap MailcapCommandMap]
     [javax.mail BodyPart MessagingException Multipart Session]
-    [clojure.lang
-     APersistentVector]
+    [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
+    [java.security.cert Certificate X509Certificate]
+    [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
+    [org.bouncycastle.cert X509CertificateHolder]
+    [org.bouncycastle.asn1 ASN1EncodableVector]
+    [javax.activation DataHandler]
+    [org.bouncycastle.asn1.cms
+     AttributeTable
+     IssuerAndSerialNumber]
     [java.io
      PrintStream
      File
@@ -56,44 +63,19 @@
      InputStreamReader
      ByteArrayInputStream
      ByteArrayOutputStream ]
-    [java.math BigInteger]
-    [java.net URL]
-    [java.util Random Date]
     [javax.mail.internet
      ContentType
      MimeBodyPart
      MimeMessage
      MimeMultipart
      MimeUtility]
-    [org.bouncycastle.asn1 ASN1ObjectIdentifier]
-    [org.bouncycastle.cms CMSAlgorithm]
-    [org.bouncycastle.cert X509CertificateHolder]
     [java.security
-     Policy
-     PermissionCollection
-     CodeSource
-     Permissions
-     KeyPair
-     KeyPairGenerator
-     KeyStore
      MessageDigest
      PrivateKey
      Provider
      PublicKey
-     AllPermission
      SecureRandom
-     Security
-     KeyStore$PasswordProtection
-     GeneralSecurityException
-     KeyStore$PrivateKeyEntry
-     KeyStore$TrustedCertificateEntry]
-    [java.security.cert
-     CertificateFactory
-     Certificate
-     X509Certificate]
-    [org.bouncycastle.jce.provider BouncyCastleProvider]
-    [org.bouncycastle.asn1.x509 X509Extension]
-    [org.bouncycastle.asn1 ASN1EncodableVector]
+     GeneralSecurityException]
     [org.bouncycastle.asn1.smime
      SMIMECapabilitiesAttribute
      SMIMECapability
@@ -102,14 +84,11 @@
     [org.bouncycastle.asn1.x500 X500Name]
     [org.bouncycastle.cms
      CMSCompressedDataParser
-     CMSException
      CMSProcessable
-     CMSSignedGenerator
      CMSProcessableByteArray
      CMSProcessableFile
      CMSSignedData
      CMSSignedDataGenerator
-     CMSTypedData
      CMSTypedStream
      Recipient
      RecipientInfoGenerator
@@ -121,7 +100,6 @@
      JcaSimpleSignerInfoVerifierBuilder
      JceCMSContentEncryptorBuilder
      JceKeyTransEnvelopedRecipient
-     JceKeyTransRecipientId
      JceKeyTransRecipientInfoGenerator
      ZlibExpanderProvider]
     [org.bouncycastle.mail.smime
@@ -134,44 +112,15 @@
      SMIMESignedParser]
     [org.bouncycastle.operator.jcajce
      JcaContentSignerBuilder
-     JcaDigestCalculatorProviderBuilder ]
-    [org.bouncycastle.util Store]
-    [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
-    [javax.security.auth.x500 X500Principal]
-    [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
-    [org.apache.commons.mail DefaultAuthenticator]
-    [org.bouncycastle.cert.jcajce
-     JcaCertStore
-     JcaX509CertificateConverter
-     JcaX509ExtensionUtils
-     JcaX509v1CertificateBuilder
-     JcaX509v3CertificateBuilder]
+     JcaDigestCalculatorProviderBuilder]
+    [org.bouncycastle.cert.jcajce JcaCertStore ]
     [org.bouncycastle.cms.jcajce
      ZlibCompressor
      JcaSignerInfoGeneratorBuilder]
-    [org.bouncycastle.openssl PEMParser]
-    [org.bouncycastle.operator.jcajce
-     JcaContentSignerBuilder
-     JcaDigestCalculatorProviderBuilder]
-    [org.bouncycastle.pkcs
-     PKCS10CertificationRequest
-     PKCS10CertificationRequestBuilder]
-    [javax.crypto
-     Cipher
-     KeyGenerator
-     Mac
-     SecretKey]
-    [javax.crypto.spec SecretKeySpec]
-    [javax.net.ssl X509TrustManager TrustManager]
-    [org.apache.commons.codec.binary Hex Base64]
-    [org.apache.commons.io IOUtils]
-    [czlab.crypto SSLTrustMgrFactory
-     PasswordAPI
+    [czlab.crypto
      PKeyGist
-     CertGist
      SDataSource]
-    [czlab.xlib XData]
-    [java.lang Math]))
+    [czlab.xlib XData]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)

@@ -19,7 +19,7 @@ import java.util.Date;
 
 /**
  *
- * @author kenl
+ * @author Kenneth Leung
  *
  */
 public interface CertGist {

@@ -19,7 +19,7 @@ import java.security.PrivateKey;
 
 /**
  *
- * @author kenl
+ * @author Kenneth Leung
  *
  */
 public interface PKeyGist {

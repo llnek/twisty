@@ -27,7 +27,7 @@ import czlab.xlib.XStream;
 /**
  * Secured Data Source.
  *
- * @author kenl
+ * @author Kenneth Leung
  *
  */
 public class SDataSource implements DataSource {

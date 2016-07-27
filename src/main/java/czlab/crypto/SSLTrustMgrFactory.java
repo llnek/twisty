@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 /**
  * A simple trust manager.
  *
- * @author kenl
+ * @author Kenneth Leung
  *
  */
 public class SSLTrustMgrFactory extends TrustManagerFactorySpi {

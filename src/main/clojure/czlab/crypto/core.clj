@@ -51,51 +51,41 @@
              getClassname]])
 
   (:import
-    [org.bouncycastle.pkcs.jcajce JcaPKCS10CertificationRequestBuilder]
-    [org.bouncycastle.pkcs.bc
-     BcPKCS12PBEInputDecryptorProviderBuilder]
-    [org.bouncycastle.operator OperatorCreationException ContentSigner]
-    [org.bouncycastle.operator DigestCalculatorProvider ContentSigner]
-    [org.bouncycastle.asn1.cms AttributeTable IssuerAndSerialNumber]
     [javax.activation DataHandler CommandMap MailcapCommandMap]
     [javax.mail BodyPart MessagingException Multipart Session]
-    [org.bouncycastle.pkcs PKCS8EncryptedPrivateKeyInfo]
+    [org.bouncycastle.jce.provider BouncyCastleProvider]
+    [org.apache.commons.mail DefaultAuthenticator]
+    [javax.net.ssl X509TrustManager TrustManager]
+    [clojure.lang APersistentVector]
     [org.bouncycastle.util.encoders Hex Base64]
+    [org.bouncycastle.pkcs.jcajce
+     JcaPKCS10CertificationRequestBuilder]
+    [org.bouncycastle.pkcs.bc
+     BcPKCS12PBEInputDecryptorProviderBuilder]
+    [org.bouncycastle.operator
+     DigestCalculatorProvider
+     ContentSigner
+     OperatorCreationException]
+    [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
+    [org.bouncycastle.asn1 ASN1EncodableVector]
+    [org.bouncycastle.asn1.x500 X500Name]
+    [org.bouncycastle.asn1.x509
+     X509Extension
+     SubjectPublicKeyInfo]
+    [org.bouncycastle.asn1.cms
+     AttributeTable
+     ContentInfo
+     IssuerAndSerialNumber]
+    [org.bouncycastle.pkcs
+     PKCS8EncryptedPrivateKeyInfo]
     [org.bouncycastle.openssl
      X509TrustedCertificateBlock
      PEMKeyPair
      PEMEncryptedKeyPair]
-    [clojure.lang
-     APersistentVector]
-    [java.io
-     StringWriter
-     PrintStream
-     File
-     InputStream
-     IOException
-     FileInputStream
-     InputStreamReader
-     ByteArrayInputStream
-     ByteArrayOutputStream ]
-    [java.math BigInteger]
-    [java.net URL]
-    [java.util Random Date]
-    [javax.mail.internet
-     ContentType
-     MimeBodyPart
-     MimeMessage
-     MimeMultipart
-     MimeUtility]
-    [org.bouncycastle.asn1.cms ContentInfo]
-    [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
-    [org.bouncycastle.asn1.x509
-     X509Extension
-     SubjectPublicKeyInfo]
     [org.bouncycastle.cert
      X509CRLHolder
      X509CertificateHolder
      X509AttributeCertificateHolder]
-    [org.bouncycastle.cms CMSAlgorithm]
     [org.bouncycastle.openssl.jcajce
      JcePEMDecryptorProviderBuilder
      JcePEMEncryptorBuilder
@@ -104,7 +94,6 @@
     [java.security
      Policy
      PermissionCollection
-     CodeSource
      Permissions
      KeyPair
      KeyPairGenerator
@@ -124,80 +113,57 @@
      CertificateFactory
      Certificate
      X509Certificate]
-    [org.bouncycastle.jce.provider BouncyCastleProvider]
-    [org.bouncycastle.asn1 ASN1EncodableVector]
-    [org.bouncycastle.asn1.smime
-     SMIMECapabilitiesAttribute
-     SMIMECapability
-     SMIMECapabilityVector
-     SMIMEEncryptionKeyPreferenceAttribute]
-    [org.bouncycastle.asn1.x500 X500Name]
     [org.bouncycastle.cms
-     CMSCompressedDataParser
-     CMSException
+     CMSSignedDataGenerator
+     CMSProcessableFile
      CMSProcessable
      CMSSignedGenerator
-     CMSProcessableByteArray
-     CMSProcessableFile
-     CMSSignedData
-     CMSSignedDataGenerator
-     CMSTypedData
-     CMSTypedStream
-     Recipient
-     RecipientInfoGenerator
-     RecipientInformation
-     SignerInformation
-     DefaultSignedAttributeTableGenerator]
+     CMSProcessableByteArray]
     [org.bouncycastle.cms.jcajce
-     JcaSignerInfoGeneratorBuilder
-     JcaSimpleSignerInfoVerifierBuilder
-     JceCMSContentEncryptorBuilder
-     JceKeyTransEnvelopedRecipient
-     JceKeyTransRecipientId
-     JceKeyTransRecipientInfoGenerator
-     ZlibExpanderProvider]
-    [org.bouncycastle.mail.smime
-     SMIMECompressedGenerator
-     SMIMEEnveloped
-     SMIMEEnvelopedGenerator
-     SMIMEException
-     SMIMESigned
-     SMIMESignedGenerator
-     SMIMESignedParser]
+     JcaSignerInfoGeneratorBuilder]
     [org.bouncycastle.operator.jcajce
      JcaContentSignerBuilder
      JcaDigestCalculatorProviderBuilder ]
-    [org.bouncycastle.util Store]
-    [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
+    ;;[org.bouncycastle.util Store]
     [javax.security.auth.x500 X500Principal]
-    [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
-    [org.apache.commons.mail DefaultAuthenticator]
     [org.bouncycastle.cert.jcajce
      JcaCertStore
      JcaX509CertificateConverter
      JcaX509ExtensionUtils
      JcaX509v1CertificateBuilder
      JcaX509v3CertificateBuilder]
-    [org.bouncycastle.cms.jcajce
-     ZlibCompressor
-     JcaSignerInfoGeneratorBuilder]
     [org.bouncycastle.openssl
      PEMWriter
      PEMParser
      PEMEncryptor]
-    [org.bouncycastle.operator.jcajce
-     JcaContentSignerBuilder
-     JcaDigestCalculatorProviderBuilder]
     [org.bouncycastle.pkcs
      PKCS10CertificationRequest
      PKCS10CertificationRequestBuilder]
     [javax.crypto
-     Cipher
-     KeyGenerator
      Mac
-     SecretKey]
+     SecretKey
+     Cipher
+     KeyGenerator]
     [javax.crypto.spec SecretKeySpec]
-    [javax.net.ssl X509TrustManager TrustManager]
+    [java.io
+     StringWriter
+     PrintStream
+     File
+     InputStream
+     IOException
+     FileInputStream
+     InputStreamReader
+     ByteArrayInputStream
+     ByteArrayOutputStream]
+    [java.math BigInteger]
+    [java.net URL]
+    [java.util Random Date]
+    [javax.mail.internet
+     ContentType
+     MimeBodyPart
+     MimeMessage
+     MimeMultipart
+     MimeUtility]
     [czlab.crypto
      PasswordAPI
      PKeyGist
@@ -213,11 +179,8 @@
 ;;
 (def ^:private ^String DEF_ALGO "SHA1WithRSAEncryption")
 (def ^:private ^String DEF_MAC "HmacSHA512")
-
-(def ^:private EXPLICIT_SIGNING :EXPLICIT)
-(def ^:private IMPLICIT_SIGNING :IMPLICIT)
-(def ^:private DER_FORM :DER)
-(def ^:private PEM_FORM :PEM)
+;;(def ^:private EXPLICIT_SIGNING :EXPLICIT)
+;;(def ^:private IMPLICIT_SIGNING :IMPLICIT)
 
 (def ^:private ENC_ALGOS
   #{"AES-128-CBC" "AES-128-CFB" "AES-128-ECB" "AES-128-OFB"
@@ -237,6 +200,8 @@
 (def ^String MD5RSA "MD5withRSA")
 (def ^String BFISH "BlowFish")
 
+(def DER_FORM :DER)
+(def PEM_FORM :PEM)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -286,14 +251,31 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defmacro withBC1
+  ""
+  {:private true}
+  [t p1 & [pv]]
+  `(-> (new ~t ~p1)
+       (.setProvider (or ~pv _BC_))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro withBC
+  ""
+  {:private true}
+  [t & [pv]]
+  `(-> (new ~t)
+       (.setProvider (or ~pv _BC_))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn- toXCert
 
   ""
   ^X509Certificate
   [^X509CertificateHolder h]
 
-  (-> (JcaX509CertificateConverter.)
-      (.setProvider _BC_)
+  (-> (withBC JcaX509CertificateConverter)
       (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -305,9 +287,8 @@
   [^chars pwd]
 
   (when (some? pwd)
-    (-> (rand-nth (vec ENC_ALGOS))
-        (JcePEMEncryptorBuilder. )
-        (.setProvider _BC_)
+    (-> (->> (rand-nth (vec ENC_ALGOS))
+             (withBC1 JcePEMEncryptorBuilder ))
         (.setSecureRandom (srandom<>))
         (.build pwd))))
 
@@ -583,7 +564,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn fmtPEM
+(defn exportPEM
 
   "Serialize object in PEM format"
   ^bytes
@@ -607,13 +588,12 @@
 
   "Export Private Key"
   ^bytes
-  [^PrivateKey pkey & [fmt pwd]]
+  [^PrivateKey pkey & [pwd fmt]]
   {:pre [(some? pkey)]}
 
-  ;;"-----BEGIN RSA PRIVATE KEY-----\n" "\n-----END RSA PRIVATE KEY-----\n"
   (if (= (or fmt PEM_FORM)
          PEM_FORM)
-    (fmtPEM pkey pwd)
+    (exportPEM pkey pwd)
     (.getEncoded pkey)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -625,10 +605,9 @@
   [^PublicKey pkey & [fmt]]
   {:pre [(some? pkey)]}
 
-  ;;"-----BEGIN RSA PUBLIC KEY-----\n" "\n-----END RSA PUBLIC KEY-----\n"
   (if (= (or fmt PEM_FORM)
          PEM_FORM)
-    (fmtPEM pkey)
+    (exportPEM pkey)
     (.getEncoded pkey)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -640,10 +619,9 @@
   [^X509Certificate cert & [fmt]]
   {:pre [(some? cert)]}
 
-  ;;"-----BEGIN CERTIFICATE-----\n" "-----END CERTIFICATE-----\n"
   (if (= (or fmt PEM_FORM)
          PEM_FORM)
-    (fmtPEM cert)
+    (exportPEM cert)
     (.getEncoded cert)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -654,19 +632,18 @@
   [^String dnStr & [keylen pwd]]
   {:pre [(hgl? dnStr)]}
 
-  (let [csb (JcaContentSignerBuilder. DEF_ALGO)
+  (let [csb (withBC1 JcaContentSignerBuilder DEF_ALGO)
         len (or keylen 1024)
         kp (asymKeyPair<> "RSA" len)
         rbr (JcaPKCS10CertificationRequestBuilder.
               (X500Principal. dnStr)
               (.getPublic kp))
         k (.getPrivate kp)
-        cs (-> (.setProvider csb _BC_)
-               (.build k))
-        rc (.build rbr cs)]
+        rc (->> (.build csb k)
+                (.build rbr ))]
     (log/debug "csr: dnStr= %s, key-len= %d" dnStr len)
-    [(fmtPEM rc)
-     (exportPrivateKey k :PEM pwd)]))
+    [(exportPEM rc)
+     (exportPrivateKey k pwd)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -735,9 +712,7 @@
               (.build pwd))
        dc (-> (JcePEMDecryptorProviderBuilder.)
               (.build pwd))
-       pc (doto
-            (JcaPEMKeyConverter.)
-            (.setProvider _BC_))
+       pc (withBC JcaPEMKeyConverter)
        obj (-> (PEMParser. rdr)
                (.readObject ))]
       (->>
@@ -797,8 +772,7 @@
               (nextSerial)
               start end
               (X500Principal. dnStr) pub)
-        cs (-> (JcaContentSignerBuilder. algo)
-               (.setProvider pv)
+        cs (-> (withBC1 JcaContentSignerBuilder algo pv)
                (.build prv))
         cert (toXCert (.build bdr cs))]
     (.checkValidity cert (Date.))
@@ -881,8 +855,7 @@
               end
               subject
               (.getPublic kp))
-     cs (-> (JcaContentSignerBuilder. algo)
-            (.setProvider pv)
+     cs (-> (withBC1 JcaContentSignerBuilder algo pv)
             (.build (.pkey issuer)))]
     (.addExtension
       bdr
@@ -969,13 +942,11 @@
     [xxx (CMSProcessableByteArray. (bytesify "?"))
      gen (CMSSignedDataGenerator.)
      cl (into [] (.chain pkey))
-     bdr (JcaSignerInfoGeneratorBuilder.
-              (-> (JcaDigestCalculatorProviderBuilder.)
-                  (.setProvider _BC_)
-                  (.build)))
+     bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)
+                  (.build))
+              (JcaSignerInfoGeneratorBuilder.))
      ;;    "SHA1withRSA"
-     cs (-> (JcaContentSignerBuilder. SHA512RSA)
-            (.setProvider _BC_)
+     cs (-> (withBC1 JcaContentSignerBuilder SHA512RSA)
             (.build (.pkey pkey)))
      ^X509Certificate x509 (.cert pkey)]
     (->> (.build bdr cs x509)

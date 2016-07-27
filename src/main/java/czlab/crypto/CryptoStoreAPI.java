@@ -24,7 +24,7 @@ import javax.net.ssl.TrustManagerFactory;
 /**
  * Abstraction of a key store.
  *
- * @author kenl
+ * @author Kenneth Leung
  *
  */
 public interface CryptoStoreAPI {
