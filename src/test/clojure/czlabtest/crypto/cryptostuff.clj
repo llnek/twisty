@@ -135,8 +135,7 @@
 
 (is (let [^PKeyGist
           pke
-          (.keyEntity ROOTCS
-                      ^String (first (.keyAliases ROOTCS)) HELPME)
+          (.keyEntity ROOTCS HELPME)
           fout (tempFile "x" ".p12")]
       (ssv3PKCS12
         pke "C=AU,ST=NSW,L=Sydney,O=Google" SECRET
@@ -144,8 +143,7 @@
       (> (.length fout) 0)))
 
 (is (let [^PKeyGist pke
-          (.keyEntity ROOTKS
-                      ^String (first (.keyAliases ROOTKS)) HELPME)
+          (.keyEntity ROOTKS HELPME)
           fout (tempFile "x" ".jks")]
       (ssv3JKS
         pke "C=AU,ST=NSW,L=Sydney,O=Google" SECRET
@@ -154,8 +152,7 @@
 
 (is (let [^PKeyGist
           pke
-          (.keyEntity ROOTCS
-                      ^String (first (.keyAliases ROOTCS)) HELPME)
+          (.keyEntity ROOTCS HELPME)
           ^File fout (tempFile "x" ".p7b")]
       (exportPkcs7 pke fout)
       (> (.length fout) 0)))

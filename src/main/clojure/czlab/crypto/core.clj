@@ -252,19 +252,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro withBC1
-  ""
-  {:private true}
-  [t p1 & [pv]]
-  `(-> (new ~t ~p1)
+  "Set BC as provider as part of construction(arg)"
+  [clazz p1 & [pv]]
+  `(-> (new ~clazz ~p1)
        (.setProvider (or ~pv _BC_))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro withBC
-  ""
-  {:private true}
-  [t & [pv]]
-  `(-> (new ~t)
+  "Set BC as provider as part of construction"
+  [clazz & [pv]]
+  `(-> (new ~clazz)
        (.setProvider (or ~pv _BC_))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

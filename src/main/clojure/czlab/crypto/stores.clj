@@ -78,6 +78,12 @@
 
     (keyEntity [_ nm pwd] (pkeyGist<> store nm pwd))
 
+    (keyEntity [this pwd]
+      (let [a (.keyAliases this)]
+        (if (== 1 (count a))
+          (.keyEntity this (str (first a)) pwd)
+          (throwBadArg "Store has many keys"))))
+
     (certEntity [_ nm] (tcert<> store nm))
 
     (removeEntity [_ nm]

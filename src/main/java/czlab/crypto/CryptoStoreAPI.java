@@ -35,6 +35,11 @@ public interface CryptoStoreAPI {
   public PKeyGist keyEntity(String alias, char[] pwd);
 
   /**
+   * Get the only private key.
+   */
+  public PKeyGist keyEntity(char[] pwd);
+
+  /**
    * Get the certificate.
    */
   public Certificate certEntity(String alias);
