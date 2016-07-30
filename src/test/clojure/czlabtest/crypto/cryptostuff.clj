@@ -56,9 +56,14 @@
 ;;
 (deftest czlabtestcrypto-cryptostuff
 
-(is (not (= "heeloo, how are you?" (caesarDecrypt (caesarEncrypt "heeloo, how are you?" 709394) 666))))
-(is (= "heeloo, how are you?" (caesarDecrypt (caesarEncrypt "heeloo, how are you?" 709394) 709394)))
-(is (= "heeloo, how are you?" (caesarDecrypt (caesarEncrypt "heeloo, how are you?" 13) 13)))
+(is (not= "heeloo, how are you?"
+          (caesarDecrypt 666 (caesarEncrypt 709394 "heeloo, how are you?" ) )))
+
+(is (= "heeloo, how are you?"
+       (caesarDecrypt 709394 (caesarEncrypt 709394 "heeloo, how are you?" ) )))
+
+(is (= "heeloo, how are you?"
+       (caesarDecrypt 13 (caesarEncrypt 13 "heeloo, how are you?" ) )))
 
 (is (= "heeloo" (let [c (jasyptCryptor<>)]
                   (.decrypt c C_KEY (.encrypt c C_KEY "heeloo")))))

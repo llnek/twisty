@@ -229,7 +229,7 @@
 
   "Encrypt clear text by character rotation"
   ^String
-  [^String text shiftpos]
+  [shiftpos ^String text]
 
   (if (or (== shiftpos 0)
           (empty? text))
@@ -247,7 +247,7 @@
 
   "Decrypt text which was encrypted by the caesar method"
   ^String
-  [^String text shiftpos]
+  [shiftpos ^String text]
 
   (if (or (== shiftpos 0)
           (empty? text))
