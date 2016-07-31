@@ -58,18 +58,18 @@ public class SDataSource implements DataSource {
     this(content, "");
   }
 
-  /**/
+  @Override
   public String getContentType() { return _ctype; }
 
-  /**/
+  @Override
   public String getName() { return "Unknown"; }
 
-  /**/
+  @Override
   public OutputStream getOutputStream() throws IOException {
     throw new IOException("Not implemented");
   }
 
-  /**/
+  @Override
   public InputStream getInputStream() {
     return (_fn==null)
       ? new ByteArrayInputStream(_bits) : new XStream(_fn);
