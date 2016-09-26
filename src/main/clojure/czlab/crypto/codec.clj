@@ -19,16 +19,12 @@
 
   (:require
     [czlab.xlib.meta :refer [charsClass bytesClass]]
-    [czlab.xlib.str :refer [stror hgl?]]
-    [czlab.xlib.core
-     :refer [srandom<>
-             bytesify
-             stringify
-             throwBadArg]]
     [czlab.xlib.logging :as log]
     [czlab.xlib.io :refer [baos<>]])
 
-  (:use [czlab.xlib.consts])
+  (:use [czlab.xlib.consts]
+        [czlab.xlib.core]
+        [czlab.xlib.str])
 
   (:import
     [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
@@ -64,7 +60,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (def
-  ^:private
+  ^{:private true
+    :tag (charsClass) }
   VISCHS
   (->
     (CU/shuffle (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
@@ -75,14 +72,16 @@
 (def ^:private VISCHS_LEN (alength ^chars VISCHS))
 
 (def
-  ^:private
+  ^{:private true
+    :tag (charsClass)}
   s_asciiChars
   (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz1234567890"
                        "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ))
       (.toCharArray)))
 
 (def
-  ^:private
+  ^{:private true
+    :tag (charsClass) }
   s_pwdChars
   (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz"
                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -144,23 +143,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; caesar cipher
-(defn- identCh
+(defmacro ^:private identCh
 
   "Lookup a character by the given index"
-  ^Character
+  {:tag Character}
   [pos]
 
-  (aget ^chars VISCHS ^long pos))
+  `(aget VISCHS (int ~pos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- locateCh
 
   "Given a character, return the index"
-  ^long
+  ^Integer
   [^Character ch]
 
-  (-> (some #(if (= ch (aget ^chars VISCHS %1))
+  (-> (some #(if (= ch (aget VISCHS %1))
                %1 nil)
             (range VISCHS_LEN))
       (or -1)))

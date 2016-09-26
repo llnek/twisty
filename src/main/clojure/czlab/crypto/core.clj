@@ -26,29 +26,12 @@
              toBytes
              baos<>
              resetStream!]]
-    [czlab.xlib.str
-     :refer [strbf<>
-             stror
-             lcase
-             ucase
-             strim
-             hgl?]]
     [czlab.xlib.logging :as log]
     [clojure.java.io :as io]
-    [clojure.string :as cs]
-    [czlab.xlib.mime :as mime]
-    [czlab.xlib.core
-     :refer [throwBadArg
-             seqint
-             throwIOE
-             srandom<>
-             bytesify
-             try!!
-             try!
-             trap!
-             cast?
-             juid
-             getClassname]])
+    [clojure.string :as cs])
+
+  (:use [czlab.xlib.core]
+        [czlab.xlib.str])
 
   (:import
     [javax.activation DataHandler CommandMap MailcapCommandMap]
@@ -202,6 +185,54 @@
 
 (def DER_FORM :DER)
 (def PEM_FORM :PEM)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- maybeStream
+
+  "Convert object into some form of stream, if possible"
+  ^InputStream
+  [obj]
+
+  (condp instance? obj
+    String (streamify (bytesify obj))
+    InputStream obj
+    (bytesClass) (streamify obj)
+    nil))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn isSigned?
+
+  "true if this content-type indicates signed"
+  [^String cType]
+
+  (let [ct (lcase cType)]
+    (or (embeds? ct "multipart/signed")
+        (and (embeds? ct "application/x-pkcs7-mime")
+             (embeds? ct "signed-data")))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn isEncrypted?
+
+  "true if this content-type indicates encrypted"
+  [^String cType]
+
+  (let [ct (lcase cType)]
+    (and (embeds? ct "application/x-pkcs7-mime")
+         (embeds? ct "enveloped-data"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn isCompressed?
+
+  "true if this content-type indicates compressed"
+  [^String cType]
+
+  (let [ct (lcase cType)]
+    (and (embeds? ct "application/pkcs7-mime")
+         (embeds? ct "compressed-data"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1003,17 +1034,17 @@
   "Check if this stream-like object/message-part is signed"
   [^Object obj]
 
-  (if-some [inp (mime/maybeStream obj)]
+  (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
            (.getContentType)
-           (mime/isSigned? ))
+           (isSigned? ))
       (finally
         (resetStream! inp)))
     (if (instance? Multipart obj)
       (->> ^Multipart obj
            (.getContentType )
-           (mime/isSigned? ))
+           (isSigned? ))
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1023,20 +1054,20 @@
   "Check if this stream-like object/message-part is compressed"
   [^Object obj]
 
-  (if-some [inp (mime/maybeStream obj)]
+  (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
            (.getContentType )
-           (mime/isCompressed? ))
+           (isCompressed? ))
       (finally
         (resetStream! inp)))
     (condp instance? obj
       Multipart (->> ^Multipart obj
                      (.getContentType )
-                     (mime/isCompressed? ))
+                     (isCompressed? ))
       BodyPart (->> ^BodyPart obj
                     (.getContentType )
-                    (mime/isCompressed? ))
+                    (isCompressed? ))
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1046,20 +1077,20 @@
   "Check if this stream-like object/message-part is encrypted"
   [^Object obj]
 
-  (if-some [inp (mime/maybeStream obj)]
+  (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
            (.getContentType )
-           (mime/isEncrypted? ))
+           (isEncrypted? ))
       (finally
         (resetStream! inp)))
     (condp instance? obj
       Multipart (->> ^Multipart obj
                      (.getContentType )
-                     (mime/isEncrypted? ))
+                     (isEncrypted? ))
       BodyPart (->> ^BodyPart obj
                     (.getContentType )
-                    (mime/isEncrypted? ))
+                    (isEncrypted? ))
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

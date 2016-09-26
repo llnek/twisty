@@ -28,7 +28,6 @@
              resetStream!]]
     [czlab.xlib.logging :as log]
     [clojure.string :as cs]
-    [czlab.xlib.mime :as mime]
     [czlab.xlib.core
      :refer [throwBadArg
              seqint

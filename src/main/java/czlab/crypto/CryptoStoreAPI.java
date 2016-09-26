@@ -14,9 +14,9 @@
 
 package czlab.crypto;
 
-import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
-import java.security.KeyStore;
+import java.security.cert.X509Certificate;
+
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
