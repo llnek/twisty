@@ -18,29 +18,14 @@
   czlab.crypto.smime
 
   (:require
-    [czlab.xlib.str :refer [stror lcase ucase strim hgl?]]
     [czlab.xlib.dates :refer [+months]]
-    [czlab.xlib.io
-     :refer [xdata<>
-             toBytes
-             streamify
-             baos<>
-             resetStream!]]
     [czlab.xlib.logging :as log]
-    [clojure.string :as cs]
-    [czlab.xlib.core
-     :refer [throwBadArg
-             seqint
-             throwIOE
-             srandom<>
-             bytesify
-             try!
-             trap!
-             cast?
-             juid
-             getClassname]])
+    [clojure.string :as cs])
 
-  (:use [czlab.crypto.core])
+  (:use [czlab.crypto.core]
+        [czlab.xlib.core]
+        [czlab.xlib.io]
+        [czlab.xlib.str])
 
   (:import
     [javax.mail BodyPart MessagingException Multipart Session]

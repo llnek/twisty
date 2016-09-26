@@ -93,7 +93,7 @@
                                        (asymEncr pu
                                                  (bytesify "heeloo")))))))
 
-(is (= (.length ^String (.text (strongPwd 16))) 16))
+(is (= (.length ^String (.text (strongPwd<> 16))) 16))
 (is (= (.length (randomStr 64)) 64))
 
 (is (instance? PasswordAPI (passwd<> "secret-text")))

@@ -19,7 +19,7 @@
 
   (:require
     [czlab.crypto.stores :refer [cryptoStore<>]]
-    [czlab.xlib.core :refer [srandom<>]]
+    [czlab.xlib.core :refer [rand<>]]
     [czlab.xlib.str :refer [stror]]
     [czlab.xlib.logging :as log]
     [czlab.crypto.core
@@ -62,7 +62,7 @@
                (.getKeyManagers ))
            (-> (.trustManagerFactory cs)
                (.getTrustManagers ))
-           (srandom<> true))
+           (rand<> true))
     ctx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -75,7 +75,7 @@
 
   (when ssl?
     (doto (SSLContext/getInstance "TLS")
-          (.init nil (SSLTrustMgrFactory/getTrustManagers) (srandom<>)))))
+          (.init nil (SSLTrustMgrFactory/getTrustManagers) (rand<>)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
