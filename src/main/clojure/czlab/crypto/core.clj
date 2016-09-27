@@ -312,7 +312,7 @@
   ^PEMEncryptor
   [^chars pwd]
 
-  (if (some? pwd)
+  (if-not (empty? pwd)
     (-> (->> (rand-nth (vec ENC_ALGOS))
              (withBC1 JcePEMEncryptorBuilder ))
         (.setSecureRandom (rand<>))
@@ -1031,7 +1031,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn isSigned?
+(defn isDataSigned?
 
   "Check if this stream-like object/message-part is signed"
   [^Object obj]
@@ -1051,7 +1051,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn isCompressed?
+(defn isDataCompressed?
 
   "Check if this stream-like object/message-part is compressed"
   [^Object obj]
@@ -1074,7 +1074,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn isEncrypted?
+(defn isDataEncrypted?
 
   "Check if this stream-like object/message-part is encrypted"
   [^Object obj]

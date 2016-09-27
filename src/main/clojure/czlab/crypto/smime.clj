@@ -175,8 +175,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmulti smimeDigSig
-  "Sign and returns a Multipart"
-  ^Object (fn [a b & xs] (class b)))
+  "Sign and returns a Multipart" {:tag Object} (fn [a b & xs] (class b)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -262,7 +261,7 @@
                  [cms (smimeDec ^PrivateKey %1 ev)]
                  (toBytes (.getContentStream cms)) nil)
               pkeys)]
-    (when (nil? rc)
+    (if (nil? rc)
       (trap! GeneralSecurityException "No matching decryption key"))
     rc))
 
@@ -434,7 +433,7 @@
                  (.getSigners))
      cs (JcaCertStore. [cert])
      rc (some (partial siTester cs) (seq sls))]
-    (when (nil? rc)
+    (if (nil? rc)
       (trap! GeneralSecurityException
              "Decode signature: no matching cert"))
     rc))
@@ -455,7 +454,7 @@
              (.getSigners))
      cs (JcaCertStore. certs)
      rc (some (partial siTester cs) (seq sns))]
-    (when (nil? rc)
+    (if (nil? rc)
       (trap! GeneralSecurityException
              "Verify signature: no matching cert"))
     {:content
@@ -500,49 +499,48 @@
 (defn smimeDeflate
 
   "Compress and return a BodyPart"
-  (^MimeBodyPart
-    [^String cType ^XData xs]
-    (let [ds (if (.isFile xs)
-               (SDataSource. (.fileRef xs) cType)
-               (SDataSource. (.getBytes xs) cType))
-          bp (MimeBodyPart.) ]
-      (.setDataHandler bp (DataHandler. ds))
-      (.generate (SMIMECompressedGenerator.)
-                 bp
-                 (ZlibCompressor.))))
+  {:tag MimeBodyPart}
 
-  (^MimeBodyPart
-    [^MimeMessage msg]
-    ;; make sure it's processed, just in case
-    (.getContent msg)
-    (-> (SMIMECompressedGenerator.)
-        (.generate msg (ZlibCompressor.))))
+  ([^String cType ^XData xs]
+   (let [ds (if (.isFile xs)
+              (SDataSource. (.fileRef xs) cType)
+              (SDataSource. (.getBytes xs) cType))
+         bp (MimeBodyPart.)]
+     (.setDataHandler bp (DataHandler. ds))
+     (.generate (SMIMECompressedGenerator.)
+                bp
+                (ZlibCompressor.))))
 
-  (^MimeBodyPart
-    [^String cType ^String contentLoc
-     ^String cid ^XData xs]
-    (let [ds (if (.isFile xs)
-               (SDataSource. (.fileRef xs) cType)
-               (SDataSource. (.getBytes xs) cType))
-          bp (MimeBodyPart.) ]
-      (when (hgl? contentLoc)
-        (.setHeader bp "content-location" contentLoc))
-      (when (hgl? cid)
-        (.setHeader bp "content-id" cid))
-      (.setDataHandler bp (DataHandler. ds))
-      (let [zbp (-> (SMIMECompressedGenerator.)
-                    (.generate bp (ZlibCompressor.)))
-            pos (.lastIndexOf cid (int \>))
-            cID (if (>= pos 0)
-                  (str (.substring cid 0 pos) "--z>")
-                  (str cid "--z")) ]
-        (when (hgl? contentLoc)
-          (.setHeader zbp "content-location" contentLoc))
-        (.setHeader zbp "content-id" cID)
-        ;; always base64
-        ;;cte="base64"
-        (.setHeader zbp "content-transfer-encoding" "base64")
-        zbp))))
+  ([^MimeMessage msg]
+   ;; make sure it's processed, just in case
+   (.getContent msg)
+   (-> (SMIMECompressedGenerator.)
+       (.generate msg (ZlibCompressor.))))
+
+  ([^String cType ^String contentLoc
+    ^String cid ^XData xs]
+   (let [ds (if (.isFile xs)
+              (SDataSource. (.fileRef xs) cType)
+              (SDataSource. (.getBytes xs) cType))
+         bp (MimeBodyPart.) ]
+     (if (hgl? contentLoc)
+       (.setHeader bp "content-location" contentLoc))
+     (if (hgl? cid)
+       (.setHeader bp "content-id" cid))
+     (.setDataHandler bp (DataHandler. ds))
+     (let [zbp (-> (SMIMECompressedGenerator.)
+                   (.generate bp (ZlibCompressor.)))
+           pos (.lastIndexOf cid (int \>))
+           cID (if (>= pos 0)
+                 (str (.substring cid 0 pos) "--z>")
+                 (str cid "--z")) ]
+       (if (hgl? contentLoc)
+         (.setHeader zbp "content-location" contentLoc))
+       (.setHeader zbp "content-id" cID)
+       ;; always base64
+       ;;cte="base64"
+       (.setHeader zbp "content-transfer-encoding" "base64")
+       zbp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

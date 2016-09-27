@@ -38,7 +38,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (def ^:private ^chars C_KEY (.toCharArray "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
-(def ^:private ^chars B_KEY (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+(def ^:private ^bytes B_KEY (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 (def ^:private ^chars TESTPWD (.toCharArray "secretsecretsecretsecretsecret"))
 (def ^:private ENDDT (.getTime (GregorianCalendar. 2050 1 1)))
 (def ^:private ROOTPFX (resBytes "czlab/crypto/test.pfx"))

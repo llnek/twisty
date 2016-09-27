@@ -638,7 +638,7 @@
        (.startsWith (str pwdStr) PWD_PFX)
        (mkPwd
          (.decrypt (jasyptCryptor<>)
-                   (.toCharArray ^String pkey)
+                   (.toCharArray pkey)
                    (.substring pwdStr PWD_PFXLEN)) pkey)
        (mkPwd pwdStr pkey)))))
 

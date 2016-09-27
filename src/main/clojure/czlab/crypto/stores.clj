@@ -18,10 +18,11 @@
   czlab.crypto.stores
 
   (:require
-    [czlab.xlib.core :refer [throwBadArg]]
-    [czlab.xlib.str :refer [stror hgl?]]
-    [czlab.crypto.core :refer :all]
     [czlab.xlib.logging :as log])
+
+  (:use [czlab.crypto.core]
+        [czlab.xlib.core]
+        [czlab.xlib.str])
 
   (:import
     [java.security.cert CertificateFactory X509Certificate Certificate]
@@ -48,9 +49,7 @@
   ^CryptoStoreAPI
   [^KeyStore store ^chars passwd]
 
-  (reify
-
-    CryptoStoreAPI
+  (reify CryptoStoreAPI
 
     (addKeyEntity [this gist pwd]
       (.setKeyEntry

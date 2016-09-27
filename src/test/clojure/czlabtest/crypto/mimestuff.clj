@@ -60,9 +60,9 @@
                    (.getContentType msg)
                    "multipart/mixed") 0)
              (== (.getCount mp) 2)
-             (not (isSigned? mp))
-             (not (isCompressed? mp))
-             (not (isEncrypted? mp)) ))))
+             (not (isDataSigned? mp))
+             (not (isDataCompressed? mp))
+             (not (isDataEncrypted? mp)) ))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
       (let [^PKeyGist pke
@@ -71,7 +71,7 @@
             cs (into [] (.chain pke))
             pk (.pkey pke)
             rc (smimeDigSig pk msg SHA512RSA cs)]
-        (isSigned? rc))))
+        (isDataSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
       (let [^PKeyGist pke
@@ -81,7 +81,7 @@
             cs (into [] (.chain pke))
             pk (.pkey pke)
             rc (smimeDigSig pk mp SHA512RSA cs)]
-        (isSigned? rc))))
+        (isDataSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
       (let [^PKeyGist
@@ -92,7 +92,7 @@
             cs (into [] (.chain pke))
             pk (.pkey pke)
             rc (smimeDigSig pk bp SHA512RSA cs)]
-        (isSigned? rc))))
+        (isDataSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
       (let [^PKeyGist
