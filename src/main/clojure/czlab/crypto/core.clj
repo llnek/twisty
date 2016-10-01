@@ -18,7 +18,6 @@
   czlab.crypto.core
 
   (:require
-    [czlab.xlib.files :refer [writeFile]]
     [czlab.xlib.dates :refer [+months]]
     [czlab.xlib.meta :refer [bytesClass]]
     [czlab.xlib.logging :as log]
