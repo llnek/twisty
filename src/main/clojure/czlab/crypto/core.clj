@@ -17,138 +17,135 @@
 
   czlab.crypto.core
 
-  (:require
-    [czlab.xlib.dates :refer [+months]]
-    [czlab.xlib.meta :refer [bytesClass]]
-    [czlab.xlib.logging :as log]
-    [clojure.java.io :as io]
-    [clojure.string :as cs])
+  (:require [czlab.xlib.dates :refer [+months]]
+            [czlab.xlib.meta :refer [bytesClass]]
+            [czlab.xlib.logging :as log]
+            [clojure.java.io :as io]
+            [clojure.string :as cs])
 
   (:use [czlab.xlib.core]
         [czlab.xlib.io]
         [czlab.xlib.str])
 
-  (:import
-    [javax.activation DataHandler CommandMap MailcapCommandMap]
-    [javax.mail BodyPart MessagingException Multipart Session]
-    [org.bouncycastle.jce.provider BouncyCastleProvider]
-    [org.apache.commons.mail DefaultAuthenticator]
-    [javax.net.ssl X509TrustManager TrustManager]
-    [clojure.lang APersistentVector]
-    [org.bouncycastle.util.encoders Hex Base64]
-    [org.bouncycastle.pkcs.jcajce
-     JcaPKCS10CertificationRequestBuilder]
-    [org.bouncycastle.pkcs.bc
-     BcPKCS12PBEInputDecryptorProviderBuilder]
-    [org.bouncycastle.operator
-     DigestCalculatorProvider
-     ContentSigner
-     OperatorCreationException]
-    [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
-    [org.bouncycastle.asn1 ASN1EncodableVector]
-    [org.bouncycastle.asn1.x500 X500Name]
-    [org.bouncycastle.asn1.x509
-     X509Extension
-     SubjectPublicKeyInfo]
-    [org.bouncycastle.asn1.cms
-     AttributeTable
-     ContentInfo
-     IssuerAndSerialNumber]
-    [org.bouncycastle.pkcs
-     PKCS8EncryptedPrivateKeyInfo]
-    [org.bouncycastle.openssl
-     X509TrustedCertificateBlock
-     PEMKeyPair
-     PEMEncryptedKeyPair]
-    [org.bouncycastle.cert
-     X509CRLHolder
-     X509CertificateHolder
-     X509AttributeCertificateHolder]
-    [org.bouncycastle.openssl.jcajce
-     JcePEMDecryptorProviderBuilder
-     JcePEMEncryptorBuilder
-     JcaMiscPEMGenerator
-     JcaPEMKeyConverter]
-    [java.security
-     Policy
-     PermissionCollection
-     Permissions
-     KeyPair
-     KeyPairGenerator
-     KeyStore
-     MessageDigest
-     PrivateKey
-     Provider
-     PublicKey
-     AllPermission
-     SecureRandom
-     Security
-     KeyStore$PasswordProtection
-     GeneralSecurityException
-     KeyStore$PrivateKeyEntry
-     KeyStore$TrustedCertificateEntry]
-    [java.security.cert
-     CertificateFactory
-     Certificate
-     X509Certificate]
-    [org.bouncycastle.cms
-     CMSSignedDataGenerator
-     CMSProcessableFile
-     CMSProcessable
-     CMSSignedGenerator
-     CMSProcessableByteArray]
-    [org.bouncycastle.cms.jcajce
-     JcaSignerInfoGeneratorBuilder]
-    [org.bouncycastle.operator.jcajce
-     JcaContentSignerBuilder
-     JcaDigestCalculatorProviderBuilder ]
-    ;;[org.bouncycastle.util Store]
-    [javax.security.auth.x500 X500Principal]
-    [org.bouncycastle.cert.jcajce
-     JcaCertStore
-     JcaX509CertificateConverter
-     JcaX509ExtensionUtils
-     JcaX509v1CertificateBuilder
-     JcaX509v3CertificateBuilder]
-    [org.bouncycastle.openssl
-     PEMWriter
-     PEMParser
-     PEMEncryptor]
-    [org.bouncycastle.pkcs
-     PKCS10CertificationRequest
-     PKCS10CertificationRequestBuilder]
-    [javax.crypto
-     Mac
-     SecretKey
-     Cipher
-     KeyGenerator]
-    [javax.crypto.spec SecretKeySpec]
-    [java.io
-     StringWriter
-     PrintStream
-     File
-     InputStream
-     IOException
-     FileInputStream
-     InputStreamReader
-     ByteArrayInputStream
-     ByteArrayOutputStream]
-    [java.math BigInteger]
-    [java.net URL]
-    [java.util Random Date]
-    [javax.mail.internet
-     ContentType
-     MimeBodyPart
-     MimeMessage
-     MimeMultipart
-     MimeUtility]
-    [czlab.crypto
-     PasswordAPI
-     PKeyGist
-     CertGist
-     SSLTrustMgrFactory]
-    [czlab.xlib XData]
-    [java.lang Math]))
+  (:import [javax.activation DataHandler CommandMap MailcapCommandMap]
+           [javax.mail BodyPart MessagingException Multipart Session]
+           [org.bouncycastle.jce.provider BouncyCastleProvider]
+           [org.apache.commons.mail DefaultAuthenticator]
+           [javax.net.ssl X509TrustManager TrustManager]
+           [clojure.lang APersistentVector]
+           [org.bouncycastle.util.encoders Hex Base64]
+           [org.bouncycastle.pkcs.jcajce
+            JcaPKCS10CertificationRequestBuilder]
+           [org.bouncycastle.pkcs.bc
+            BcPKCS12PBEInputDecryptorProviderBuilder]
+           [org.bouncycastle.operator
+            DigestCalculatorProvider
+            ContentSigner
+            OperatorCreationException]
+           [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
+           [org.bouncycastle.asn1 ASN1EncodableVector]
+           [org.bouncycastle.asn1.x500 X500Name]
+           [org.bouncycastle.asn1.x509
+            X509Extension
+            SubjectPublicKeyInfo]
+           [org.bouncycastle.asn1.cms
+            AttributeTable
+            ContentInfo
+            IssuerAndSerialNumber]
+           [org.bouncycastle.pkcs
+            PKCS8EncryptedPrivateKeyInfo]
+           [org.bouncycastle.openssl
+            X509TrustedCertificateBlock
+            PEMKeyPair
+            PEMEncryptedKeyPair]
+           [org.bouncycastle.cert
+            X509CRLHolder
+            X509CertificateHolder
+            X509AttributeCertificateHolder]
+           [org.bouncycastle.openssl.jcajce
+            JcePEMDecryptorProviderBuilder
+            JcePEMEncryptorBuilder
+            JcaMiscPEMGenerator
+            JcaPEMKeyConverter]
+           [java.security
+            Policy
+            PermissionCollection
+            Permissions
+            KeyPair
+            KeyPairGenerator
+            KeyStore
+            MessageDigest
+            PrivateKey
+            Provider
+            PublicKey
+            AllPermission
+            SecureRandom
+            Security
+            KeyStore$PasswordProtection
+            GeneralSecurityException
+            KeyStore$PrivateKeyEntry
+            KeyStore$TrustedCertificateEntry]
+           [java.security.cert
+            CertificateFactory
+            Certificate
+            X509Certificate]
+           [org.bouncycastle.cms
+            CMSSignedDataGenerator
+            CMSProcessableFile
+            CMSProcessable
+            CMSSignedGenerator
+            CMSProcessableByteArray]
+           [org.bouncycastle.cms.jcajce
+            JcaSignerInfoGeneratorBuilder]
+           [org.bouncycastle.operator.jcajce
+            JcaContentSignerBuilder
+            JcaDigestCalculatorProviderBuilder]
+           [javax.security.auth.x500 X500Principal]
+           [org.bouncycastle.cert.jcajce
+            JcaCertStore
+            JcaX509CertificateConverter
+            JcaX509ExtensionUtils
+            JcaX509v1CertificateBuilder
+            JcaX509v3CertificateBuilder]
+           [org.bouncycastle.openssl
+            PEMWriter
+            PEMParser
+            PEMEncryptor]
+           [org.bouncycastle.pkcs
+            PKCS10CertificationRequest
+            PKCS10CertificationRequestBuilder]
+           [javax.crypto
+            Mac
+            SecretKey
+            Cipher
+            KeyGenerator]
+           [javax.crypto.spec SecretKeySpec]
+           [java.io
+            StringWriter
+            PrintStream
+            File
+            InputStream
+            IOException
+            FileInputStream
+            InputStreamReader
+            ByteArrayInputStream
+            ByteArrayOutputStream]
+           [java.math BigInteger]
+           [java.net URL]
+           [java.util Random Date]
+           [javax.mail.internet
+            ContentType
+            MimeBodyPart
+            MimeMessage
+            MimeMultipart
+            MimeUtility]
+           [czlab.crypto
+            PasswordAPI
+            PKeyGist
+            CertGist
+            SSLTrustMgrFactory]
+           [czlab.xlib XData]
+           [java.lang Math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)
@@ -170,7 +167,6 @@
     "DES-EDE3-ECB" "DES-EDE3-OFB"
     "RC2-CBC" "RC2-CFB" "RC2-ECB" "RC2-OFB"
     "RC2-40-CBC" "RC2-64-CBC" })
-
 (def ^String SHA512RSA "SHA512withRSA")
 (def ^String SHA256RSA "SHA256withRSA")
 (def ^String SHA1RSA "SHA1withRSA")
@@ -183,24 +179,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- maybeStream
-
   "Convert object into some form of stream, if possible"
   ^InputStream
   [obj]
-
   (condp instance? obj
     String (streamify (bytesify obj))
     (bytesClass) (streamify obj)
-    InputStream obj
-    nil))
+    InputStream obj))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn isSigned?
-
-  "true if this content-type indicates signed"
+  "If this content-type indicates signed"
   [^String cType]
-
   (let [ct (lcase cType)]
     (or (embeds? ct "multipart/signed")
         (and (embeds? ct "application/x-pkcs7-mime")
@@ -209,10 +200,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn isEncrypted?
-
-  "true if this content-type indicates encrypted"
+  "If this content-type indicates encrypted"
   [^String cType]
-
   (let [ct (lcase cType)]
     (and (embeds? ct "application/x-pkcs7-mime")
          (embeds? ct "enveloped-data"))))
@@ -220,10 +209,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn isCompressed?
-
-  "true if this content-type indicates compressed"
+  "If this content-type indicates compressed"
   [^String cType]
-
   (let [ct (lcase cType)]
     (and (embeds? ct "application/pkcs7-mime")
          (embeds? ct "compressed-data"))))
@@ -231,11 +218,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn assertJce
-
   "This function should fail if the non-restricted (unlimited-strength)
    jce files are not placed in jre-home"
   []
-
   (let
     [kgen (doto
             (KeyGenerator/getInstance BFISH)
@@ -279,28 +264,27 @@
 ;;
 (defmacro withBC1
   "Set BC as provider as part of construction(arg)"
-  [clazz p1 & [pv]]
-  `(-> (new ~clazz ~p1)
-       (.setProvider (or ~pv *_BC_*))))
+  ([clazz p1] (withBC1 clazz p1 nil))
+  ([clazz p1 pv]
+   `(-> (new ~clazz ~p1)
+        (.setProvider (or ~pv *_BC_*)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro withBC
   "Set BC as provider as part of construction"
-  [clazz & [pv]]
-  `(-> (new ~clazz)
-       (.setProvider (or ~pv *_BC_*))))
+  ([clazz] (withBC clazz nil))
+  ([clazz pv]
+   `(-> (new ~clazz)
+        (.setProvider (or ~pv *_BC_*)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- toXCert
-
   ""
   ^X509Certificate
   [^X509CertificateHolder h]
-
-  (-> JcaX509CertificateConverter
-      (withBC )
+  (-> (withBC JcaX509CertificateConverter)
       (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -788,6 +772,7 @@
              (asymKeyPair<> (:style args)))
      end (->> (or (:validFor args) 12)
               (+months )
+              (.getTime)
               (or end ))
      start (or start (Date.))
      pv (.getProvider store)
@@ -872,6 +857,7 @@
     [^X509Certificate rootc (.cert issuer)
      end (->> (or (:validFor args) 12)
               (+months )
+              (.getTime)
               (or end ))
      start (or start (Date.))
      subject (X500Principal. dnStr)

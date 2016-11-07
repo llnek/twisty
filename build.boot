@@ -17,14 +17,14 @@
     ;;[org.mindrot/jbcrypt "0.3m" ]
 
     [org.apache.commons/commons-email "1.4" ]
-    [com.sun.mail/javax.mail "1.5.5" ]
+    [com.sun.mail/javax.mail "1.5.6" ]
     [org.clojure/clojure "1.8.0" ]
 
     [com.cemerick/pomegranate "0.3.1" :scope "provided"]
-    [net.mikera/cljunit "0.4.1" :scope "provided"]
+    [net.mikera/cljunit "0.5.0" :scope "provided"]
     [junit/junit "4.12"  :scope "provided"]
 
-    [codox/codox "0.9.5" :scope "provided"]
+    [codox/codox "0.10.1" :scope "provided"]
   ]
 
   :source-paths #{"src/main/clojure" "src/main/java"}
@@ -35,14 +35,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(require
-  '[czlab.tpcl.boot
-    :as b
-    :refer [artifactID fp! ge]]
-  '[clojure.tools.logging :as log]
-  '[clojure.java.io :as io]
-  '[clojure.string :as cs]
-  '[czlab.xlib.antlib :as a])
+(require '[czlab.tpcl.boot :as b :refer [artifactID fp! ge]]
+         '[clojure.tools.logging :as log]
+         '[clojure.java.io :as io]
+         '[clojure.string :as cs]
+         '[czlab.xlib.antlib :as a])
 
 (import '[java.io File])
 
