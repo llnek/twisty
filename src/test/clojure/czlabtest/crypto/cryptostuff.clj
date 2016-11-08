@@ -24,16 +24,18 @@
         [clojure.test]
         [czlab.crypto.core])
 
-  (:import
-    [czlab.crypto PKeyGist Cryptor CryptoStoreAPI PasswordAPI]
-    [java.security KeyPair Policy
-     KeyStore
-     SecureRandom
-     MessageDigest
-     KeyStore$PrivateKeyEntry
-     KeyStore$TrustedCertificateEntry]
-    [java.util Date GregorianCalendar]
-    [java.io File]))
+  (:import [czlab.crypto PKeyGist Cryptor CryptoStoreAPI PasswordAPI]
+           [java.util Date GregorianCalendar]
+           [java.io File]
+           [java.math BigInteger]
+           [java.security
+            KeyPair
+            Policy
+            KeyStore
+            SecureRandom
+            MessageDigest
+            KeyStore$PrivateKeyEntry
+            KeyStore$TrustedCertificateEntry]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -55,6 +57,110 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (deftest czlabtestcrypto-cryptostuff
+
+  (is (isSigned? "application/x-pkcs7-mime; signed-data"))
+  (is (isSigned? "multipart/signed"))
+  (is (not (isSigned? "text/plain")))
+
+  (is (isEncrypted? "application/x-pkcs7-mime; enveloped-data"))
+  (is (isEncrypted? "text/plain"))
+
+  (is (isCompressed? "application/pkcs7-mime; compressed-data"))
+  (is (isCompressed? "text/plain"))
+
+  (is (not (jksFile? (resUrl "czlab/crypto/test.p12"))))
+  (is (jksFile? (resUrl "czlab/crypto/test.jks")))
+
+  (is (= "SHA-512" (.getAlgorithm (msgDigest "SHA-512"))))
+  (is (= "MD5" (.getAlgorithm (msgDigest "MD5"))))
+
+  (is (inst? BigInteger (nextSerial)))
+
+  (is (not= (alias<>)(alias<>)))
+  (is (string? (alias<>)))
+
+  (is (= "PKCS12" (.getType (pkcsStore<>))))
+  (is (= "JKS" (.getType (jksStore<>))))
+
+  (is (let [a (.keyAliases ROOTCS)
+            c (count a)
+            n (first a)
+            e (.keyEntity ROOTCS n HELPME)]
+        (and (== 1 c)
+             (string? n)
+             (inst? PKeyGist e))))
+
+  (is (let [a (.certAliases ROOTCS) c (count a)] (== 0 c)))
+
+  (is (let [g (convPKey (resUrl
+                          "czlab/crypto/test.p12")
+                        HELPME
+                        HELPME)
+            t (tempFile)
+            _ (exportPkcs7 g t)
+            z (.length t)
+            c (.cert g)
+            b (exportCert c)]
+        (deleteQ t)
+        (and (> z 10)
+             (hgl? (stringify b)))))
+
+  (is (some? (easyPolicy<>)))
+
+  (is (= (genMac B_KEY "hello world")
+         (genMac B_KEY "hello world")))
+
+  (is (not= (genMac B_KEY "hello maria")
+            (genMac B_KEY "hello world")))
+
+  (is (= (genHash "hello world")
+         (genHash "hello world")))
+
+  (is (not= (genHash "hello maria")
+            (genHash "hello world")))
+
+  (is (let [kp (asymKeyPair<> "RSA" 1024)
+            b (exportPEM kp SECRET)
+            pub (.getPublic kp)
+            prv (.getPrivate kp)
+            b1 (exportPrivateKey prv SECRET)
+            b2 (exportPublicKey pub)]
+        (and (hgl? (stringify b))
+             (hgl? (stringify b1))
+             (hgl? (stringify b2)))))
+
+  (is (let [[a b]
+            (cereq<> "C=AU,O=Org,OU=OUnit,CN=joe" 1024)]
+        (and (instBytes? a)
+             (instBytes? b))))
+
+  (is (let [s (session<> "joe" "123")
+            s0 (session<>)
+            b (resBytes "czlab/xlib/mime.eml")
+            m (mimeMsg<> (streamify b))
+            c (.getContent m)
+            z (isDataCompressed? c)
+            g (isDataSigned? c)
+            e (isDataEncrypted? c)]
+        (and (not z)(not g)(not e))))
+
+
+
+  (is (some? (getCharset "text/plain; charset=utf-16")))
+
+  (is (not= (digest<sha1> "hello world")
+            (digest<md5> "hello world")))
+
+  (is (= (digest<sha1> "hello world")
+         (digest<sha1> "hello world")))
+
+  (is (= (digest<md5> "hello world")
+         (digest<md5> "hello world")))
+
+  (is (some? (simpleTrustMgr<>)))
+
+
+
 
 (is (not= "heeloo, how are you?"
           (caesarDecrypt 666 (caesarEncrypt 709394 "heeloo, how are you?" ) )))
@@ -100,20 +206,7 @@
 (is (.startsWith ^String (.encoded ^PasswordAPI
                                    (passwd<> "secret-text")) "crypt:"))
 
-(is (= "SHA-512" (.getAlgorithm (msgDigest "SHA-512"))))
-(is (= "MD5" (.getAlgorithm (msgDigest "MD5"))))
 
-(is (> (nextSerial) 0))
-
-(is (= "PKCS12" (.getType (pkcsStore<>))))
-(is (= "JKS" (.getType (jksStore<>))))
-
-(is (instance? Policy (easyPolicy<>)))
-
-(is (> (.length (genMac (bytesify "secret") (bytesify "heeloo world"))) 0))
-(is (> (.length (genHash (bytesify "heeloo world"))) 0))
-
-(is (not (nil? (asymKeyPair<> "RSA" 1024))))
 
 (is (let [v (csreq<>
               (str "C=AU,ST=NSW,L=Sydney,"

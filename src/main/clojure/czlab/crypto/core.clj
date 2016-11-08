@@ -252,7 +252,7 @@
                     "org.bouncycastle.mail.smime.handlers.pkcs7_mime"))
   (.addMailcap (str "application/x-pkcs7-signature;; "
                     "x-java-content-handler="
-                    "org.bouncycastle.mail.smime.handlers.x_pkcs7_signature") )
+                    "org.bouncycastle.mail.smime.handlers.x_pkcs7_signature"))
   (.addMailcap (str "application/x-pkcs7-mime;; "
                     "x-java-content-handler="
                     "org.bouncycastle.mail.smime.handlers.x_pkcs7_mime"))
@@ -284,7 +284,8 @@
   ""
   ^X509Certificate
   [^X509CertificateHolder h]
-  (-> (withBC JcaX509CertificateConverter)
+  (-> JcaX509CertificateConverter
+      (withBC )
       (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -396,29 +397,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pkcsStore<>
-  "Create a PKCS12 key-store"
-  {:tag KeyStore}
-
-  ([inp] (pkcsStore<> inp nil))
-  ([] (pkcsStore<> nil nil))
-  ([^InputStream inp ^chars pwd2]
-   (doto
-     (KeyStore/getInstance "PKCS12" *_BC_*)
-     (.load inp pwd2))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn jksStore<>
-  "Create a JKS key-store"
-  {:tag KeyStore}
-
-  ([inp] (jksStore<> inp nil))
-  ([] (jksStore<> nil nil))
-  ([^InputStream inp ^chars pwd2]
-   (doto (->> (Security/getProvider "SUN")
-              (KeyStore/getInstance "JKS"))
-     (.load inp pwd2))))
+(defn- coerceInput
+  ""
+  [arg]
+  (condp = (class arg)
+    File [true (FileInputStream. ^File arg)]
+    (bytesClass) [true (streamify arg)]
+    InputStream [false arg]
+    URL [true (.openStream ^URL arg)]
+    nil [false nil]
+    (throwBadArg "Bad type")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -428,12 +416,7 @@
   [^KeyStore store arg ^chars pwd2]
   (let
     [[b ^InputStream inp]
-     (condp = (class arg)
-       File [true (FileInputStream. ^File arg)]
-       (bytesClass) [true (streamify arg)]
-       InputStream [false arg]
-       nil [false nil]
-       (throwBadArg "Bad type"))]
+     (coerceInput arg)]
     (try
       (.load store inp pwd2)
       store
@@ -442,34 +425,54 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defn pkcsStore<>
+  "Create a PKCS12 key-store"
+  {:tag KeyStore}
+
+  ([arg] (pkcsStore<> arg nil))
+  ([] (pkcsStore<> nil nil))
+  ([arg ^chars pwd2]
+   (->
+     (KeyStore/getInstance "PKCS12" *_BC_*)
+     (initStore! arg pwd2))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn jksStore<>
+  "Create a JKS key-store"
+  {:tag KeyStore}
+
+  ([arg] (jksStore<> arg nil))
+  ([] (jksStore<> nil nil))
+  ([arg ^chars pwd2]
+   (->
+     (->> (Security/getProvider "SUN")
+          (KeyStore/getInstance "JKS"))
+     (initStore! arg pwd2))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn convCert
   "Convert to a Certificate"
   ^Certificate
   [arg]
   (let
-    [^InputStream
-     inp (condp = (class arg)
-           (bytesClass) (streamify arg)
-           InputStream arg
-           (throwBadArg "Bad type"))]
-    (-> (CertificateFactory/getInstance "X.509")
-        (.generateCertificate inp))))
+    [[del ^InputStream inp] (coerceInput arg)
+     cert (-> (CertificateFactory/getInstance "X.509")
+              (.generateCertificate inp))]
+    (if del (closeQ inp))
+    cert))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- convPKey
+(defn convPKey
   "Convert to a Private Key"
   {:tag PKeyGist}
 
   ([arg pwd] (convPKey arg pwd nil))
   ([arg ^chars pwd ^chars pwd2]
    (let
-     [^InputStream
-      inp (condp = (class arg)
-            (bytesClass) (streamify arg)
-            InputStream arg
-            (throwBadArg "Bad type"))
-      ks (pkcsStore<> inp pwd2)
+     [ks (initStore! (pkcsStore<>) arg  pwd2)
       n (first (filterEntries ks :keys))]
      (if (hgl? n)
        (pkeyGist<> ks n pwd)))))
@@ -689,43 +692,81 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pkcs12<>
-  "Make a PKCS12 object from key and cert"
+(defn spitKeyStore
+  "Serialize keystore to file"
+  ^File
+  [^KeyStore store fout ^chars pwd2]
+  {:pre [(some? store)(some? fout)]}
 
-  ([cert pk fout pwd]
-   (pkcs12<> cert pk fout pwd nil))
-  ([^X509Certificate cert
-    ^PrivateKey pk
-    ^File fout ^chars pwd ^chars pwd2]
-   (let [ss (pkcsStore<>)
-         out (baos<>)]
-     (.setKeyEntry ss
-                   (alias<>)
-                   pk
-                   pwd
-                   (into-array Certificate [cert]))
-     (.store ss out pwd2)
-     (writeFile (io/file fout) (.toByteArray out)))))
+  (let [f (io/file fout)
+        out (baos<>)]
+    (.store store out pwd2)
+    (doto f
+     (writeFile (.toByteArray out)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; generate self-signed cert
-;; self signed-> issuer is self
-(defn- ssv1Cert
+;;
+(defn- setKeyEntry "" ^KeyStore [^KeyStore store
+                                 ^PrivateKey pk ^chars pwd certs]
+  (doto store
+    (.setKeyEntry (alias<>)
+                  pk
+                  pwd
+                  (into-array Certificate certs))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- setCertEntry
   ""
-  [^KeyStore store {:keys [^String dnStr
-                           ^String algo
-                           ^Date start
-                           ^Date end
-                           validFor keylen style] :as args}]
+  ^KeyStore
+  [^KeyStore store ^Certificate cert]
+  (doto store
+    (.setCertificateEntry (alias<>) cert)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn jks<>
+  "JKS store from key and cert"
+  ^KeyStore
+  [^X509Certificate cert ^PrivateKey pk ^chars pwd certs]
+  {:pre [(some? cert)(some? pk)]}
+  (doto (jksStore<>)
+     (setKeyEntry pk
+                  pwd
+                  (cons cert (or certs [])))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn pkcs12<>
+  "PKCS12 store from key and cert"
+  ^KeyStore
+  [^X509Certificate cert ^PrivateKey pk ^chars pwd certs]
+  {:pre [(some? cert)(some? pk)]}
+  (doto (pkcsStore<>)
+     (setKeyEntry pk
+                  pwd
+                  (cons cert (or certs [])))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn ssv1Cert
+  "Generate self-signed cert, self signed-> issuer is self"
+  ^APersistentVector
+  [{:keys [^String dnStr
+           ^String algo
+           ^Date start
+           ^Date end
+           validFor
+           keylen
+           style] :as args}]
   (let
-    [kp (->> (or keylen 1024)
-             (asymKeyPair<> style args))
+    [kp (asymKeyPair<> style
+                       (or keylen 1024))
      start (or start (now<date>))
      end (->> (or validFor 12)
               (+months )
               (.getTime)
               (or end ))
-     pv (.getProvider store)
      prv (.getPrivate kp)
      pub (.getPublic kp)
      bdr (JcaX509v1CertificateBuilder.
@@ -733,7 +774,8 @@
            (nextSerial)
            start end
            (X500Principal. dnStr) pub)
-     cs (-> (withBC1 JcaContentSignerBuilder algo pv)
+     cs (-> JcaContentSignerBuilder
+            (withBC1 algo *_BC_*)
             (.build prv))
      cert (toXCert (.build bdr cs))]
     (.checkValidity cert (now<date>))
@@ -745,58 +787,40 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- ssv1XXX
-  ""
-  {:no-doc true}
-  [^KeyStore store dnStr pwd fout pwd2 args]
-  (let
-    [[^PrivateKey pkey cert]
-     (->> (assoc args :dnStr dnStr)
-          (ssv1Cert store ))
-     out (baos<>)]
-    (.setKeyEntry
-      store
-      (alias<>)
-      pkey
-      pwd
-      (into-array Certificate [cert]))
-    (.store store out pwd2)
-    (writeFile (io/file fout) (.toByteArray out))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn ssv1PKCS12
-  "Make a SSV1 (root level) type PKCS12 object"
-
-  ([dnStr pwd args fout]
-   (ssv1PKCS12 dnStr pwd args fout nil))
-
-  ([^String dnStr ^chars pwd args fout ^chars pwd2]
-   (->> (merge {:algo DEF_ALGO
-                :style "RSA"} args)
-        (ssv1XXX (pkcsStore<>) dnStr pwd fout pwd2))))
+  "SSV1 (root level) PKCS12 store"
+  ^KeyStore
+  [^String dnStr ^chars pwd args]
+  (let
+    [[pkey cert]
+     (ssv1Cert (merge {:algo DEF_ALGO
+                       :dnStr dnStr
+                       :style "RSA"} args))]
+    (pkcs12<> cert pkey pwd [])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn ssv1JKS
-  "Make a SSV1 (root level) type JKS object"
-
-  ([dnStr pwd args fout]
-   (ssv1JKS dnStr pwd args fout nil))
-
-  ([^String dnStr ^chars pwd args ^File fout ^chars pwd2]
-   (->> (merge {:algo "SHA1withDSA"
-                :style "DSA"} args)
-        (ssv1XXX (jksStore<>) dnStr pwd fout pwd2))))
+  "SSV1 (root level) JKS store"
+  ^KeyStore
+  [^String dnStr ^chars pwd args]
+  (let [[pkey cert]
+        (ssv1Cert (merge {:algo "SHA1withDSA"
+                          :dnStr dnStr
+                          :style "DSA"} args))]
+    (jks<> cert pkey pwd [])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- mkSSV3Cert
+(defn ssv3Cert
   "Make a SSV3 server key"
-  [^KeyStore store ^PKeyGist issuer
-   {:keys [^String dnStr ^String algo
-           ^Date start ^Date end
-           keylen validFor] :as args}]
+  ^APersistentVector
+  [^PKeyGist issuer {:keys [^String dnStr
+                            ^String algo
+                            ^Date start
+                            ^Date end
+                            keylen
+                            validFor] :as args}]
   (let
     [^X509Certificate rootc (.cert issuer)
      subject (X500Principal. dnStr)
@@ -807,7 +831,6 @@
               (or end ))
      start (or start (now<date>))
      len (or keylen 1024)
-     pv (.getProvider store)
      kp (-> (.pkey issuer)
             (.getAlgorithm )
             (asymKeyPair<> len))
@@ -818,18 +841,17 @@
            end
            subject
            (.getPublic kp))
-     cs (-> (withBC1 JcaContentSignerBuilder algo pv)
+     cs (-> (withBC1 JcaContentSignerBuilder algo *_BC_*)
             (.build (.pkey issuer)))]
-    (.addExtension
-      bdr
-      X509Extension/authorityKeyIdentifier
-      false
-      (.createAuthorityKeyIdentifier exu rootc))
-    (.addExtension
-      bdr
-      X509Extension/subjectKeyIdentifier
-      false
-      (.createSubjectKeyIdentifier exu (.getPublic kp)))
+    (doto bdr
+      (.addExtension
+        X509Extension/authorityKeyIdentifier
+        false
+        (.createAuthorityKeyIdentifier exu rootc))
+      (.addExtension
+        X509Extension/subjectKeyIdentifier
+        false
+        (.createSubjectKeyIdentifier exu (.getPublic kp))))
     (let [ct (toXCert (.build bdr cs))]
       (.checkValidity ct (now<date>))
       (.verify ct (.getPublicKey rootc))
@@ -839,68 +861,67 @@
 ;;
 (defn- makeSSV3
   ""
-  [^KeyStore store ^PKeyGist issuer
-   ^String dnStr ^chars pwd ^File fout pwd2 args]
+  [^PKeyGist issuer ^String dnStr ^chars pwd args]
   (let
-    [chain (into [] (.chain issuer))
-     [^PrivateKey pkey cert]
-     (->> (assoc args :dnStr dnStr)
-          (mkSSV3Cert store issuer ))
-     out (baos<>)
-     cs (cons cert chain)]
-    (.setKeyEntry
-      store
-      (alias<>)
-      pkey
-      pwd
-      (into-array Certificate cs))
-    (.store store out pwd2)
-    (writeFile (io/file fout) (.toByteArray out))))
+    [[pkey cert]
+     (ssv3Cert issuer
+               (assoc args :dnStr dnStr))]
+    [pkey cert (into [] (.chain issuer))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn ssv3PKCS12
   "Make a SSV3 type PKCS12 object"
+  ^KeyStore
+  [^PKeyGist issuer ^String dnStr ^chars pwd args]
+  (let [[pkey cert certs]
+        (makeSSV3 issuer
+                  dnStr
+                  pwd
+                  (merge args {:algo DEF_ALGO}))]
+    (pkcs12<> pkey cert certs)))
 
-  ([issuer dnStr pwd fout args]
-   (ssv3PKCS12 issuer dnStr pwd fout args nil))
-
-  ([^PKeyGist issuer ^String dnStr ^chars pwd
-    ^File fout args ^chars pwd2]
-   (makeSSV3
-     (pkcsStore<>)
-     issuer
-     dnStr
-     pwd
-     fout
-     pwd2
-     (merge args {:algo DEF_ALGO } ))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn ssv3PKCS12File "SSV3 type PKCS12 file" ^File [^PKeyGist issuer
+                                                    ^String dnStr
+                                                    ^chars pwd
+                                                    args
+                                                    fout
+                                                    ^chars pwd2]
+  (-> (ssv3PKCS12 issuer dnStr pwd args)
+      (spitKeyStore  fout pwd2)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JKS uses SUN and hence needs to use DSA
-;;
 (defn ssv3JKS
   "Make a SSV3 JKS object"
+  ^KeyStore
+  [^PKeyGist issuer ^String dnStr ^chars pwd args]
+  (let [[pkey cert certs]
+        (makeSSV3 issuer
+                  dnStr
+                  pwd
+                  (merge args {:algo "SHA1withDSA"}))]
+    (jks<> pkey cert certs)))
 
-  ([issuer dnStr pwd fout args]
-   (ssv3JKS issuer dnStr pwd fout args nil))
-
-  ([^PKeyGist issuer ^String dnStr ^chars pwd
-    ^File fout args ^chars pwd2]
-   (makeSSV3
-     (jksStore<>)
-     issuer
-     dnStr
-     pwd
-     fout
-     pwd2
-     (merge args {:algo "SHA1withDSA"}))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; JKS uses SUN and hence needs to use DSA
+(defn ssv3JKSFile "SSV3 JKS file" ^File [^PKeyGist issuer
+                                         ^String dnStr
+                                         ^chars pwd
+                                         args
+                                         fout
+                                         ^chars pwd2]
+  (-> (ssv3JKS issuer dnStr pwd args)
+      (spitKeyStore fout pwd2)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn exportPkcs7
   "Extract and export PKCS7 info from a PKCS12 object"
-  [^PKeyGist pkey fout]
+  ^bytes
+  [^PKeyGist pkey]
   (let
     [xxx (CMSProcessableByteArray. (bytesify "?"))
      gen (CMSSignedDataGenerator.)
@@ -916,9 +937,15 @@
          (.addSignerInfoGenerator gen ))
     (->> (JcaCertStore. cl)
          (.addCertificates gen ))
-    (->> (-> (.generate gen xxx)
-             (.getEncoded))
-         (writeFile (io/file fout)))))
+    (-> (.generate gen xxx) (.getEncoded))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn exportPkcs7File
+  "Extract and export PKCS7 info from a PKCS12 object"
+  ^File
+  [^PKeyGist pkey fout]
+  (doto (io/file fout) (writeFile (exportPkcs7File pkey))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1031,11 +1058,9 @@
 ;;
 (defn- fingerprint<>
   ""
-  ^String
   [^bytes data ^String algo]
   (let
-    [hv (-> (MessageDigest/getInstance algo)
-            (.digest data))
+    [hv (.digest (msgDigest algo) data)
      hlen (alength hv)
      tail (dec hlen)]
     (loop [ret (strbf<>)
@@ -1044,10 +1069,10 @@
         (str ret)
         (let [n (-> (bit-and (aget ^bytes hv i) 0xff)
                     (Integer/toString  16)
-                    (ucase ))]
-          (-> ret
-              (.append (if (= (.length n) 1) (str "0" n) n))
-              (.append (if (= i tail) "" ":")))
+                    ucase)]
+          (doto ret
+            (.append (if (== (.length n) 1) (str "0" n) n))
+            (.append (if (== i tail) "" ":")))
           (recur ret (inc i)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
