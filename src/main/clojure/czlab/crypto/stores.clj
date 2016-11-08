@@ -17,26 +17,27 @@
 
   czlab.crypto.stores
 
-  (:require
-    [czlab.xlib.logging :as log])
+  (:require [czlab.xlib.logging :as log])
 
   (:use [czlab.crypto.core]
         [czlab.xlib.core]
         [czlab.xlib.str])
 
-  (:import
-    [java.security.cert CertificateFactory X509Certificate Certificate]
-    [czlab.crypto CryptoStoreAPI PKeyGist]
-    [java.io File FileInputStream IOException InputStream]
-    [javax.net.ssl KeyManagerFactory TrustManagerFactory]
-    [java.security
-     KeyStore
-     PrivateKey
-     KeyStore$TrustedCertificateEntry
-     KeyStore$ProtectionParameter
-     KeyStore$PasswordProtection
-     KeyStore$PrivateKeyEntry]
-    [javax.security.auth.x500 X500Principal]))
+  (:import [java.io File FileInputStream IOException InputStream]
+           [javax.net.ssl KeyManagerFactory TrustManagerFactory]
+           [czlab.crypto CryptoStoreAPI PKeyGist]
+           [java.security.cert
+            CertificateFactory
+            X509Certificate
+            Certificate]
+           [java.security
+            KeyStore
+            PrivateKey
+            KeyStore$TrustedCertificateEntry
+            KeyStore$ProtectionParameter
+            KeyStore$PasswordProtection
+            KeyStore$PrivateKeyEntry]
+           [javax.security.auth.x500 X500Principal]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
@@ -44,20 +45,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn cryptoStore<>
-
   "Create a crypto store"
   ^CryptoStoreAPI
   [^KeyStore store ^chars passwd]
 
   (reify CryptoStoreAPI
 
-    (addKeyEntity [this gist pwd]
-      (.setKeyEntry
-        store
-        (alias<>)
-        (.pkey gist)
-        pwd
-        (.chain gist)))
+    (addKeyEntity [_ gist pwd]
+      (.setKeyEntry store
+                    (alias<>) (.pkey gist) pwd (.chain gist)))
 
     (addCertEntity [_ cert]
       (.setCertificateEntry store (alias<>) cert))
@@ -86,7 +82,7 @@
     (certEntity [_ nm] (tcert<> store nm))
 
     (removeEntity [_ nm]
-      (when (.containsAlias store ^String nm)
+      (if (.containsAlias store ^String nm)
         (.deleteEntry store ^String nm)))
 
     (intermediateCAs [_] nil) ;;(getCAs keystore true false))
@@ -97,8 +93,8 @@
 
     (addPKCS7Entity [_ bits]
       (let [fac (CertificateFactory/getInstance "X.509")
-            certs (.generateCertificates fac bits) ]
-        (doseq [c (seq certs) ]
+            certs (.generateCertificates fac bits)]
+        (doseq [c (seq certs)]
           (.setCertificateEntry store
                                 (alias<>)
                                 ^Certificate c))))))

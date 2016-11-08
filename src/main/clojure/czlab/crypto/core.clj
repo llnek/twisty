@@ -178,17 +178,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- maybeStream
-  "Convert object into some form of stream, if possible"
-  ^InputStream
-  [obj]
-  (condp instance? obj
-    String (streamify (bytesify obj))
-    (bytesClass) (streamify obj)
-    InputStream obj))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn isSigned?
   "If this content-type indicates signed"
   [^String cType]
@@ -284,9 +273,7 @@
   ""
   ^X509Certificate
   [^X509CertificateHolder h]
-  (-> JcaX509CertificateConverter
-      (withBC )
-      (.getCertificate h)))
+  (-> JcaX509CertificateConverter (withBC ) (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -305,9 +292,10 @@
 (defn jksFile?
   "If url points to a JKS key file"
   [^URL keyUrl]
-  (-> (.getFile keyUrl)
-      lcase
-      (.endsWith ".jks")))
+  (some-> keyUrl
+          (.getFile )
+          (lcase)
+          (.endsWith ".jks")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -332,10 +320,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn dbgProvider
-  "List all BouncyCastle algos"
+  "List all BC algos"
   {:no-doc true}
-  [^PrintStream os]
-  (try! (.list *_BC_* os)))
+  [^PrintStream os] (try! (.list *_BC_* os)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -349,10 +336,22 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defn pkeyGist*<>
+  "Private key info"
+  ^PKeyGist
+  [^PrivateKey k ^Certificate c certs]
+  (reify PKeyGist
+    (chain [_] (vargs Certificate certs))
+    (cert [_] c)
+    (pkey [_] k)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn pkeyGist<>
   "Get a private key from the store"
   ^PKeyGist
   [^KeyStore store ^String n ^chars pwd]
+  {:pre [(some? store)]}
   (if-some
     [e
      (->> (KeyStore$PasswordProtection. pwd)
@@ -369,6 +368,7 @@
   "Get a certificate from store"
   ^Certificate
   [^KeyStore store ^String n]
+  {:pre [(some? store)]}
   (if-some
     [e (->> (.getEntry store n nil)
             (cast? KeyStore$TrustedCertificateEntry ))]
@@ -380,11 +380,11 @@
   "Enumerate entries in the key-store"
   ^APersistentVector
   [^KeyStore store entryType]
-  {:pre [(keyword? entryType)]}
+  {:pre [(some? store)(keyword? entryType)]}
   (loop [en (.aliases store)
          rc (transient [])]
     (if-not (.hasMoreElements en)
-      (persistent! rc)
+      (pcoll! rc)
       (let [n (.nextElement en)]
         (if
           (cond
@@ -414,14 +414,14 @@
   "Initialize the key-store"
   ^KeyStore
   [^KeyStore store arg ^chars pwd2]
+  {:pre [(some? store)]}
   (let
-    [[b ^InputStream inp]
+    [[del ^InputStream inp]
      (coerceInput arg)]
     (try
-      (.load store inp pwd2)
-      store
+      (doto store (.load inp pwd2))
       (finally
-        (if b (closeQ inp))))))
+        (if del (closeQ inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -550,8 +550,8 @@
           (JcaMiscPEMGenerator. obj ec)
           (JcaMiscPEMGenerator. obj))
         (.writeObject pw ))
-        (.flush pw)
-        (bytesify (.toString sw)))))
+      (.flush pw)
+      (bytesify (.toString sw)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -589,7 +589,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn csreq<>
-  "Make a PKCS10 - csr-request"
+  "A PKCS10 (csr-request)"
   {:tag APersistentVector}
 
   ([dnStr keylen] (csreq<> dnStr keylen nil))
@@ -882,17 +882,6 @@
     (pkcs12<> pkey cert certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn ssv3PKCS12File "SSV3 type PKCS12 file" ^File [^PKeyGist issuer
-                                                    ^String dnStr
-                                                    ^chars pwd
-                                                    args
-                                                    fout
-                                                    ^chars pwd2]
-  (-> (ssv3PKCS12 issuer dnStr pwd args)
-      (spitKeyStore  fout pwd2)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JKS uses SUN and hence needs to use DSA
 (defn ssv3JKS
   "Make a SSV3 JKS object"
@@ -904,17 +893,6 @@
                   pwd
                   (merge args {:algo "SHA1withDSA"}))]
     (jks<> pkey cert certs)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; JKS uses SUN and hence needs to use DSA
-(defn ssv3JKSFile "SSV3 JKS file" ^File [^PKeyGist issuer
-                                         ^String dnStr
-                                         ^chars pwd
-                                         args
-                                         fout
-                                         ^chars pwd2]
-  (-> (ssv3JKS issuer dnStr pwd args)
-      (spitKeyStore fout pwd2)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -976,6 +954,17 @@
   ([user pwd] (mimeMsg<> user pwd nil))
   ([inp] (mimeMsg<> "" nil inp))
   ([] (mimeMsg<> "" nil nil)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- maybeStream
+  "Convert object into some form of stream, if possible"
+  ^InputStream
+  [obj]
+  (condp instance? obj
+    String (streamify (bytesify obj))
+    (bytesClass) (streamify obj)
+    InputStream obj))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

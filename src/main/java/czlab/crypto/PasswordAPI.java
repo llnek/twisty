@@ -17,7 +17,7 @@ package czlab.crypto;
 
 /**
  *
- * @author kenl
+ * @author Kenneth Leung
  *
  */
 public interface PasswordAPI {

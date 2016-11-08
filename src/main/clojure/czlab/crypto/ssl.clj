@@ -17,24 +17,26 @@
 
   czlab.crypto.ssl
 
-  (:require
-    [czlab.crypto.stores :refer [cryptoStore<>]]
-    [czlab.xlib.logging :as log])
+  (:require [czlab.crypto.stores :refer [cryptoStore<>]]
+            [czlab.xlib.logging :as log])
 
   (:use [czlab.crypto.core]
         [czlab.xlib.str]
         [czlab.xlib.core])
 
-  (:import
-    [javax.net.ssl X509TrustManager TrustManager]
-    [javax.net.ssl SSLEngine SSLContext]
-    [czlab.crypto
-     PasswordAPI
-     PKeyGist
-     CryptoStoreAPI
-     SSLTrustMgrFactory]
-    [java.net URL]
-    [javax.net.ssl KeyManagerFactory TrustManagerFactory]))
+  (:import [java.net URL]
+           [javax.net.ssl
+            TrustManager
+            SSLEngine
+            SSLContext
+            X509TrustManager
+            KeyManagerFactory
+            TrustManagerFactory]
+           [czlab.crypto
+            PasswordAPI
+            PKeyGist
+            CryptoStoreAPI
+            SSLTrustMgrFactory]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
@@ -42,11 +44,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn sslContext<>
-
   "Make a server-side SSLContext"
-  ^SSLContext
+  {:tag SSLContext}
 
-  ([^PKeyGist pkey ^chars pwd] (sslContext<> pkey pwd nil))
+  ([pkey pwd] (sslContext<> pkey pwd nil))
 
   ([^PKeyGist pkey ^chars pwd flavor]
    (let
@@ -66,11 +67,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn sslClientCtx<>
-
-  "Make a client-side SSLContext"
+  "A client-side SSLContext"
   ^SSLContext
   [ssl?]
-
   (if ssl?
     (doto (SSLContext/getInstance "TLS")
           (.init nil (SSLTrustMgrFactory/getTrustManagers) (rand<>)))))

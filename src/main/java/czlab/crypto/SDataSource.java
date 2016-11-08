@@ -37,15 +37,15 @@ public class SDataSource implements DataSource {
   private File _fn;
 
   /**/
-  public SDataSource(File content, String contentType) {
-    _ctype= nsb(contentType);
-    _fn= content;
-  }
-
-  /**/
   public SDataSource(byte[] content, String contentType) {
     _ctype= nsb(contentType);
     _bits= content;
+  }
+
+  /**/
+  public SDataSource(File content, String contentType) {
+    _ctype= nsb(contentType);
+    _fn= content;
   }
 
   /**/

@@ -17,95 +17,91 @@
 
   czlab.crypto.smime
 
-  (:require
-    [czlab.xlib.dates :refer [+months]]
-    [czlab.xlib.logging :as log]
-    [clojure.string :as cs])
+  (:require [czlab.xlib.dates :refer [+months]]
+            [czlab.xlib.logging :as log]
+            [clojure.string :as cs])
 
   (:use [czlab.crypto.core]
         [czlab.xlib.core]
         [czlab.xlib.io]
         [czlab.xlib.str])
 
-  (:import
-    [javax.mail BodyPart MessagingException Multipart Session]
-    [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
-    [java.security.cert Certificate X509Certificate]
-    [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
-    [org.bouncycastle.cert X509CertificateHolder]
-    [org.bouncycastle.asn1 ASN1EncodableVector]
-    [javax.activation DataHandler]
-    [clojure.lang APersistentMap]
-    [org.bouncycastle.asn1.cms
-     AttributeTable
-     IssuerAndSerialNumber]
-    [java.io
-     PrintStream
-     File
-     InputStream
-     IOException
-     FileInputStream
-     InputStreamReader
-     ByteArrayInputStream
-     ByteArrayOutputStream ]
-    [javax.mail.internet
-     ContentType
-     MimeBodyPart
-     MimeMessage
-     MimeMultipart
-     MimeUtility]
-    [java.security
-     MessageDigest
-     PrivateKey
-     Provider
-     PublicKey
-     SecureRandom
-     GeneralSecurityException]
-    [org.bouncycastle.asn1.smime
-     SMIMECapabilitiesAttribute
-     SMIMECapability
-     SMIMECapabilityVector
-     SMIMEEncryptionKeyPreferenceAttribute]
-    [org.bouncycastle.asn1.x500 X500Name]
-    [org.bouncycastle.cms
-     CMSCompressedDataParser
-     CMSProcessable
-     CMSProcessableByteArray
-     CMSProcessableFile
-     CMSSignedData
-     CMSSignedDataGenerator
-     CMSTypedStream
-     Recipient
-     RecipientInfoGenerator
-     RecipientInformation
-     SignerInformation
-     DefaultSignedAttributeTableGenerator]
-    [org.bouncycastle.cms.jcajce
-     JcaSignerInfoGeneratorBuilder
-     JcaSimpleSignerInfoVerifierBuilder
-     JceCMSContentEncryptorBuilder
-     JceKeyTransEnvelopedRecipient
-     JceKeyTransRecipientInfoGenerator
-     ZlibExpanderProvider]
-    [org.bouncycastle.mail.smime
-     SMIMECompressedGenerator
-     SMIMEEnveloped
-     SMIMEEnvelopedGenerator
-     SMIMEException
-     SMIMESigned
-     SMIMESignedGenerator
-     SMIMESignedParser]
-    [org.bouncycastle.operator.jcajce
-     JcaContentSignerBuilder
-     JcaDigestCalculatorProviderBuilder]
-    [org.bouncycastle.cert.jcajce JcaCertStore ]
-    [org.bouncycastle.cms.jcajce
-     ZlibCompressor
-     JcaSignerInfoGeneratorBuilder]
-    [czlab.crypto
-     PKeyGist
-     SDataSource]
-    [czlab.xlib XData]))
+  (:import [javax.mail BodyPart MessagingException Multipart Session]
+           [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
+           [java.security.cert Certificate X509Certificate]
+           [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
+           [org.bouncycastle.cert X509CertificateHolder]
+           [org.bouncycastle.asn1 ASN1EncodableVector]
+           [org.bouncycastle.cert.jcajce JcaCertStore]
+           [org.bouncycastle.asn1.x500 X500Name]
+           [czlab.crypto PKeyGist SDataSource]
+           [javax.activation DataHandler]
+           [clojure.lang APersistentMap]
+           [czlab.xlib XData]
+           [org.bouncycastle.asn1.cms
+            AttributeTable
+            IssuerAndSerialNumber]
+           [java.io
+            PrintStream
+            File
+            InputStream
+            IOException
+            FileInputStream
+            InputStreamReader
+            ByteArrayInputStream
+            ByteArrayOutputStream]
+           [javax.mail.internet
+            ContentType
+            MimeBodyPart
+            MimeMessage
+            MimeMultipart
+            MimeUtility]
+           [java.security
+            MessageDigest
+            PrivateKey
+            Provider
+            PublicKey
+            SecureRandom
+            GeneralSecurityException]
+           [org.bouncycastle.asn1.smime
+            SMIMECapabilitiesAttribute
+            SMIMECapability
+            SMIMECapabilityVector
+            SMIMEEncryptionKeyPreferenceAttribute]
+           [org.bouncycastle.cms
+            CMSCompressedDataParser
+            CMSProcessable
+            CMSProcessableByteArray
+            CMSProcessableFile
+            CMSSignedData
+            CMSSignedDataGenerator
+            CMSTypedStream
+            Recipient
+            RecipientInfoGenerator
+            RecipientInformation
+            SignerInformation
+            DefaultSignedAttributeTableGenerator]
+           [org.bouncycastle.cms.jcajce
+            JcaSignerInfoGeneratorBuilder
+            JcaSimpleSignerInfoVerifierBuilder
+            JceCMSContentEncryptorBuilder
+            JceKeyTransEnvelopedRecipient
+            JceKeyTransRecipientInfoGenerator
+            ZlibExpanderProvider]
+           [org.bouncycastle.mail.smime
+            SMIMECompressedGenerator
+            SMIMEEnveloped
+            SMIMEEnvelopedGenerator
+            SMIMEException
+            SMIMESigned
+            SMIMESignedGenerator
+            SMIMESignedParser]
+           [org.bouncycastle.cms.jcajce
+            ZlibCompressor
+            JcaSignerInfoGeneratorBuilder]
+           [org.bouncycastle.operator.jcajce
+            JcaContentSignerBuilder
+            JcaDigestCalculatorProviderBuilder]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)
@@ -113,11 +109,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn strSigningAlgo
-
   ""
   ^String
   [algo]
-
   (case algo
     "SHA-512" SMIMESignedGenerator/DIGEST_SHA512
     "SHA-1" SMIMESignedGenerator/DIGEST_SHA1
@@ -127,12 +121,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- signerGentor<>
-
   "Create a SignedGenerator"
   ^SMIMESignedGenerator
   [^PrivateKey pkey ^String algo certs]
   {:pre [(not (empty? certs))]}
-
   (let
     [gen (SMIMESignedGenerator. "base64")
      caps (doto (SMIMECapabilityVector.)
@@ -162,8 +154,7 @@
            (.setDirectSignature true))
      cs (-> (withBC1 JcaContentSignerBuilder algo)
             (.build pkey))]
-    (->> signedAttrs
-         (AttributeTable. )
+    (->> (AttributeTable. signedAttrs)
          (DefaultSignedAttributeTableGenerator. )
          (.setSignedAttributeGenerator bdr ))
     (->> (.build bdr cs subj)
@@ -180,10 +171,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
-
   MimeMessage
   [^PrivateKey pkey ^MimeMessage mmsg ^String algo certs]
-
   (let [g (signerGentor<> pkey algo certs)]
     ;; force internal processing, just in case
     (.getContent mmsg)
@@ -192,10 +181,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
-
   Multipart
   [^PrivateKey pkey ^Multipart mp ^String algo certs]
-
   (smimeDigSig pkey
                (doto (mimeMsg<>)
                  (.setContent mp))
@@ -205,21 +192,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
-
   BodyPart
   [^PrivateKey pkey ^BodyPart bp ^String algo certs]
-
   (-> (signerGentor<> pkey algo certs)
       (.generate ^MimeBodyPart bp)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn peekSmimeSignedContent
-
   "Get the content ignoring the signing stuff"
   ^Object
   [^MimeMultipart mp]
-
   (some-> (SMIMESignedParser.
             (BcDigestCalculatorProvider.)
             mp
@@ -230,11 +213,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- smimeDec
-
   "SMIME decryption"
   ^CMSTypedStream
   [^PrivateKey pkey ^SMIMEEnveloped env]
-
   (loop
     [rec (withBC1 JceKeyTransEnvelopedRecipient pkey)
      it (-> (.getRecipientInfos env)
@@ -251,11 +232,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- smimeLoopDec
-
   ""
   ^bytes
   [^SMIMEEnveloped ev pkeys]
-
   (let
     [rc (some #(if-some
                  [cms (smimeDec ^PrivateKey %1 ev)]
@@ -273,21 +252,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDecrypt
-
   MimeMessage
   [^MimeMessage mimemsg pkeys]
-
   (smimeLoopDec (SMIMEEnveloped. mimemsg) pkeys))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDecrypt
-
   MimeBodyPart
   [^MimeBodyPart part pkeys]
-
-  (-> (SMIMEEnveloped. part)
-      (smimeLoopDec pkeys)))
+  (-> (SMIMEEnveloped. part) (smimeLoopDec pkeys)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -298,10 +272,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeEncrypt
-
   BodyPart
   [^X509Certificate cert ^String algo ^BodyPart bp]
-
   (let
     [gen (SMIMEEnvelopedGenerator.)]
     (.addRecipientInfoGenerator
@@ -316,10 +288,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeEncrypt
-
   MimeMessage
   [^X509Certificate cert ^String algo ^MimeMessage msg]
-
   (let
     [gen (SMIMEEnvelopedGenerator.)]
     ;; force message to be processed, just in case.
@@ -336,10 +306,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeEncrypt
-
   Multipart
   [^X509Certificate cert ^String algo ^Multipart mp]
-
   (let
     [gen (SMIMEEnvelopedGenerator.)]
     (.addRecipientInfoGenerator
@@ -359,10 +327,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeInflate
-
   BodyPart
   [^BodyPart bp]
-
   (if (nil? bp)
     (xdata<>)
     (smimeInflate (.getInputStream bp))))
@@ -370,10 +336,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeInflate
-
   InputStream
   [^InputStream inp]
-
   (if (nil? inp)
     (xdata<>)
     (if-some
@@ -388,10 +352,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- siTester
-
   ""
   [^JcaCertStore cs ^SignerInformation si]
-
   (loop
     [c (.getMatches cs (.getSID si))
      it (some-> c (.iterator))
@@ -418,11 +380,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn testPkcsDigSig
-
   "Verify the signed object with the signature"
   ^bytes
   [^Certificate cert ^XData dx ^bytes signature]
-
   (let
     [^CMSProcessable
      p (if (.isFile dx)
@@ -441,37 +401,37 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn testSmimeDigSig
-
   "Verify the signature and return content if ok"
-  ^APersistentMap
-  [^MimeMultipart mp certs & [^String cte]]
+  {:tag APersistentMap}
 
-  (let
-    [sc (if (hgl? cte)
-          (SMIMESigned. mp cte)
-          (SMIMESigned. mp))
-     sns (-> (.getSignerInfos sc)
-             (.getSigners))
-     cs (JcaCertStore. certs)
-     rc (some (partial siTester cs) (seq sns))]
-    (if (nil? rc)
-      (trap! GeneralSecurityException
-             "Verify signature: no matching cert"))
-    {:content
-     (some-> sc
+  ([mp certs] (testSmimeDigSig mp certs nil))
+
+  ([^MimeMultipart mp certs ^String cte]
+   {:pre [(some? mp)]}
+   (let
+     [sc (if (hgl? cte)
+           (SMIMESigned. mp cte)
+           (SMIMESigned. mp))
+      sns (-> (.getSignerInfos sc)
+              (.getSigners))
+      cs (JcaCertStore. certs)
+      rc (some (partial siTester cs) (seq sns))]
+     (if (nil? rc)
+       (trap! GeneralSecurityException
+              "Verify signature: no matching cert"))
+     {:content
+      (some-> sc
               (.getContentAsMimeMessage (session<>))
               (.getContent))
-     :digest rc}))
+      :digest rc})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn pkcsDigSig
-
   "Sign some data"
   ^bytes
   [^PrivateKey pkey certs ^String algo ^XData xs]
   {:pre [(not (empty? certs))]}
-
   (let
     [bdr (-> (withBC JcaDigestCalculatorProviderBuilder)
              (.build)
@@ -497,7 +457,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn smimeDeflate
-
   "Compress and return a BodyPart"
   {:tag MimeBodyPart}
 

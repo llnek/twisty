@@ -97,13 +97,13 @@
                         HELPME
                         HELPME)
             t (tempFile)
-            _ (exportPkcs7 g t)
+            t (exportPkcs7File g t)
             z (.length t)
             c (.cert g)
             b (exportCert c)]
         (deleteQ t)
         (and (> z 10)
-             (hgl? (stringify b)))))
+             (> (alength b) 10))))
 
   (is (some? (easyPolicy<>)))
 
@@ -145,7 +145,6 @@
         (and (not z)(not g)(not e))))
 
 
-
   (is (some? (getCharset "text/plain; charset=utf-16")))
 
   (is (not= (digest<sha1> "hello world")
@@ -156,6 +155,14 @@
 
   (is (= (digest<md5> "hello world")
          (digest<md5> "hello world")))
+
+  (is (let [b (resBytes "czlab/crypto/cert.crt")
+            c (convCert b)
+            g (certGist c)
+            ok? (validCert? c)]
+        (and (some? c)
+             (some? g)
+             ok?)))
 
   (is (some? (simpleTrustMgr<>)))
 

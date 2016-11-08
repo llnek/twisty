@@ -25,63 +25,64 @@
         [czlab.xlib.meta]
         [clojure.test])
 
-  (:import
-    [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
-    [java.io File InputStream ByteArrayOutputStream]
-    [org.bouncycastle.cms CMSAlgorithm]
-    [java.security Policy
-     KeyStore
-     KeyStore$PrivateKeyEntry
-     KeyStore$TrustedCertificateEntry SecureRandom]
-    [czlab.crypto PKeyGist PasswordAPI CryptoStoreAPI]
-    [javax.activation DataHandler DataSource]
-    [java.util Date GregorianCalendar]
-    [javax.mail Multipart BodyPart]
-    [czlab.xlib XData]
-    [czlab.crypto SDataSource]))
+  (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
+           [czlab.crypto PKeyGist PasswordAPI CryptoStoreAPI]
+           [java.io File InputStream ByteArrayOutputStream]
+           [org.bouncycastle.cms CMSAlgorithm]
+           [java.security Policy
+            KeyStore
+            KeyStore$PrivateKeyEntry
+            KeyStore$TrustedCertificateEntry SecureRandom]
+           [javax.activation DataHandler DataSource]
+           [java.util Date GregorianCalendar]
+           [javax.mail Multipart BodyPart]
+           [czlab.xlib XData]
+           [czlab.crypto SDataSource]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (def ^:private ROOTPFX (resBytes "czlab/crypto/test.pfx"))
 (def ^:private HELPME (.toCharArray "helpme"))
-(def ^:private ^CryptoStoreAPI
-  ROOTCS
-  (cryptoStore<> (initStore! (pkcsStore<>) ROOTPFX HELPME) HELPME))
 (def ^:private DES_EDE3_CBC CMSAlgorithm/DES_EDE3_CBC)
+(def ^:private
+  ^CryptoStoreAPI
+  ROOTCS
+  (cryptoStore<> (initStore! (pkcsStore<>)
+                             ROOTPFX HELPME) HELPME))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (deftest czlabtestcrypto-mimestuff
 
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [msg (mimeMsg<> nil nil inp)
-            ^Multipart mp (.getContent msg)]
-        (and (>= (.indexOf
-                   (.getContentType msg)
-                   "multipart/mixed") 0)
-             (== (.getCount mp) 2)
-             (not (isDataSigned? mp))
-             (not (isDataCompressed? mp))
-             (not (isDataEncrypted? mp)) ))))
+  (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
+        (let [msg (mimeMsg<> nil nil inp)
+              ^Multipart mp (.getContent msg)]
+          (and (>= (.indexOf
+                     (.getContentType msg)
+                     "multipart/mixed") 0)
+               (== (.getCount mp) 2)
+               (not (isDataSigned? mp))
+               (not (isDataCompressed? mp))
+               (not (isDataEncrypted? mp))))))
 
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [^PKeyGist pke
-            (.keyEntity ROOTCS HELPME)
-            msg (mimeMsg<> nil nil inp)
-            cs (into [] (.chain pke))
-            pk (.pkey pke)
-            rc (smimeDigSig pk msg SHA512RSA cs)]
-        (isDataSigned? rc))))
+  (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
+        (let [^PKeyGist pke
+              (.keyEntity ROOTCS HELPME)
+              msg (mimeMsg<> nil nil inp)
+              cs (into [] (.chain pke))
+              pk (.pkey pke)
+              rc (smimeDigSig pk msg SHA512RSA cs)]
+          (isDataSigned? rc))))
 
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [^PKeyGist pke
-            (.keyEntity ROOTCS HELPME)
-            msg (mimeMsg<> nil nil inp)
-            mp (.getContent msg)
-            cs (into [] (.chain pke))
-            pk (.pkey pke)
-            rc (smimeDigSig pk mp SHA512RSA cs)]
-        (isDataSigned? rc))))
+  (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
+        (let [^PKeyGist pke
+              (.keyEntity ROOTCS HELPME)
+              msg (mimeMsg<> nil nil inp)
+              mp (.getContent msg)
+              cs (into [] (.chain pke))
+              pk (.pkey pke)
+              rc (smimeDigSig pk mp SHA512RSA cs)]
+          (isDataSigned? rc))))
 
 (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
       (let [^PKeyGist
