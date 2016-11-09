@@ -593,7 +593,7 @@
   {:tag APersistentVector}
 
   ([dnStr keylen] (csreq<> dnStr keylen nil))
-  ([dnStr] (csreq<> dnStr nil nil))
+  ([dnStr] (csreq<> dnStr 1024 nil))
   ([^String dnStr keylen pwd]
    {:pre [(hgl? dnStr)]}
    (let
@@ -923,7 +923,7 @@
   "Extract and export PKCS7 info from a PKCS12 object"
   ^File
   [^PKeyGist pkey fout]
-  (doto (io/file fout) (writeFile (exportPkcs7File pkey))))
+  (doto (io/file fout) (writeFile (exportPkcs7 pkey))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -964,7 +964,8 @@
   (condp instance? obj
     String (streamify (bytesify obj))
     (bytesClass) (streamify obj)
-    InputStream obj))
+    InputStream obj
+    nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -978,9 +979,8 @@
            (isSigned? ))
       (finally
         (resetStream! inp)))
-    (if (instance? Multipart obj)
-      (->> ^Multipart obj
-           (.getContentType )
+    (if-some [mp (cast? Multipart obj)]
+      (->> (.getContentType mp)
            (isSigned? ))
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
@@ -989,7 +989,6 @@
 (defn isDataCompressed?
   "If this stream-like object/message-part is compressed"
   [^Object obj]
-
   (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
@@ -998,10 +997,10 @@
       (finally
         (resetStream! inp)))
     (condp instance? obj
-      Multipart (->> ^Multipart obj
+      Multipart (->> (cast? Multipart obj)
                      (.getContentType )
                      (isCompressed? ))
-      BodyPart (->> ^BodyPart obj
+      BodyPart (->> (cast? BodyPart obj)
                     (.getContentType )
                     (isCompressed? ))
       (throwIOE "Invalid content: %s" (getClassname obj)))))
@@ -1019,10 +1018,10 @@
       (finally
         (resetStream! inp)))
     (condp instance? obj
-      Multipart (->> ^Multipart obj
+      Multipart (->> (cast? Multipart obj)
                      (.getContentType )
                      (isEncrypted? ))
-      BodyPart (->> ^BodyPart obj
+      BodyPart (->> (cast? BodyPart obj)
                     (.getContentType )
                     (isEncrypted? ))
       (throwIOE "Invalid content: %s" (getClassname obj)))))

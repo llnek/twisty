@@ -97,24 +97,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- ensureKeySize
-  "Given an algo, make sure the key has enough bits"
+  "Make sure the key has enough bits"
   ^bytes
-  [^bytes kkey ^String algo]
-  (let [bits (* 8 (alength kkey))]
-    (if (and (= T3_DES algo)
-             (< bits 192)) ;; 8x 3 = 24 bytes
-      (throwBadArg "TripleDES key length must be 192"))
-    (if (and (= "AES" algo)
-             (< bits 128))
-      (throwBadArg "AES key length must be 128 or 256"))
-    kkey))
+  [^bytes kee algo]
+  (let [bits (* 8 (alength kee))]
+    (cond
+      (and (= T3_DES algo)
+           (< bits 192)) ;; 8x 3 = 24 bytes
+      (throwBadArg "TripleDES key length must be 192")
+      (and (= "AES" algo)
+           (< bits 128))
+      (throwBadArg "AES key length must be 128 or 256")
+      :else kee)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- keyAsBits
-  "Given the algo, sanitize the key, chop length if necessary"
+  "Sanitize the key, maybe chop length"
   ^bytes
-  [^bytes pwd ^String algo]
+  [^bytes pwd algo]
   (let [blen (alength pwd)
         bits (* 8 blen)]
     (condp = algo
@@ -138,20 +139,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; caesar cipher
 (defmacro ^:private identCh
-  "Lookup a character by the given index"
-  [pos]
-  `(aget VISCHS (int ~pos)))
+  "Get a character" [pos] `(aget VISCHS (int ~pos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- locateCh
-  "Given a character, return the index"
+  "Locate a character"
   ^Integer
   [^Character ch]
-  (-> (some #(if (= ch (aget VISCHS %1))
-               %1 nil)
-            (range VISCHS_LEN))
-      (or -1)))
+  (-> (some #(if (= ch (aget VISCHS %1)) %1) (range VISCHS_LEN)) (or -1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -208,13 +204,13 @@
   ^String
   [shiftpos ^String text]
   (if (or (== shiftpos 0)
-          (empty? text))
+          (nichts? text))
     text
     (let [delta (mod (Math/abs (int shiftpos)) VISCHS_LEN)
           pf (partial shiftenc shiftpos delta)
           ca (.toCharArray text)
           out (amap ca pos ret
-                    (caesarAMapExpr ca pos pf)) ]
+                    (caesarAMapExpr ca pos pf))]
       (String. ^chars out))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -224,13 +220,13 @@
   ^String
   [shiftpos ^String text]
   (if (or (== shiftpos 0)
-          (empty? text))
+          (nichts? text))
     text
     (let [delta (mod (Math/abs (int shiftpos)) VISCHS_LEN)
           pf (partial shiftdec shiftpos delta)
           ca (.toCharArray text)
           out (amap ca pos ret
-                    (caesarAMapExpr ca pos pf)) ]
+                    (caesarAMapExpr ca pos pf))]
       (String. ^chars out))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -260,7 +256,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn jasyptCryptor<>
-  "Make a cryptor using Jasypt lib"
+  "Cryptor using Jasypt lib"
   ^Cryptor
   []
   (reify Cryptor
@@ -295,35 +291,45 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defn- coerce
+  ""
+  ^bytes
+  [obj]
+  (cond
+    (string? obj) (bytesify obj)
+    (instBytes? obj) obj
+    (nil? obj) nil
+    :else (throwBadArg "bad type %s" (class obj))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn- javaCodec
   ""
   ^bytes
   [pkey data ^Cipher c]
-  (let [^bytes
-        p (if (string? data)
-            (bytesify data)
-            data)
-        plen (alength p)
-        baos (baos<>)
-        out (->> (.getOutputSize c plen)
-                 (max BUF_SZ)
-                 (byte-array))
-        n (.update c p 0 plen out 0)]
-    (if (> n 0)
-      (.write baos out 0 n))
-    (let [n2 (.doFinal c out 0)]
-      (if (> n2 0)
-        (.write baos out 0 n2)))
-    (.toByteArray baos)))
+  (when-some [p (coerce data)]
+    (let
+      [plen (alength p)
+       baos (baos<>)
+       out (->> (.getOutputSize c plen)
+                (max BUF_SZ)
+                (byte-array))
+       n (.update c p 0 plen out 0)]
+      (if (> n 0)
+        (.write baos out 0 n))
+      (let [n2 (.doFinal c out 0)]
+        (if (> n2 0)
+          (.write baos out 0 n2)))
+      (.toByteArray baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- javaEncr
   "Encrypt using Java"
   ^bytes
-  [pkey data ^String algo]
+  [pkey data algo]
   {:pre [(instBytes? pkey)]}
-  (when-not (empty? data)
+  (when (some? data)
     (->> (java-encrypt pkey algo)
          (javaCodec pkey data))))
 
@@ -332,9 +338,9 @@
 (defn- javaDecr
   "Decrypt using Java"
   ^bytes
-  [pkey encoded ^String algo]
+  [pkey encoded algo]
   {:pre [(instBytes? pkey)]}
-  (when-not (empty? encoded)
+  (when (some? encoded)
     (->> (java-decrypt pkey algo)
          (javaCodec pkey encoded))))
 
@@ -376,18 +382,15 @@
   "Encrypt using a public key, returns a base64 encoded cipher"
   ^bytes
   [^bytes pubKey data]
-  (when-not (empty? data)
+  (when (some? data)
     (let
       [^Key pk (-> (KeyFactory/getInstance "RSA")
                    (.generatePublic
                      (X509EncodedKeySpec. pubKey)))
        cipher (doto (->> "RSA/ECB/PKCS1Padding"
                          (Cipher/getInstance))
-                    (.init Cipher/ENCRYPT_MODE pk)) ]
-      (->> ^bytes
-           (if (string? data)
-             (bytesify  data)
-             data)
+                    (.init Cipher/ENCRYPT_MODE pk))]
+      (->> (coerce data)
            (.doFinal cipher )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -396,7 +399,7 @@
   "Decrypt using a private key, input is a base64 encoded cipher"
   ^bytes
   [^bytes prvKey encoded]
-  (when-not (empty? encoded)
+  (when (some? encoded)
     (let
       [^Key pk (-> (KeyFactory/getInstance "RSA")
                    (.generatePrivate
@@ -404,10 +407,7 @@
        cipher (doto (->> "RSA/ECB/PKCS1Padding"
                          (Cipher/getInstance ))
                    (.init Cipher/DECRYPT_MODE pk))]
-      (->> ^bytes
-           (if (string? encoded)
-             (bytesify encoded)
-             encoded)
+      (->> (coerce encoded)
            (.doFinal cipher )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -415,8 +415,8 @@
 (defn- bcDecr
   "Decrypt using BouncyCastle"
   ^bytes
-  [pkey encoded ^String algo]
-  (when-not (empty? encoded)
+  [pkey encoded algo]
+  (when (some? encoded)
     (let
       [cipher (doto (-> (bcXrefCipherEngine algo)
                         (CBCBlockCipher. )
@@ -424,10 +424,8 @@
                 (.init false
                        (KeyParameter.
                          (keyAsBits pkey algo))))
-       ^bytes
-       p (if (string? encoded)
-           (bytesify encoded) encoded)
        out (byte-array KiloBytes)
+       p (coerce encoded)
        baos (baos<>)
        c (.processBytes cipher p 0 (alength p) out 0)]
       (if (> c 0)
@@ -442,8 +440,8 @@
 (defn- bcEncr
   "Encrypt using BouncyCastle, returning a base64 encoded cipher"
   ^bytes
-  [pkey data ^String algo]
-  (when-not (empty? data)
+  [pkey data algo]
+  (when (some? data)
     (let
       [cipher (doto (-> (bcXrefCipherEngine algo)
                         (CBCBlockCipher. )
@@ -453,10 +451,7 @@
                          (keyAsBits pkey algo))))
        out (byte-array BUF_SZ)
        baos (baos<>)
-       ^bytes
-       p (if (string? data)
-           (bytesify data)
-           data)
+       p (coerce data)
        c (.processBytes cipher p 0 (alength p) out 0)]
       (if (> c 0)
         (.write baos out 0 c))
@@ -517,7 +512,7 @@
     (equals [this obj]
       (and (inst? PasswordAPI obj)
            (= (.toString this)
-              (str obj))) )
+              (str obj))))
     (hashCode [this]
       (.hashCode (str (.text this))))
 
@@ -530,7 +525,7 @@
 
     (stronglyHashed [_]
       (if-not (nil? pwdStr)
-        (let [s (BCrypt/gensalt 12) ]
+        (let [s (BCrypt/gensalt 12)]
           {:hash (BCrypt/hashpw pwdStr s)
            :salt s})
         {:hash "" :salt ""}))
@@ -556,7 +551,7 @@
                                (.toCharArray pkey)
                                pwdStr))))
 
-    (text [_] (if (hgl? pwdStr) (str pwdStr) ))))
+    (text [_] (if (hgl? pwdStr) (str pwdStr)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -567,8 +562,7 @@
   ([pwdStr] (passwd<> pwdStr nil))
 
   ([^String pwdStr pkey]
-   {:pre [(or (nil? pwdStr)(string? pwdStr))
-          (or (nil? pkey)(string? pkey))]}
+   {:pre [(or (nil? pkey)(string? pkey))]}
    (let [pkey (stror pkey C_KEY)]
      (if
        (.startsWith (str pwdStr) PWD_PFX)
@@ -581,18 +575,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn randomStr
-  "Randomly generate some text"
-  ^String
-  [len]
-  (createXXX s_asciiChars len))
+  "Generate random text"
+  ^String [len] (createXXX s_asciiChars len))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn strongPwd<>
   "Generate a strong password"
-  ^PasswordAPI
-  [len]
-  (passwd<> (createXXX s_pwdChars len)))
+  ^PasswordAPI [len] (passwd<> (createXXX s_pwdChars len)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

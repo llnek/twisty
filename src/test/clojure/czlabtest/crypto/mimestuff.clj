@@ -114,7 +114,7 @@
 
   (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
         (let [g (.keyEntity ROOTCS HELPME)
-              cs (intp [] (.chain g))
+              cs (into [] (.chain g))
               mp (smimeDigSig (.pkey g)
                               (mimeMsg<> nil nil inp)
                               SHA512RSA
