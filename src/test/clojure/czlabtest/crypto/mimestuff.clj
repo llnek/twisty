@@ -54,7 +54,7 @@
 ;;
 (deftest czlabtestcrypto-mimestuff
 
-  (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
         (let [msg (mimeMsg<> nil nil inp)
               ^Multipart mp (.getContent msg)]
           (and (>= (.indexOf
@@ -65,194 +65,178 @@
                (not (isDataCompressed? mp))
                (not (isDataEncrypted? mp))))))
 
-  (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-        (let [^PKeyGist pke
-              (.keyEntity ROOTCS HELPME)
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+        (let [g (.keyEntity ROOTCS HELPME)
               msg (mimeMsg<> nil nil inp)
-              cs (into [] (.chain pke))
-              pk (.pkey pke)
-              rc (smimeDigSig pk msg SHA512RSA cs)]
+              rc (smimeDigSig (.pkey g)
+                              msg
+                              SHA512RSA
+                              (into [] (.chain g)))]
           (isDataSigned? rc))))
 
-  (is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-        (let [^PKeyGist pke
-              (.keyEntity ROOTCS HELPME)
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+        (let [g (.keyEntity ROOTCS HELPME)
               msg (mimeMsg<> nil nil inp)
-              mp (.getContent msg)
-              cs (into [] (.chain pke))
-              pk (.pkey pke)
-              rc (smimeDigSig pk mp SHA512RSA cs)]
+              rc (smimeDigSig (.pkey g)
+                              (.getContent msg)
+                              SHA512RSA
+                              (into [] (.chain g)))]
           (isDataSigned? rc))))
 
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [^PKeyGist
-            pke (.keyEntity ROOTCS HELPME)
-            msg (mimeMsg<> nil nil inp)
-            ^Multipart mp (.getContent msg)
-            bp (.getBodyPart mp 1)
-            cs (into [] (.chain pke))
-            pk (.pkey pke)
-            rc (smimeDigSig pk bp SHA512RSA cs)]
-        (isDataSigned? rc))))
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+        (let [g (.keyEntity ROOTCS HELPME)
+              msg (mimeMsg<> nil nil inp)
+              bp (-> ^Multipart
+                     (.getContent msg)
+                     (.getBodyPart 1))
+              rc (smimeDigSig (.pkey g)
+                              bp
+                              SHA512RSA
+                              (into [] (.chain g)))]
+          (isDataSigned? rc))))
 
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [^PKeyGist
-            pke (.keyEntity ROOTCS HELPME)
-            msg (mimeMsg<> nil nil inp)
-            cs (into [] (.chain pke))
-            pk (.pkey pke)
-            mp (smimeDigSig pk msg SHA512RSA cs)
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+        (let [g (.keyEntity ROOTCS HELPME)
+              mp (smimeDigSig (.pkey g)
+                              (mimeMsg<> nil nil inp)
+                              SHA512RSA
+                              (into [] (.chain g)))
+              baos (baos<>)
+              _ (doto (mimeMsg<> nil nil)
+                  (.setContent (cast? Multipart mp))
+                  (.saveChanges)
+                  (.writeTo baos))
+              msg3 (mimeMsg<> nil nil
+                              (streamify (.toByteArray baos)))
+              mp3 (.getContent msg3)
+              rc (peekSmimeSignedContent mp3)]
+          (inst? Multipart rc))))
+
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+        (let [g (.keyEntity ROOTCS HELPME)
+              cs (intp [] (.chain g))
+              mp (smimeDigSig (.pkey g)
+                              (mimeMsg<> nil nil inp)
+                              SHA512RSA
+                              cs)
+              baos (baos<>)
+              _ (doto (mimeMsg<> nil nil)
+                  (.setContent (cast? Multipart mp))
+                  (.saveChanges)
+                  (.writeTo baos))
+              msg3 (mimeMsg<> nil nil
+                              (streamify (.toByteArray baos)))
+              mp3 (.getContent msg3)
+              rc (testSmimeDigSig mp3 cs)]
+          (and (map? rc)
+               (== (count rc) 2)
+               (inst? Multipart (:content rc))
+               (instBytes? (:digest rc))))))
+
+  (is (let [s (SDataSource. (bytesify "yoyo-jojo") "text/plain")
+            g (.keyEntity ROOTCS HELPME)
+            cs (into [] (.chain g))
+            bp (doto (MimeBodyPart.)
+                 (.setDataHandler (DataHandler. s)))
+            ^BodyPart
+            bp2 (smimeEncrypt (first cs)
+                              DES_EDE3_CBC bp)
             baos (baos<>)
-            msg2 (doto (mimeMsg<> nil nil)
-                   (.setContent (cast Multipart mp))
-                   (.saveChanges)
-                   (.writeTo baos))
-            msg3 (mimeMsg<> nil nil
-                            (streamify (.toByteArray baos)))
-            mp3 (.getContent msg3)
-            rc (peekSmimeSignedContent mp3)]
-        (instance? Multipart rc))))
-
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [^PKeyGist pke
-            (.keyEntity ROOTCS HELPME)
-            msg (mimeMsg<> nil nil inp)
-            cs (into [] (.chain pke))
-            pk (.pkey pke)
-            mp (smimeDigSig pk msg SHA512RSA cs)
-            baos (baos<>)
-            msg2 (doto (mimeMsg<> nil nil)
-                   (.setContent (cast? Multipart mp))
-                   (.saveChanges)
-                   (.writeTo baos))
-            msg3 (mimeMsg<> nil nil
-                            (streamify (.toByteArray baos)))
-            mp3 (.getContent msg3)
-            rc (testSmimeDigSig mp3 cs)]
-        (if (and (not (nil? rc))
-                 (== (count rc) 2))
-          (and (instance? Multipart (:content rc))
-               (instance? (bytesClass) (:digest rc)))
-          false))))
-
-(is (let [^PKeyGist pke
-          (.keyEntity ROOTCS HELPME)
-          s (SDataSource. (bytesify "yoyo") "text/plain")
-          cs (into [] (.chain pke))
-          pk (.pkey pke)
-          bp (doto (MimeBodyPart.)
-               (.setDataHandler (DataHandler. s)))
-          ^BodyPart
-          bp2 (smimeEncrypt (first cs) DES_EDE3_CBC bp)
-          baos (baos<>)
-          msg (doto (mimeMsg<>)
+            _ (doto (mimeMsg<>)
                 (.setContent
-                  (.getContent bp2) (.getContentType bp2))
+                  (.getContent bp2)
+                  (.getContentType bp2))
                 (.saveChanges)
                 (.writeTo baos))
-          msg2 (mimeMsg<> (streamify (.toByteArray baos)))
-          enc (isEncrypted? (.getContentType msg2))
-          rc (smimeDecrypt msg2 [pk] )]
-      (and (instance? (bytesClass) rc)
-           (> (.indexOf
-                (stringify rc) "yoyo") 0))))
+            msg2 (mimeMsg<> (streamify (.toByteArray baos)))
+            enc (isEncrypted? (.getContentType msg2))
+            rc (smimeDecrypt msg2 [(.pkey g)])]
+        (and (instBytes? rc)
+             (> (.indexOf
+                  (stringify rc) "yoyo-jojo") 0))))
 
-(is (let [^PKeyGist pke
-          (.keyEntity ROOTCS HELPME)
-          s2 (SDataSource.
-               (bytesify "what's up dawg") "text/plain")
-          s1 (SDataSource.
-               (bytesify "hello world") "text/plain")
-          cs (into [] (.chain pke))
-          pk (.pkey pke)
-          bp2 (doto (MimeBodyPart.)
-                (.setDataHandler (DataHandler. s2)))
-          bp1 (doto (MimeBodyPart.)
-                (.setDataHandler (DataHandler. s1)))
-          mp (doto (MimeMultipart.)
-               (.addBodyPart bp1)
-               (.addBodyPart bp2))
-          msg (doto (mimeMsg<>) (.setContent mp))
-          ^BodyPart
-          bp3 (smimeEncrypt (first cs) DES_EDE3_CBC msg)
-          baos (baos<>)
-          msg2 (doto (mimeMsg<>)
-                 (.setContent
-                   (.getContent bp3) (.getContentType bp3))
-                 (.saveChanges)
-                 (.writeTo baos))
-          msg3 (mimeMsg<> (streamify (.toByteArray baos)))
-          enc (isEncrypted? (.getContentType msg3))
-          rc (smimeDecrypt msg3 [pk] )]
-      (and (instance? (bytesClass) rc)
-           (> (.indexOf (stringify rc) "what's up dawg") 0)
-           (> (.indexOf (stringify rc) "hello world") 0))))
+  (is (let [g (.keyEntity ROOTCS HELPME)
+            s2 (SDataSource.
+                 (bytesify "what's up dawg") "text/plain")
+            s1 (SDataSource.
+                 (bytesify "hello world") "text/plain")
+            cs (into [] (.chain g))
+            bp2 (doto (MimeBodyPart.)
+                  (.setDataHandler (DataHandler. s2)))
+            bp1 (doto (MimeBodyPart.)
+                  (.setDataHandler (DataHandler. s1)))
+            mp (doto (MimeMultipart.)
+                 (.addBodyPart bp1)
+                 (.addBodyPart bp2))
+            msg (doto (mimeMsg<>) (.setContent mp))
+            ^BodyPart
+            bp3 (smimeEncrypt (first cs) DES_EDE3_CBC msg)
+            baos (baos<>)
+            _ (doto (mimeMsg<>)
+                (.setContent
+                  (.getContent bp3)
+                  (.getContentType bp3))
+                (.saveChanges)
+                (.writeTo baos))
+            msg3 (mimeMsg<> (streamify (.toByteArray baos)))
+            enc (isEncrypted? (.getContentType msg3))
+            rc (smimeDecrypt msg3 [(.pkey g)])]
+        (and (instBytes? rc)
+             (> (.indexOf (stringify rc) "what's up dawg") 0)
+             (> (.indexOf (stringify rc) "hello world") 0))))
 
-(is (let [^PKeyGist pke
-          (.keyEntity ROOTCS HELPME)
-          cs (into [] (.chain pke))
-          pk (.pkey pke)
-          data (xdata<> "heeloo world")
-          sig (pkcsDigSig pk cs SHA512RSA data)
-          dg (testPkcsDigSig (first cs) data sig)]
-      (if (and (some? dg)
-               (instance? (bytesClass) dg))
-        true
-        false)))
+  (is (let [data (xdata<> "heeloo world")
+            g (.keyEntity ROOTCS HELPME)
+            cs (into [] (.chain g))
+            sig (pkcsDigSig (.pkey g) cs SHA512RSA data)
+            dg (testPkcsDigSig (first cs) data sig)]
+        (and (some? dg)
+             (instBytes? dg))))
 
-(is (with-open [inp (resStream "czlab/xlib/mime.eml")]
-      (let [msg (mimeMsg<> "" (char-array 0) inp)
-            bp (smimeDeflate msg)
+  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+        (let [msg (mimeMsg<> "" (char-array 0) inp)
+              bp (smimeDeflate msg)
+              ^XData x (smimeInflate bp)]
+          (and (some? x)
+               (> (alength (.getBytes x)) 0)))))
+
+  (is (let [bp (smimeDeflate "text/plain"
+                             (xdata<> "heeloo world"))
+            baos (baos<>)
             ^XData x (smimeInflate bp)]
-        (if (and (some? x)
-                 (> (alength ^bytes (.getBytes x)) 0))
-          true
-          false))))
+        (and (some? x)
+             (> (alength (.getBytes x)) 0))))
 
-(is (let [bp (smimeDeflate "text/plain"
-                           (xdata<> "heeloo world"))
-          baos (baos<>)
-          ^XData x (smimeInflate bp)]
-      (if (and (some? x)
-               (> (alength ^bytes (.getBytes x)) 0) )
-        true
-        false)))
+  (is (let [bp (smimeDeflate "text/plain"
+                              "blah-blah"
+                              "some-id"
+                              (xdata<> "heeloo world"))
+            baos (baos<>)
+            ^XData x (smimeInflate bp)]
+        (and (some? x)
+             (> (alength (.getBytes x)) 0))))
 
-(is (let [bp (smimeDeflate "text/plain"
-                            "blah-blah"
-                            "some-id"
-                            (xdata<> "heeloo world"))
-          baos (baos<>)
-          ^XData x (smimeInflate bp)]
-      (if (and (some? x)
-               (> (alength ^bytes (.getBytes x)) 0) )
-        true
-        false)))
+  (is (let [f (digest<sha1> (bytesify "heeloo world"))]
+        (and (some? f) (> (.length f) 0))))
 
-(is (let [f (digest<sha1> (bytesify "heeloo world"))]
-  (if (and (some? f) (> (.length f) 0))
-    true
-    false)) )
+  (is (let [f (digest<md5> (bytesify "heeloo world"))]
+        (and (some? f) (> (.length f) 0))))
 
-(is (let [f (digest<md5> (bytesify "heeloo world"))]
-  (if (and (some? f) (> (.length f) 0))
-    true
-    false)) )
+  (is (let [f (digest<sha1> (bytesify "heeloo world"))
+            g (digest<md5> (bytesify "heeloo world"))]
+        (if (= f g) false true)))
 
-(is (let [f (digest<sha1> (bytesify "heeloo world"))
-          g (digest<md5> (bytesify "heeloo world")) ]
-  (if (= f g) false true)))
+  (is (let [f (digest<sha1> (bytesify "heeloo world"))
+            g (digest<sha1> (bytesify "heeloo world"))]
+        (= f g)))
 
-(is (let [f (digest<sha1> (bytesify "heeloo world"))
-          g (digest<sha1> (bytesify "heeloo world")) ]
-  (= f g)))
+  (is (let [f (digest<md5> (bytesify "heeloo world"))
+            g (digest<md5> (bytesify "heeloo world"))]
+        (= f g)))
 
-(is (let [f (digest<md5> (bytesify "heeloo world"))
-          g (digest<md5> (bytesify "heeloo world")) ]
-  (= f g)))
+  (is (string? "That's all folks!")))
 
 
-)
 
 ;;(clojure.test/run-tests 'czlabtest.crypto.mimestuff)
 

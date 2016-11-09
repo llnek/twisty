@@ -124,7 +124,7 @@
   "Create a SignedGenerator"
   ^SMIMESignedGenerator
   [^PrivateKey pkey ^String algo certs]
-  {:pre [(not (empty? certs))]}
+  {:pre [(not-empty certs)]}
   (let
     [gen (SMIMESignedGenerator. "base64")
      caps (doto (SMIMECapabilityVector.)
@@ -135,14 +135,13 @@
      (doto (ASN1EncodableVector.)
        (.add (SMIMECapabilitiesAttribute. caps)))
      ^X509Certificate subj (first certs)
-     issuer (or (fnext certs) subj)
-     issuerDN (-> ^X509Certificate issuer
-                  (.getSubjectX500Principal ))
+     ^X509Certificate issuer (or (fnext certs) subj)
+     issuerDN (.getSubjectX500Principal issuer)
      ;; add an encryption key pref for encrypted resps -
      ;; normally this would be diff from the signing cert
      issAndSer (IssuerAndSerialNumber.
-                 (->> (.getEncoded issuerDN)
-                      (X500Name/getInstance))
+                 (X500Name/getInstance
+                   (.getEncoded issuerDN))
                  (.getSerialNumber subj))
      dm1 (->> issAndSer
               (SMIMEEncryptionKeyPreferenceAttribute. )
@@ -195,20 +194,21 @@
   BodyPart
   [^PrivateKey pkey ^BodyPart bp ^String algo certs]
   (-> (signerGentor<> pkey algo certs)
-      (.generate ^MimeBodyPart bp)))
+      (.generate (cast? MimeBodyPart bp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn peekSmimeSignedContent
   "Get the content ignoring the signing stuff"
   ^Object
-  [^MimeMultipart mp]
-  (some-> (SMIMESignedParser.
-            (BcDigestCalculatorProvider.)
-            mp
-            (getCharset (.getContentType mp) "binary"))
+  [^Multipart mp]
+  (let [mp (cast? MimeMultipart mp)]
+    (some-> (SMIMESignedParser.
+              (BcDigestCalculatorProvider.)
+              mp
+              (getCharset (.getContentType mp) "binary"))
           (.getContent)
-          (.getContent)))
+          (.getContent))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -274,32 +274,26 @@
 (defmethod smimeEncrypt
   BodyPart
   [^X509Certificate cert ^String algo ^BodyPart bp]
-  (let
-    [gen (SMIMEEnvelopedGenerator.)]
-    (.addRecipientInfoGenerator
-      gen
-      (withBC1 JceKeyTransRecipientInfoGenerator cert))
+  (->
+    (doto (SMIMEEnvelopedGenerator.)
+      (.addRecipientInfoGenerator
+        (withBC1 JceKeyTransRecipientInfoGenerator cert)))
     (.generate
-      gen
-      ^MimeBodyPart
-      bp (-> (withBC1 JceCMSContentEncryptorBuilder algo)
-             (.build)))))
+      (cast? MimeBodyPart bp)
+      (-> (withBC1 JceCMSContentEncryptorBuilder algo)
+          (.build)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeEncrypt
   MimeMessage
   [^X509Certificate cert ^String algo ^MimeMessage msg]
-  (let
-    [gen (SMIMEEnvelopedGenerator.)]
-    ;; force message to be processed, just in case.
-    (.getContent msg)
-    (.addRecipientInfoGenerator
-      gen
-      (withBC1 JceKeyTransRecipientInfoGenerator cert))
+  (->
+    (doto (SMIMEEnvelopedGenerator.)
+      (.addRecipientInfoGenerator
+        (withBC1 JceKeyTransRecipientInfoGenerator cert)))
     (.generate
-      gen
-      msg
+      (doto msg (.getContent ))
       (-> (withBC1 JceCMSContentEncryptorBuilder algo)
           (.build)))))
 
@@ -308,16 +302,8 @@
 (defmethod smimeEncrypt
   Multipart
   [^X509Certificate cert ^String algo ^Multipart mp]
-  (let
-    [gen (SMIMEEnvelopedGenerator.)]
-    (.addRecipientInfoGenerator
-      gen
-      (withBC1 JceKeyTransRecipientInfoGenerator cert))
-    (.generate
-      gen
-      (doto (mimeMsg<>) (.setContent mp))
-      (-> (withBC1 JceCMSContentEncryptorBuilder algo)
-          (.build)))))
+  (smimeEncrypt
+    cert algo (doto (mimeMsg<>) (.setContent mp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -331,7 +317,8 @@
   [^BodyPart bp]
   (if (nil? bp)
     (xdata<>)
-    (smimeInflate (.getInputStream bp))))
+    (with-open [inp (.getInputStream bp)]
+      (smimeInflate inp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -343,9 +330,7 @@
     (if-some
       [cms (-> (CMSCompressedDataParser. inp)
                (.getContent (ZlibExpanderProvider.)))]
-      (->> (.getContentStream cms)
-           (toBytes )
-           (xdata<> ))
+      (readBytes (.getContentStream cms))
       (trap! GeneralSecurityException
              "Decompress stream: corrupted content"))))
 
@@ -370,7 +355,7 @@
          (withBC
            JcaSimpleSignerInfoVerifierBuilder)
          dg
-         (when
+         (if
            (.verify si (.build bdr h))
            (.getContentDigest si))]
         (if (nil? dg)
@@ -379,16 +364,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defn- toCMS
+  ""
+  ^CMSProcessable
+  [^XData xs]
+  (if (.isFile xs)
+    (CMSProcessableFile. (.fileRef xs))
+    (CMSProcessableByteArray. (.getBytes xs))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn testPkcsDigSig
   "Verify the signed object with the signature"
   ^bytes
-  [^Certificate cert ^XData dx ^bytes signature]
+  [^Certificate cert ^XData xs ^bytes sig]
   (let
-    [^CMSProcessable
-     p (if (.isFile dx)
-         (CMSProcessableFile. (.fileRef dx))
-         (CMSProcessableByteArray. (.getBytes dx)))
-     sls (some-> (CMSSignedData. p signature)
+    [sls (some-> (toCMS xs)
+                 (CMSSignedData. sig)
                  (.getSignerInfos)
                  (.getSigners))
      cs (JcaCertStore. [cert])
@@ -431,7 +423,7 @@
   "Sign some data"
   ^bytes
   [^PrivateKey pkey certs ^String algo ^XData xs]
-  {:pre [(not (empty? certs))]}
+  {:pre [(not-empty certs)]}
   (let
     [bdr (-> (withBC JcaDigestCalculatorProviderBuilder)
              (.build)
@@ -441,65 +433,55 @@
      gen (CMSSignedDataGenerator.)
      cert (first certs)]
     (.setDirectSignature bdr true)
-    (->> (.build bdr cs ^X509Certificate cert)
-         (.addSignerInfoGenerator gen ))
-    (->> (JcaCertStore. certs)
-         (.addCertificates gen ))
-    (-> (.generate
-          gen
-          ^CMSProcessable
-          (if (.isFile xs)
-            (CMSProcessableFile. (.fileRef xs))
-            (CMSProcessableByteArray. (.getBytes xs)))
-          false)
+    (doto gen
+      (.addSignerInfoGenerator
+        (.build bdr cs ^X509Certificate cert))
+      (.addCertificates (JcaCertStore. certs)))
+    (-> (.generate gen (toCMS xs) false)
         (.getEncoded))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn smimeDeflate
-  "Compress and return a BodyPart"
-  {:tag MimeBodyPart}
-
-  ([^String cType ^XData xs]
-   (let [ds (if (.isFile xs)
-              (SDataSource. (.fileRef xs) cType)
-              (SDataSource. (.getBytes xs) cType))
-         bp (MimeBodyPart.)]
-     (.setDataHandler bp (DataHandler. ds))
-     (.generate (SMIMECompressedGenerator.)
-                bp
-                (ZlibCompressor.))))
-
-  ([^MimeMessage msg]
+(defn smimeDeflateMsg
+  "Compress message"
+  ^MimeBodyPart
+  [^MimeMessage msg]
    ;; make sure it's processed, just in case
    (.getContent msg)
    (-> (SMIMECompressedGenerator.)
        (.generate msg (ZlibCompressor.))))
 
-  ([^String cType ^String contentLoc
-    ^String cid ^XData xs]
-   (let [ds (if (.isFile xs)
-              (SDataSource. (.fileRef xs) cType)
-              (SDataSource. (.getBytes xs) cType))
-         bp (MimeBodyPart.) ]
-     (if (hgl? contentLoc)
-       (.setHeader bp "content-location" contentLoc))
-     (if (hgl? cid)
-       (.setHeader bp "content-id" cid))
-     (.setDataHandler bp (DataHandler. ds))
-     (let [zbp (-> (SMIMECompressedGenerator.)
-                   (.generate bp (ZlibCompressor.)))
-           pos (.lastIndexOf cid (int \>))
-           cID (if (>= pos 0)
-                 (str (.substring cid 0 pos) "--z>")
-                 (str cid "--z")) ]
-       (if (hgl? contentLoc)
-         (.setHeader zbp "content-location" contentLoc))
-       (.setHeader zbp "content-id" cID)
-       ;; always base64
-       ;;cte="base64"
-       (.setHeader zbp "content-transfer-encoding" "base64")
-       zbp))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn smimeDeflate
+  "Compress content"
+  {:tag MimeBodyPart}
+
+  ([^String cType ^XData xs]
+   (let [ds (SDataSource. xs cType)]
+     (-> (SMIMECompressedGenerator.)
+         (.generate (doto
+                      (MimeBodyPart.)
+                      (.setDataHandler (DataHandler. ds)))
+                    (ZlibCompressor.)))))
+
+  ([^String cType ^XData xs ^String cloc ^String cid]
+   {:pre [(hgl? cloc)(hgl? cid)]}
+   (let [ds (SDataSource. xs cType)
+         bp (doto (MimeBodyPart.)
+              (.setHeader "content-location" cloc)
+              (.setHeader "content-id" cid)
+              (.setDataHandler (DataHandler. ds)))
+         pos (.lastIndexOf cid (int \>))
+         cid' (if (>= pos 0)
+                (str (.substring cid 0 pos) "--z>")
+                (str cid "--z"))]
+     (doto
+       (-> (SMIMECompressedGenerator.)
+           (.generate bp (ZlibCompressor.)))
+       (.setHeader "content-location" cloc)
+       (.setHeader "content-id" cid')
+       (.setHeader "content-transfer-encoding" "base64")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

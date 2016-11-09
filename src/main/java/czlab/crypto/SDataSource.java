@@ -14,18 +14,16 @@
 
 package czlab.crypto;
 
-
-import java.io.ByteArrayInputStream;
 import javax.activation.DataSource;
+import static czlab.xlib.CU.nsb;
+import czlab.xlib.XData;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import static czlab.xlib.CU.nsb;
-import czlab.xlib.XStream;
 
 /**
- * Secured Data Source.
+ * Streamable Data Source.
  *
  * @author Kenneth Leung
  *
@@ -33,19 +31,24 @@ import czlab.xlib.XStream;
 public class SDataSource implements DataSource {
 
   private String _ctype= "";
-  private byte[] _bits;
-  private File _fn;
+  private XData _data;
 
   /**/
   public SDataSource(byte[] content, String contentType) {
+    _data= new XData(content);
     _ctype= nsb(contentType);
-    _bits= content;
   }
 
   /**/
-  public SDataSource(File content, String contentType) {
+  public SDataSource(File file, String contentType) {
+    _data= new XData(file,false);
     _ctype= nsb(contentType);
-    _fn= content;
+  }
+
+  /**/
+  public SDataSource(XData content, String contentType) {
+    _ctype= nsb(contentType);
+    _data= content;
   }
 
   /**/
@@ -55,6 +58,11 @@ public class SDataSource implements DataSource {
 
   /**/
   public SDataSource(byte[] content) {
+    this(content, "");
+  }
+
+  /**/
+  public SDataSource(XData content) {
     this(content, "");
   }
 
@@ -70,9 +78,8 @@ public class SDataSource implements DataSource {
   }
 
   @Override
-  public InputStream getInputStream() {
-    return (_fn==null)
-      ? new ByteArrayInputStream(_bits) : new XStream(_fn);
+  public InputStream getInputStream() throws IOException {
+    return _data.stream();
   }
 
 }
