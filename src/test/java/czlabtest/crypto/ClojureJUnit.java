@@ -25,8 +25,8 @@ public class ClojureJUnit extends ClojureTest {
   @Override
   public List<String> namespaces() {
     return Arrays.asList(new String[] {
-      "czlabtest.crypto.cryptostuff",
-      "czlabtest.crypto.mimestuff"
+      "czlabtest.crypto.core",
+      "czlabtest.crypto.mime"
     });
   }
 }

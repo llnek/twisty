@@ -14,7 +14,7 @@
 
 (ns
 
-  czlabtest.crypto.mimestuff
+  czlabtest.crypto.mime
 
   (:use [czlab.crypto.stores]
         [czlab.crypto.codec]
@@ -208,9 +208,9 @@
              (> (alength (.getBytes x)) 0))))
 
   (is (let [bp (smimeDeflate "text/plain"
+                              (xdata<> "heeloo world")
                               "blah-blah"
-                              "some-id"
-                              (xdata<> "heeloo world"))
+                              "some-id")
             baos (baos<>)
             ^XData x (smimeInflate bp)]
         (and (some? x)

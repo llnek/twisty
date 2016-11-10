@@ -879,7 +879,7 @@
                   dnStr
                   pwd
                   (merge args {:algo DEF_ALGO}))]
-    (pkcs12<> pkey cert certs)))
+    (pkcs12<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JKS uses SUN and hence needs to use DSA
@@ -892,7 +892,7 @@
                   dnStr
                   pwd
                   (merge args {:algo "SHA1withDSA"}))]
-    (jks<> pkey cert certs)))
+    (jks<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1098,7 +1098,7 @@
 (defn validCert?
   "Validate this Certificate"
   [^X509Certificate x509]
-  (try!! false (.checkValidity x509 (now<date>))))
+  (try!! false (do->true (.checkValidity x509 (now<date>)) )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

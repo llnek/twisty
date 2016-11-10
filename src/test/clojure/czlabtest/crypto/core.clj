@@ -14,7 +14,7 @@
 
 (ns
 
-  czlabtest.crypto.cryptostuff
+  czlabtest.crypto.core
 
   (:use [czlab.crypto.stores]
         [czlab.crypto.codec]
@@ -180,9 +180,7 @@
             c (convCert b)
             g (certGist c)
             ok? (validCert? c)]
-        (and (some? c)
-             (some? g)
-             ok?)))
+        (and (some? c) (some? g) ok?)))
 
   (is (some? (simpleTrustMgr<>)))
 
@@ -285,9 +283,9 @@
 
   (is (let [r (.keyEntity ROOTKS HELPME)
             fout (tempFile "xxxx" ".jks")
-            ks (ssv3PKCS12 r
-                           "C=AU,ST=WA,L=Z,O=X"
-                           SECRET {:end ENDDT})
+            ks (ssv3JKS r
+                        "C=AU,ST=WA,L=Z,O=X"
+                        SECRET {:end ENDDT})
             ok? (inst? KeyStore ks)
             f (spitKeyStore ks fout HELPME)
             len (.length f)]

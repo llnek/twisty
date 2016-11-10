@@ -442,9 +442,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn smimeDeflateMsg
-  "Compress message"
-  ^MimeBodyPart
+(defmulti smimeDeflate
+  "Compress content" {:tag MimeBodyPart} (fn [a & xs] (class a)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmethod smimeDeflate
+  MimeMessage
   [^MimeMessage msg]
    ;; make sure it's processed, just in case
    (.getContent msg)
@@ -453,9 +457,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn smimeDeflate
-  "Compress content"
-  {:tag MimeBodyPart}
+(defmethod smimeDeflate String
 
   ([^String cType ^XData xs]
    (let [ds (SDataSource. xs cType)]
