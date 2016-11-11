@@ -1,0 +1,23 @@
+#CA Signing Cert/Key
+#openssl req -x509 -config openssl-ca.cnf -newkey rsa:4096 -sha256 -nodes -out cacert.pem -outform PEM
+openssl req -x509 -config openssl-ca.cnf -newkey rsa:1024 -sha256 -out cacert.pem -outform PEM
+
+#CSR
+#openssl req -config openssl-server.cnf -newkey rsa:2048 -sha256 -nodes -out servercert.csr -outform PEM
+openssl req -config openssl-server.cnf -newkey rsa:1024 -sha256  -out servercert.csr -outform PEM
+
+#Sign the cert with CA
+#openssl ca -config openssl-ca.cnf -policy signing_policy -extensions signing_req -out servercert.pem -infiles servercert.csr
+openssl ca -config openssl-ca.cnf -policy signing_policy -extensions signing_req -out servercert.pem -infiles servercert.csr
+
+#Inspect cert
+openssl x509 -in servercert.pem -text -noout
+
+#Create PKCS12 CA file
+openssl pkcs12 -export -in cacert.pem -inkey cakey.pem -name TestCA  -out ca.pfx
+
+#Create PKCS12 Server file
+openssl pkcs12 -export -in servercert.pem -inkey serverkey.pem -name TestServer -certfile cacert.pem -out server.p12
+
+
+
