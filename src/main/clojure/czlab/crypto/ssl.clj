@@ -24,22 +24,60 @@
         [czlab.xlib.str]
         [czlab.xlib.core])
 
-  (:import [java.net URL]
+  (:import [java.security.cert X509Certificate]
+           [java.security KeyStore]
+           [java.net URL]
+           [czlab.crypto
+            PasswordAPI
+            PKeyGist
+            CryptoStoreAPI
+            SSLTrustMgrFactory]
            [javax.net.ssl
             TrustManager
             SSLEngine
             SSLContext
             X509TrustManager
             KeyManagerFactory
-            TrustManagerFactory]
-           [czlab.crypto
-            PasswordAPI
-            PKeyGist
-            CryptoStoreAPI
-            SSLTrustMgrFactory]))
+            TrustManagerFactory]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(def
+  ^:private
+  ^X509TrustManager
+  XTM
+  (reify X509TrustManager
+    (checkClientTrusted [_ chain authType]
+      (log/warn "SkipCheck: CLIENT CERTIFICATE: %s"
+                (some-> ^X509Certificate
+                        (first chain) (.getSubjectDN))))
+    (checkServerTrusted [_ chain authType]
+      (log/warn "SkipCheck: SERVER CERTIFICATE: %s"
+                (some-> ^X509Certificate
+                        (first chain) (.getSubjectDN))))
+    (getAcceptedIssuers [_]
+      (into-array X509Certificate []))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn simpleTrustMgr<> "Checks nothing" ^X509TrustManager [] XTM)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- simpleTrustManagers
+  "" [] (into-array TrustManager [(simpleTrustMgr<>)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn sslTrustMgrFactory<>
+  ""
+  []
+  (proxy [SSLTrustMgrFactory][]
+    (engineGetTrustManagers []
+      (simpleTrustManagers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -72,7 +110,7 @@
   [ssl?]
   (if ssl?
     (doto (SSLContext/getInstance "TLS")
-          (.init nil (SSLTrustMgrFactory/getTrustManagers) (rand<>)))))
+          (.init nil (simpleTrustManagers) (rand<>)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

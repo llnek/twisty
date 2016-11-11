@@ -14,16 +14,10 @@
 
 package czlab.crypto;
 
-import javax.net.ssl.ManagerFactoryParameters;
 import java.security.KeyStore;
-import java.security.cert.X509Certificate;
 
-import javax.net.ssl.TrustManager;
+import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManagerFactorySpi;
-import javax.net.ssl.X509TrustManager;
-
-import static org.slf4j.LoggerFactory.*;
-import org.slf4j.Logger;
 
 /**
  * A simple trust manager.
@@ -31,31 +25,7 @@ import org.slf4j.Logger;
  * @author Kenneth Leung
  *
  */
-public class SSLTrustMgrFactory extends TrustManagerFactorySpi {
-
-  public static final Logger TLOG=getLogger(SSLTrustMgrFactory.class);
-
-  /**/
-  public static TrustManager[] getTrustManagers() {
-    return new TrustManager[] {
-      new X509TrustManager() {
-        public void checkClientTrusted(X509Certificate[] chain, String authType) {
-          TLOG.warn("SkipCheck: CLIENT CERTIFICATE: {}" , chain[0].getSubjectDN() );
-        }
-
-        public void checkServerTrusted(X509Certificate[] chain, String authType) {
-          TLOG.warn("SkipCheck: SERVER CERTIFICATE: {}" , chain[0].getSubjectDN() );
-        }
-
-        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-      }
-    };
-  }
-
-  @Override
-  public TrustManager[] engineGetTrustManagers() {
-    return SSLTrustMgrFactory.getTrustManagers();
-  }
+public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
 
   @Override
   public void engineInit(ManagerFactoryParameters p) {}

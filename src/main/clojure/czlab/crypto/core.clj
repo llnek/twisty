@@ -32,6 +32,7 @@
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [org.apache.commons.mail DefaultAuthenticator]
            [javax.net.ssl X509TrustManager TrustManager]
+           [czlab.crypto PasswordAPI PKeyGist CertGist]
            [org.bouncycastle.util.encoders Hex Base64]
            [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
            [org.bouncycastle.asn1 ASN1EncodableVector]
@@ -139,11 +140,6 @@
             MimeMessage
             MimeMultipart
             MimeUtility]
-           [czlab.crypto
-            PasswordAPI
-            PKeyGist
-            CertGist
-            SSLTrustMgrFactory]
            [czlab.xlib XData]
            [java.lang Math]))
 
@@ -1099,14 +1095,6 @@
   "Validate this Certificate"
   [^X509Certificate x509]
   (try!! false (do->true (.checkValidity x509 (now<date>)) )))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn simpleTrustMgr<>
-  "Make a pass through trust manager"
-  ^X509TrustManager
-  []
-  (nth (SSLTrustMgrFactory/getTrustManagers) 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

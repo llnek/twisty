@@ -18,6 +18,7 @@
 
   (:use [czlab.crypto.stores]
         [czlab.crypto.codec]
+        [czlab.crypto.ssl]
         [czlab.xlib.core]
         [czlab.xlib.meta]
         [czlab.xlib.str]
