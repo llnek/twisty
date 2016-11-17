@@ -19,5 +19,6 @@ openssl pkcs12 -export -in cacert.pem -inkey cakey.pem -name TestCA  -out ca.pfx
 #Create PKCS12 Server file
 openssl pkcs12 -export -in servercert.pem -inkey serverkey.pem -name TestServer -certfile cacert.pem -out server.p12
 
-
+#cert to p7b
+openssl crl2pkcs7 -nocrl -certfile certificate.cer -out certificate.p7b -certfile CAcert.cer
 
