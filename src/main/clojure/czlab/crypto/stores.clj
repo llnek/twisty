@@ -92,9 +92,8 @@
       (map #(.certEntity me (str %1)) (.certAliases me)))
 
     (addPKCS7Entity [_ bits]
-      (let [fac (CertificateFactory/getInstance "X.509")
-            certs (.generateCertificates fac bits)]
-        (doseq [c (seq certs)]
+      (let [certs (convCerts bits)]
+        (doseq [c certs]
           (.setCertificateEntry store
                                 (alias<>)
                                 ^Certificate c))))))
@@ -102,12 +101,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro cryptoStorePKCS<>
-  "" [passwd] `(let [p# ~passwd] (cryptoStore<> (pkcsStore<> nil p#) p#)))
+  "Create an empty PKCS store"
+  [passwd] `(let [p# ~passwd] (cryptoStore<> (pkcsStore<> nil p#) p#)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro cryptoStoreJKS<>
-  "" [passwd] `(let [p# ~passwd] (cryptoStore<> (jksStore<> nil p#) p#)))
+  "Create an empty JKS store"
+  [passwd] `(let [p# ~passwd] (cryptoStore<> (jksStore<> nil p#) p#)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
