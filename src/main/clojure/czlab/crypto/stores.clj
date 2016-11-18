@@ -25,7 +25,7 @@
 
   (:import [java.io File FileInputStream IOException InputStream]
            [javax.net.ssl KeyManagerFactory TrustManagerFactory]
-           [czlab.crypto CryptoStoreAPI PKeyGist]
+           [czlab.crypto CryptoStore PKeyGist]
            [java.security.cert
             CertificateFactory
             X509Certificate
@@ -46,69 +46,52 @@
 ;;
 (defn cryptoStore<>
   "Create a crypto store"
-  ^CryptoStoreAPI
-  [^KeyStore store ^chars passwd]
+  {:tag CryptoStore}
 
-  (reify CryptoStoreAPI
-
-    (addKeyEntity [_ gist pwd]
-      (.setKeyEntry store
-                    (alias<>) (.pkey gist) pwd (.chain gist)))
-
-    (addCertEntity [_ cert]
-      (.setCertificateEntry store (alias<>) cert))
-
-    (trustManagerFactory [_]
-      (doto (TrustManagerFactory/getInstance
-              (TrustManagerFactory/getDefaultAlgorithm))
-            (.init store)))
-
-    (keyManagerFactory [_]
-      (doto (KeyManagerFactory/getInstance
-              (KeyManagerFactory/getDefaultAlgorithm))
-            (.init store passwd)))
-
-    (certAliases [_] (filterEntries store :certs))
-    (keyAliases [_] (filterEntries store :keys))
-
-    (keyEntity [_ nm pwd] (pkeyGist<> store nm pwd))
-
-    (keyEntity [this pwd]
-      (let [a (.keyAliases this)]
-        (if (== 1 (count a))
-          (.keyEntity this (str (first a)) pwd)
-          (throwBadArg "Store has many keys"))))
-
-    (certEntity [_ nm] (tcert<> store nm))
-
-    (removeEntity [_ nm]
-      (if (.containsAlias store ^String nm)
-        (.deleteEntry store ^String nm)))
-
-    (intermediateCAs [_] nil) ;;(getCAs keystore true false))
-    (rootCAs [_] nil) ;;(getCAs keystore false true))
-
-    (trustedCerts [me]
-      (map #(.certEntity me (str %1)) (.certAliases me)))
-
-    (addPKCS7Entity [_ bits]
-      (let [certs (convCerts bits)]
-        (doseq [c certs]
-          (.setCertificateEntry store
-                                (alias<>)
-                                ^Certificate c))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmacro cryptoStorePKCS<>
-  "Create an empty PKCS store"
-  [passwd] `(let [p# ~passwd] (cryptoStore<> (pkcsStore<> nil p#) p#)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmacro cryptoStoreJKS<>
-  "Create an empty JKS store"
-  [passwd] `(let [p# ~passwd] (cryptoStore<> (jksStore<> nil p#) p#)))
+  ([^chars pwd] (cryptoStore<> (pkcsStore<> nil pwd)))
+  ([] (cryptoStore<> (pkcsStore<>)))
+  ([^KeyStore store ^chars passwd]
+   {:pre [(some? store)]}
+   (reify CryptoStore
+     (addKeyEntity [_ gist pwd]
+       (.setKeyEntry store
+                     (alias<>) (.pkey gist) pwd (.chain gist)))
+     (addCertEntity [_ cert]
+       (.setCertificateEntry store (alias<>) cert))
+     (trustManagerFactory [_]
+       (doto (TrustManagerFactory/getInstance
+               (TrustManagerFactory/getDefaultAlgorithm))
+             (.init store)))
+     (keyManagerFactory [_]
+       (doto (KeyManagerFactory/getInstance
+               (KeyManagerFactory/getDefaultAlgorithm))
+             (.init store passwd)))
+     (certAliases [_] (filterEntries store :certs))
+     (keyAliases [_] (filterEntries store :keys))
+     (keyEntity [_ nm pwd] (pkeyGist<> store nm pwd))
+     (keyEntity [this pwd]
+       (let [a (.keyAliases this)]
+         (if (== 1 (count a))
+           (.keyEntity this (str (first a)) pwd)
+           (throwBadArg "Store has many keys"))))
+     (certEntity [_ nm] (tcert<> store nm))
+     (removeEntity [_ nm]
+       (if (.containsAlias store ^String nm)
+         (.deleteEntry store ^String nm)))
+     (intermediateCAs [_] nil) ;;(getCAs keystore true false))
+     (rootCAs [_] nil) ;;(getCAs keystore false true))
+     (intern [_] store)
+     (password [_] passwd)
+     (write [_ out pwd] (.store store out pwd))
+     (write [this out] (.write this out passwd))
+     (trustedCerts [me]
+       (map #(.certEntity me (str %)) (.certAliases me)))
+     (addPKCS7Entity [_ arg]
+       (let [certs (convCerts arg)]
+         (doseq [c certs]
+           (.setCertificateEntry store
+                                 (alias<>)
+                                 ^Certificate c)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

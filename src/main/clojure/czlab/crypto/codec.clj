@@ -37,7 +37,7 @@
            [java.io ByteArrayOutputStream]
            [java.security Key KeyFactory SecureRandom]
            [javax.crypto Cipher]
-           [czlab.crypto Cryptor PasswordAPI]
+           [czlab.crypto Cryptor IPassword]
            [czlab.xlib CU]
            [org.mindrot.jbcrypt BCrypt]
            [org.bouncycastle.crypto.engines
@@ -510,13 +510,13 @@
 
     (toString [this] (.text this))
     (equals [this obj]
-      (and (inst? PasswordAPI obj)
+      (and (inst? IPassword obj)
            (= (.toString this)
               (str obj))))
     (hashCode [this]
       (.hashCode (str (.text this))))
 
-    PasswordAPI
+    IPassword
 
     (toCharArray [_]
       (if (nil? pwdStr)
@@ -557,7 +557,7 @@
 ;;
 (defn passwd<>
   "Create a password object"
-  {:tag PasswordAPI}
+  {:tag IPassword}
 
   ([pwdStr] (passwd<> pwdStr nil))
 
@@ -582,7 +582,7 @@
 ;;
 (defn strongPwd<>
   "Generate a strong password"
-  ^PasswordAPI [len] (passwd<> (createXXX s_pwdChars len)))
+  ^IPassword [len] (passwd<> (createXXX s_pwdChars len)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

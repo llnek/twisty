@@ -16,9 +16,10 @@ package czlab.crypto;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-
+import java.security.KeyStore;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
+import java.io.OutputStream;
 
 
 /**
@@ -27,7 +28,7 @@ import javax.net.ssl.TrustManagerFactory;
  * @author Kenneth Leung
  *
  */
-public interface CryptoStoreAPI {
+public interface CryptoStore {
 
   /**
    * Get the private key.
@@ -78,12 +79,30 @@ public interface CryptoStoreAPI {
   /**
    * Add a PKCS7 object.
    */
-  public void addPKCS7Entity(byte[] pkcs7Bits);
+  public void addPKCS7Entity(Object input);
 
   /**
    * Remove object from store.
    */
   public void removeEntity(String alias);
+
+  /**
+   * Get the internal implementation.
+   */
+  public KeyStore intern();
+
+  /**
+   * Get the store password.
+   */
+  public char[] password();
+
+  /**
+   */
+  public void write(OutputStream out, char[] pwd);
+
+  /**
+   */
+  public void write(OutputStream out);
 
 }
 

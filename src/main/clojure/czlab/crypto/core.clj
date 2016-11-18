@@ -32,7 +32,7 @@
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [org.apache.commons.mail DefaultAuthenticator]
            [javax.net.ssl X509TrustManager TrustManager]
-           [czlab.crypto PasswordAPI PKeyGist CertGist]
+           [czlab.crypto IPassword PKeyGist CertGist]
            [org.bouncycastle.util.encoders Hex Base64]
            [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
            [org.bouncycastle.asn1 ASN1EncodableVector]

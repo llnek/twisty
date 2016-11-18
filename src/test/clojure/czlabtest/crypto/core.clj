@@ -26,7 +26,7 @@
         [clojure.test]
         [czlab.crypto.core])
 
-  (:import [czlab.crypto PKeyGist Cryptor CryptoStoreAPI PasswordAPI]
+  (:import [czlab.crypto PKeyGist Cryptor CryptoStore IPassword]
            [java.util Date GregorianCalendar]
            [java.io File]
            [java.math BigInteger]
@@ -70,10 +70,10 @@
   ^{:private true :tag (charsClass)}
   SECRET (.toCharArray "secret"))
 
-(def ^:private ^CryptoStoreAPI
+(def ^:private ^CryptoStore
   ROOTCS (cryptoStore<> (initStore! (pkcsStore<>) ROOTPFX HELPME) HELPME))
 
-(def ^:private ^CryptoStoreAPI
+(def ^:private ^CryptoStore
   ROOTKS (cryptoStore<> (initStore! (jksStore<>) ROOTJKS HELPME) HELPME))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -103,6 +103,14 @@
 
   (is (= "PKCS12" (.getType (pkcsStore<>))))
   (is (= "JKS" (.getType (jksStore<>))))
+
+  (is (let [out (baos<>)
+            x (.toCharArray "a")
+            _ (.write ROOTCS out x)
+            b (.toByteArray out)
+            i (streamify b)
+            s (cryptoStore<> (pkcsStore<> i x) x)]
+        (some? (.intern s))))
 
   (is (let [a (.keyAliases ROOTCS)
             c (count a)
@@ -244,7 +252,7 @@
   (is (= (.length (.text (strongPwd<> 16))) 16))
   (is (= (.length (randomStr 64)) 64))
 
-  (is (inst? PasswordAPI (passwd<> "secret-text")))
+  (is (inst? IPassword (passwd<> "secret-text")))
 
   (is (.startsWith (.encoded (passwd<> "secret-text")) "crypt:"))
 

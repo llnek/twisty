@@ -28,9 +28,9 @@
            [java.security KeyStore]
            [java.net URL]
            [czlab.crypto
-            PasswordAPI
+            IPassword
             PKeyGist
-            CryptoStoreAPI
+            CryptoStore
             SSLTrustMgrFactory]
            [javax.net.ssl
             TrustManager

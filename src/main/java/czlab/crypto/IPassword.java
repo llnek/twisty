@@ -20,7 +20,7 @@ package czlab.crypto;
  * @author Kenneth Leung
  *
  */
-public interface PasswordAPI {
+public interface IPassword {
 
   /**
    * true if the hash matches the internal value.

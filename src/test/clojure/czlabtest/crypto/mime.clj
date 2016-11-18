@@ -26,7 +26,7 @@
         [clojure.test])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
-           [czlab.crypto PKeyGist PasswordAPI CryptoStoreAPI]
+           [czlab.crypto PKeyGist IPassword CryptoStore]
            [java.io File InputStream ByteArrayOutputStream]
            [org.bouncycastle.cms CMSAlgorithm]
            [java.security Policy
@@ -45,7 +45,7 @@
 (def ^:private HELPME (.toCharArray "helpme"))
 (def ^:private DES_EDE3_CBC CMSAlgorithm/DES_EDE3_CBC)
 (def ^:private
-  ^CryptoStoreAPI
+  ^CryptoStore
   ROOTCS
   (cryptoStore<> (initStore! (pkcsStore<>)
                              ROOTPFX HELPME) HELPME))
