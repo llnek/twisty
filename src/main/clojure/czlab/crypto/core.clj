@@ -393,19 +393,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- coerceInput
-  ""
-  [arg]
-  (condp = (class arg)
-    File [true (FileInputStream. ^File arg)]
-    (bytesClass) [true (streamify arg)]
-    InputStream [false arg]
-    URL [true (.openStream ^URL arg)]
-    nil [false nil]
-    (throwBadArg "Bad type")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn initStore!
   "Initialize the key-store"
   ^KeyStore
@@ -413,7 +400,7 @@
   {:pre [(some? store)]}
   (let
     [[del ^InputStream inp]
-     (coerceInput arg)]
+     (coerceToInputStream arg)]
     (try
       (doto store (.load inp pwd2))
       (finally
@@ -453,7 +440,7 @@
   ^APersistentVector
   [arg]
   (let
-    [[del ^InputStream inp] (coerceInput arg)]
+    [[del ^InputStream inp] (coerceToInputStream arg)]
     (try
      (-> (CertificateFactory/getInstance "X.509")
          (.generateCertificates inp)
@@ -468,7 +455,7 @@
   ^Certificate
   [arg]
   (let
-    [[del ^InputStream inp] (coerceInput arg)]
+    [[del ^InputStream inp] (coerceToInputStream arg)]
     (try
      (-> (CertificateFactory/getInstance "X.509")
          (.generateCertificate inp))
