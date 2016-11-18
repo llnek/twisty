@@ -100,6 +100,16 @@
                                 ^Certificate c))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro cryptoStorePKCS<>
+  "" [passwd] `(let [p# ~passwd] (cryptoStore<> (pkcsStore<> nil p#) p#)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro cryptoStoreJKS<>
+  "" [passwd] `(let [p# ~passwd] (cryptoStore<> (jksStore<> nil p#) p#)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
 
 

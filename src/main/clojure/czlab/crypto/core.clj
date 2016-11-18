@@ -448,16 +448,32 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defn convCerts
+  "Convert a set of Certificates (p7b)"
+  ^APersistentVector
+  [arg]
+  (let
+    [[del ^InputStream inp] (coerceInput arg)]
+    (try
+     (-> (CertificateFactory/getInstance "X.509")
+         (.generateCertificates inp)
+         (vec))
+     (finally
+       (if del (closeQ inp))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn convCert
   "Convert to a Certificate"
   ^Certificate
   [arg]
   (let
-    [[del ^InputStream inp] (coerceInput arg)
-     cert (-> (CertificateFactory/getInstance "X.509")
-              (.generateCertificate inp))]
-    (if del (closeQ inp))
-    cert))
+    [[del ^InputStream inp] (coerceInput arg)]
+    (try
+     (-> (CertificateFactory/getInstance "X.509")
+         (.generateCertificate inp))
+     (finally
+       (if del (closeQ inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

@@ -22,3 +22,8 @@ openssl pkcs12 -export -in servercert.pem -inkey serverkey.pem -name TestServer 
 #cert to p7b
 openssl crl2pkcs7 -nocrl -certfile certificate.cer -out certificate.p7b -certfile CAcert.cer
 
+#print certs in p7b
+openssl pkcs7 -in server.p7b -print_certs
+
+
+
