@@ -14,19 +14,19 @@
 
 (ns
 
-  czlabtest.crypto.mime
+  czlabtest.twisty.mime
 
-  (:use [czlab.crypto.stores]
-        [czlab.crypto.codec]
-        [czlab.crypto.smime]
-        [czlab.crypto.core]
+  (:use [czlab.twisty.stores]
+        [czlab.twisty.codec]
+        [czlab.twisty.smime]
+        [czlab.twisty.core]
         [czlab.xlib.core]
         [czlab.xlib.io]
         [czlab.xlib.meta]
         [clojure.test])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
-           [czlab.crypto PKeyGist IPassword CryptoStore]
+           [czlab.twisty PKeyGist IPassword CryptoStore]
            [java.io File InputStream ByteArrayOutputStream]
            [org.bouncycastle.cms CMSAlgorithm]
            [java.security Policy
@@ -37,11 +37,11 @@
            [java.util Date GregorianCalendar]
            [javax.mail Multipart BodyPart]
            [czlab.xlib XData]
-           [czlab.crypto SDataSource]))
+           [czlab.twisty SDataSource]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(def ^:private ROOTPFX (resBytes "czlab/crypto/test.pfx"))
+(def ^:private ROOTPFX (resBytes "czlab/twisty/test.pfx"))
 (def ^:private HELPME (.toCharArray "helpme"))
 (def ^:private DES_EDE3_CBC CMSAlgorithm/DES_EDE3_CBC)
 (def ^:private
@@ -52,9 +52,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(deftest czlabtestcrypto-mimestuff
+(deftest czlabtesttwisty-mime
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [msg (mimeMsg<> nil nil inp)
               ^Multipart mp (.getContent msg)]
           (and (>= (.indexOf
@@ -65,7 +65,7 @@
                (not (isDataCompressed? mp))
                (not (isDataEncrypted? mp))))))
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [g (.keyEntity ROOTCS HELPME)
               msg (mimeMsg<> nil nil inp)
               rc (smimeDigSig (.pkey g)
@@ -74,7 +74,7 @@
                               (into [] (.chain g)))]
           (isDataSigned? rc))))
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [g (.keyEntity ROOTCS HELPME)
               msg (mimeMsg<> nil nil inp)
               rc (smimeDigSig (.pkey g)
@@ -83,7 +83,7 @@
                               (into [] (.chain g)))]
           (isDataSigned? rc))))
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [g (.keyEntity ROOTCS HELPME)
               msg (mimeMsg<> nil nil inp)
               bp (-> ^Multipart
@@ -95,7 +95,7 @@
                               (into [] (.chain g)))]
           (isDataSigned? rc))))
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [g (.keyEntity ROOTCS HELPME)
               mp (smimeDigSig (.pkey g)
                               (mimeMsg<> nil nil inp)
@@ -112,7 +112,7 @@
               rc (peekSmimeSignedContent mp3)]
           (inst? Multipart rc))))
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [g (.keyEntity ROOTCS HELPME)
               cs (into [] (.chain g))
               mp (smimeDigSig (.pkey g)
@@ -193,7 +193,7 @@
         (and (some? dg)
              (instBytes? dg))))
 
-  (is (with-open [inp (resStream "czlab/crypto/mime.eml")]
+  (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
         (let [msg (mimeMsg<> "" (char-array 0) inp)
               bp (smimeDeflate msg)
               ^XData x (smimeInflate bp)]
@@ -238,5 +238,5 @@
 
 
 
-;;(clojure.test/run-tests 'czlabtest.crypto.mimestuff)
+;;(clojure.test/run-tests 'czlabtest.twisty.mime)
 

@@ -3,7 +3,7 @@
   :license {:name "Apache License 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0"}
   :description ""
-  :url "https://github.com/llnek/crypto"
+  :url "https://github.com/llnek/twisty"
 
   :dependencies '[
 
@@ -21,17 +21,17 @@
     [org.clojure/clojure "1.8.0" ]
 
     [com.cemerick/pomegranate "0.3.1" :scope "provided"]
-    [net.mikera/cljunit "0.5.0" :scope "provided"]
+    [net.mikera/cljunit "0.6.0" :scope "provided"]
     [junit/junit "4.12"  :scope "provided"]
 
-    [codox/codox "0.10.1" :scope "provided"]
+    [codox/codox "0.10.2" :scope "provided"]
   ]
 
   :source-paths #{"src/main/clojure" "src/main/java"}
-  :test-runner "czlabtest.crypto.ClojureJUnit"
+  :test-runner "czlabtest.twisty.ClojureJUnit"
   :version "1.0.0"
   :debug true
-  :project 'czlab/czlab-crypto)
+  :project 'czlab/czlab-twisty)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

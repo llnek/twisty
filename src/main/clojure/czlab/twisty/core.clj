@@ -15,7 +15,7 @@
 (ns ^{:doc "Crypto functions."
       :author "Kenneth Leung"}
 
-  czlab.crypto.core
+  czlab.twisty.core
 
   (:require [czlab.xlib.meta :refer [bytesClass]]
             [czlab.xlib.dates :refer [+months]]
@@ -32,7 +32,7 @@
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [org.apache.commons.mail DefaultAuthenticator]
            [javax.net.ssl X509TrustManager TrustManager]
-           [czlab.crypto IPassword PKeyGist CertGist]
+           [czlab.twisty IPassword PKeyGist CertGist]
            [org.bouncycastle.util.encoders Hex Base64]
            [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
            [org.bouncycastle.asn1 ASN1EncodableVector]

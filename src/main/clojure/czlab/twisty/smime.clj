@@ -15,13 +15,13 @@
 (ns ^{:doc "S/MIME helpers."
       :author "Kenneth Leung" }
 
-  czlab.crypto.smime
+  czlab.twisty.smime
 
   (:require [czlab.xlib.dates :refer [+months]]
             [czlab.xlib.logging :as log]
             [clojure.string :as cs])
 
-  (:use [czlab.crypto.core]
+  (:use [czlab.twisty.core]
         [czlab.xlib.core]
         [czlab.xlib.io]
         [czlab.xlib.str])
@@ -34,7 +34,7 @@
            [org.bouncycastle.asn1 ASN1EncodableVector]
            [org.bouncycastle.cert.jcajce JcaCertStore]
            [org.bouncycastle.asn1.x500 X500Name]
-           [czlab.crypto PKeyGist SDataSource]
+           [czlab.twisty PKeyGist SDataSource]
            [javax.activation DataHandler]
            [clojure.lang APersistentMap]
            [czlab.xlib XData]

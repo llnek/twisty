@@ -15,17 +15,17 @@
 (ns ^{:doc "A Crypto store."
       :author "Kenneth Leung" }
 
-  czlab.crypto.stores
+  czlab.twisty.stores
 
   (:require [czlab.xlib.logging :as log])
 
-  (:use [czlab.crypto.core]
+  (:use [czlab.twisty.core]
         [czlab.xlib.core]
         [czlab.xlib.str])
 
   (:import [java.io File FileInputStream IOException InputStream]
            [javax.net.ssl KeyManagerFactory TrustManagerFactory]
-           [czlab.crypto CryptoStore PKeyGist]
+           [czlab.twisty CryptoStore PKeyGist]
            [java.security.cert
             CertificateFactory
             X509Certificate

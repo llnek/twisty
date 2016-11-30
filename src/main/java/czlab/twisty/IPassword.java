@@ -12,23 +12,46 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlabtest.crypto;
+package czlab.twisty;
 
-import mikera.cljunit.ClojureTest;
-import java.util.Arrays;
-import java.util.List;
 
 /**
- * @author kenl
+ *
+ * @author Kenneth Leung
+ *
  */
-public class ClojureJUnit extends ClojureTest {
-  @Override
-  public List<String> namespaces() {
-    return Arrays.asList(new String[] {
-      "czlabtest.crypto.core",
-      "czlabtest.crypto.mime"
-    });
-  }
+public interface IPassword {
+
+  /**
+   * true if the hash matches the internal value.
+   */
+  public boolean validateHash(String targetHashed);
+
+  /**
+   * Get the password.
+   */
+  public char[] toCharArray();
+
+  /**
+   * A tuple(2) ['hashed value' 'salt']
+   */
+  public Object stronglyHashed();
+
+  /**
+   * A tuple(2) ['hashed value' 'salt']
+   */
+  public Object hashed();
+
+  /**
+   * The encoded value.
+   */
+  public String encoded();
+
+  /**
+   * The text value.
+   */
+  public String text();
+
 }
 
 

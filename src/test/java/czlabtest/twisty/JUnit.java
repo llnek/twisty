@@ -12,10 +12,10 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlabtest.crypto;
+package czlabtest.twisty;
 
-import static org.junit.Assert.assertEquals;
 import java.util.concurrent.atomic.AtomicInteger;
+import static org.junit.Assert.assertEquals;
 import junit.framework.JUnit4TestAdapter;
 
 import org.junit.After;

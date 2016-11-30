@@ -14,19 +14,19 @@
 
 (ns
 
-  czlabtest.crypto.core
+  czlabtest.twisty.test
 
-  (:use [czlab.crypto.stores]
-        [czlab.crypto.codec]
-        [czlab.crypto.ssl]
+  (:use [czlab.twisty.stores]
+        [czlab.twisty.codec]
+        [czlab.twisty.ssl]
         [czlab.xlib.core]
         [czlab.xlib.meta]
         [czlab.xlib.str]
         [czlab.xlib.io]
         [clojure.test]
-        [czlab.crypto.core])
+        [czlab.twisty.core])
 
-  (:import [czlab.crypto PKeyGist Cryptor CryptoStore IPassword]
+  (:import [czlab.twisty PKeyGist Cryptor CryptoStore IPassword]
            [java.util Date GregorianCalendar]
            [java.io File]
            [java.math BigInteger]
@@ -57,10 +57,10 @@
 
 (def
   ^{:private true :tag (bytesClass)}
-  ROOTPFX (resBytes "czlab/crypto/test.pfx"))
+  ROOTPFX (resBytes "czlab/twisty/test.pfx"))
 (def
   ^{:private true :tag (bytesClass)}
-  ROOTJKS (resBytes "czlab/crypto/test.jks"))
+  ROOTJKS (resBytes "czlab/twisty/test.jks"))
 
 (def
   ^{:private true :tag (charsClass)}
@@ -78,7 +78,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(deftest czlabtestcrypto-cryptostuff
+(deftest czlabtesttwisty-test
 
   (is (isSigned? "application/x-pkcs7-mime; signed-data"))
   (is (isSigned? "multipart/signed"))
@@ -90,8 +90,8 @@
   (is (isCompressed? "application/pkcs7-mime; compressed-data"))
   (is (not (isCompressed? "text/plain")))
 
-  (is (not (jksFile? (resUrl "czlab/crypto/test.p12"))))
-  (is (jksFile? (resUrl "czlab/crypto/test.jks")))
+  (is (not (jksFile? (resUrl "czlab/twisty/test.p12"))))
+  (is (jksFile? (resUrl "czlab/twisty/test.jks")))
 
   (is (= "SHA-512" (.getAlgorithm (msgDigest "SHA-512"))))
   (is (= "MD5" (.getAlgorithm (msgDigest "MD5"))))
@@ -123,7 +123,7 @@
   (is (let [a (.certAliases ROOTCS) c (count a)] (== 0 c)))
 
   (is (let [g (convPKey (resUrl
-                          "czlab/crypto/test.p12")
+                          "czlab/twisty/test.p12")
                         HELPME
                         HELPME)
             t (tempFile)
@@ -166,7 +166,7 @@
 
   (is (let [s (session<> "joe" SECRET)
             s0 (session<>)
-            b (resBytes "czlab/crypto/mime.eml")
+            b (resBytes "czlab/twisty/mime.eml")
             m (mimeMsg<> (streamify b))
             c (.getContent m)
             z (isDataCompressed? c)
@@ -185,7 +185,7 @@
   (is (= (digest<md5> (bytesify "hello world"))
          (digest<md5> (bytesify "hello world"))))
 
-  (is (let [b (resBytes "czlab/crypto/cert.crt")
+  (is (let [b (resBytes "czlab/twisty/cert.crt")
             c (convCert b)
             g (certGist c)
             ok? (validCert? c)]
@@ -314,5 +314,5 @@
 
 
 
-;;(clojure.test/run-tests 'czlabtest.crypto.cryptostuff)
+;;(clojure.test/run-tests 'czlabtest.twisty.test)
 

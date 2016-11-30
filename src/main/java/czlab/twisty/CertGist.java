@@ -12,23 +12,29 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlab.crypto;
+package czlab.twisty;
+
+import javax.security.auth.x500.X500Principal;
+import java.util.Date;
 
 /**
  *
  * @author Kenneth Leung
  *
  */
-public interface Cryptor {
+public interface CertGist {
 
   /**/
-  public Object decrypt(Object pkey, Object cipherData);
+  public X500Principal issuer();
 
   /**/
-  public Object encrypt(Object pkey, Object data);
+  public X500Principal subj();
 
   /**/
-  public Object algo();
+  public Date notBefore();
+
+  /**/
+  public Date notAfter();
 
 }
 

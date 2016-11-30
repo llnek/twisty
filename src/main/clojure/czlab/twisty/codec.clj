@@ -15,7 +15,7 @@
 (ns ^{:doc "Password Encoders & Decoders."
       :author "Kenneth Leung" }
 
-  czlab.crypto.codec
+  czlab.twisty.codec
 
   (:require [czlab.xlib.logging :as log]
             [czlab.xlib.io :refer [baos<>]])
@@ -37,7 +37,7 @@
            [java.io ByteArrayOutputStream]
            [java.security Key KeyFactory SecureRandom]
            [javax.crypto Cipher]
-           [czlab.crypto Cryptor IPassword]
+           [czlab.twisty Cryptor IPassword]
            [czlab.xlib CU]
            [org.mindrot.jbcrypt BCrypt]
            [org.bouncycastle.crypto.engines

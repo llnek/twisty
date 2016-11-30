@@ -15,19 +15,19 @@
 (ns ^{:doc "SSL helpers."
       :author "Kenneth Leung" }
 
-  czlab.crypto.ssl
+  czlab.twisty.ssl
 
-  (:require [czlab.crypto.stores :refer [cryptoStore<>]]
+  (:require [czlab.twisty.stores :refer [cryptoStore<>]]
             [czlab.xlib.logging :as log])
 
-  (:use [czlab.crypto.core]
+  (:use [czlab.twisty.core]
         [czlab.xlib.str]
         [czlab.xlib.core])
 
   (:import [java.security.cert X509Certificate]
            [java.security KeyStore]
            [java.net URL]
-           [czlab.crypto
+           [czlab.twisty
             IPassword
             PKeyGist
             CryptoStore

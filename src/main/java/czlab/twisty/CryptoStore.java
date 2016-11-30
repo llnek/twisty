@@ -12,7 +12,7 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlab.crypto;
+package czlab.twisty;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;

@@ -12,26 +12,23 @@
  *
  * Copyright (c) 2013-2016, Kenneth Leung. All rights reserved. */
 
-package czlab.crypto;
-
-import java.security.cert.Certificate;
-import java.security.PrivateKey;
+package czlab.twisty;
 
 /**
  *
  * @author Kenneth Leung
  *
  */
-public interface PKeyGist {
+public interface Cryptor {
 
   /**/
-  public Certificate[] chain();
+  public Object decrypt(Object pkey, Object cipherData);
 
   /**/
-  public Certificate cert();
+  public Object encrypt(Object pkey, Object data);
 
   /**/
-  public PrivateKey pkey();
+  public Object algo();
 
 }
 
