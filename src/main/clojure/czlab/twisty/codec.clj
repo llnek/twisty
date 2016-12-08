@@ -486,20 +486,22 @@
   ""
   ^String
   [^chars chArray len]
-  (cond
-    (== len 0) ""
-    (< len 0) nil
-    :else
-    (let
-      [^chars c
-       (amap
-         (char-array len)
-         pos ret
-         (->> (alength chArray)
-              (mod (->> Integer/MAX_VALUE
-                        (.nextInt (rand<>) )))
-              (aget chArray)))]
-      (String. c))))
+  (let [alen (alength chArray)
+        b Integer/MAX_VALUE
+        r (rand<>)]
+    (cond
+      (== len 0) ""
+      (< len 0) nil
+      :else
+      (let
+        [^chars
+         c
+         (amap
+           (char-array len)
+           pos ret
+           (->> (mod (.nextInt r b) alen)
+                (aget chArray)))]
+        (String. c)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
