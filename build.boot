@@ -7,7 +7,7 @@
 
   :dependencies '[
 
-    [czlab/czlab-xlib "1.0.0" ]
+    [czlab/czlab-xlib "0.1.0" ]
 
     ;;[org.clojure/math.numeric-tower "0.0.4" ]
     [org.bouncycastle/bcprov-jdk15on "1.55"]
@@ -29,7 +29,7 @@
 
   :source-paths #{"src/main/clojure" "src/main/java"}
   :test-runner "czlabtest.twisty.ClojureJUnit"
-  :version "1.0.0"
+  :version "0.1.0"
   :debug true
   :project 'czlab/czlab-twisty)
 
