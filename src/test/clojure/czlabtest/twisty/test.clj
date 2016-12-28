@@ -41,40 +41,40 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(def ^:private ENDDT (.getTime (GregorianCalendar. 2050 1 1)))
+(def ^:private end-date (.getTime (GregorianCalendar. 2050 1 1)))
 
 (def
   ^{:private true :tag (charsClass)}
-  C_KEY (.toCharArray "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+  c-key (.toCharArray "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
   ^{:private true :tag (bytesClass)}
-  B_KEY (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+  b-key (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
   ^{:private true :tag (charsClass)}
-  TESTPWD (.toCharArray "secretsecretsecretsecretsecret"))
+  test-pwd (.toCharArray "secretsecretsecretsecretsecret"))
 
 (def
   ^{:private true :tag (bytesClass)}
-  ROOTPFX (resBytes "czlab/twisty/test.pfx"))
+  root-pfx (resBytes "czlab/twisty/test.pfx"))
 (def
   ^{:private true :tag (bytesClass)}
-  ROOTJKS (resBytes "czlab/twisty/test.jks"))
+  root-jks (resBytes "czlab/twisty/test.jks"))
 
 (def
   ^{:private true :tag (charsClass)}
-  HELPME (.toCharArray "helpme"))
+  help-me (.toCharArray "helpme"))
 
 (def
   ^{:private true :tag (charsClass)}
-  SECRET (.toCharArray "secret"))
+  secret (.toCharArray "secret"))
 
 (def ^:private ^CryptoStore
-  ROOTCS (cryptoStore<> (initStore! (pkcsStore<>) ROOTPFX HELPME) HELPME))
+  root-cs (cryptoStore<> (initStore! (pkcsStore<>) root-pfx help-me) help-me))
 
 (def ^:private ^CryptoStore
-  ROOTKS (cryptoStore<> (initStore! (jksStore<>) ROOTJKS HELPME) HELPME))
+  root-ks (cryptoStore<> (initStore! (jksStore<>) root-jks help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -106,26 +106,26 @@
 
   (is (let [out (baos<>)
             x (.toCharArray "a")
-            _ (.write ROOTCS out x)
+            _ (.write root-cs out x)
             b (.toByteArray out)
             i (streamify b)
             s (cryptoStore<> (pkcsStore<> i x) x)]
         (some? (.intern s))))
 
-  (is (let [a (.keyAliases ROOTCS)
+  (is (let [a (.keyAliases root-cs)
             c (count a)
             n (first a)
-            e (.keyEntity ROOTCS n HELPME)]
+            e (.keyEntity root-cs n help-me)]
         (and (== 1 c)
              (string? n)
              (inst? PKeyGist e))))
 
-  (is (let [a (.certAliases ROOTCS) c (count a)] (== 0 c)))
+  (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
 
   (is (let [g (convPKey (resUrl
                           "czlab/twisty/test.p12")
-                        HELPME
-                        HELPME)
+                        help-me
+                        help-me)
             t (tempFile)
             t (exportPkcs7File g t)
             z (.length t)
@@ -137,11 +137,11 @@
 
   (is (some? (easyPolicy<>)))
 
-  (is (= (genMac B_KEY "hello world")
-         (genMac B_KEY "hello world")))
+  (is (= (genMac b-key "hello world")
+         (genMac b-key "hello world")))
 
-  (is (not= (genMac B_KEY "hello maria")
-            (genMac B_KEY "hello world")))
+  (is (not= (genMac b-key "hello maria")
+            (genMac b-key "hello world")))
 
   (is (= (genHash "hello world")
          (genHash "hello world")))
@@ -150,10 +150,10 @@
             (genHash "hello world")))
 
   (is (let [kp (asymKeyPair<> "RSA" 1024)
-            b (exportPEM kp SECRET)
+            b (exportPEM kp secret)
             pub (.getPublic kp)
             prv (.getPrivate kp)
-            b1 (exportPrivateKey prv SECRET)
+            b1 (exportPrivateKey prv secret)
             b2 (exportPublicKey pub)]
         (and (hgl? (stringify b))
              (hgl? (stringify b1))
@@ -164,7 +164,7 @@
         (and (instBytes? a)
              (instBytes? b))))
 
-  (is (let [s (session<> "joe" SECRET)
+  (is (let [s (session<> "joe" secret)
             s0 (session<>)
             b (resBytes "czlab/twisty/mime.eml")
             m (mimeMsg<> (streamify b))
@@ -209,12 +209,12 @@
   (is (= "heeloo"
          (let [c (jasyptCryptor<>)]
            (.decrypt c
-                     C_KEY
-                     (.encrypt c C_KEY "heeloo")))))
+                     c-key
+                     (.encrypt c c-key "heeloo")))))
 
   (is (= "heeloo"
          (let [c (jasyptCryptor<>)
-               pkey SECRET]
+               pkey secret]
            (.decrypt c
                      pkey
                      (.encrypt c pkey "heeloo")))))
@@ -222,24 +222,24 @@
   (is (= "heeloo"
          (let [c (javaCryptor<>)]
            (stringify (.decrypt c
-                                B_KEY
-                                (.encrypt c B_KEY "heeloo"))))))
+                                b-key
+                                (.encrypt c b-key "heeloo"))))))
 
   (is (= "heeloo"
          (let [c (javaCryptor<>)
-               pkey (bytesify (String. TESTPWD))]
+               pkey (bytesify (String. test-pwd))]
            (stringify (.decrypt c
                                 pkey (.encrypt c pkey "heeloo"))))))
 
   (is (= "heeloo"
          (let [c (bcastleCryptor<>)]
            (stringify (.decrypt c
-                                B_KEY
-                                (.encrypt c B_KEY "heeloo"))))))
+                                b-key
+                                (.encrypt c b-key "heeloo"))))))
 
   (is (= "heeloo"
          (let [c (bcastleCryptor<>)
-               pkey (bytesify (String. TESTPWD))]
+               pkey (bytesify (String. test-pwd))]
            (stringify (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
   (is (= "heeloo"
@@ -257,51 +257,51 @@
   (is (.startsWith (.encoded (passwd<> "secret-text")) "crypt:"))
 
   (is (let [v (csreq<>
-                "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 1024 SECRET)]
+                "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 1024 secret)]
         (and (= (count v) 2)
              (> (alength ^bytes (first v)) 0)
              (> (alength ^bytes (nth v 1)) 0))))
 
   (is (let [ks (ssv1PKCS12 "C=AU,ST=NSW,L=Sydney,O=Google"
-                           SECRET {:end ENDDT :keylen 1024 })
+                           secret {:end end-date :keylen 1024 })
             fout (tempFile "Joe Blogg" ".p12")
             ok? (inst? KeyStore ks)
-            f (spitKeyStore ks fout HELPME)
+            f (spitKeyStore ks fout help-me)
             len (.length f)]
         (deleteQ f)
         (and ok? (> len 0))))
 
-  (is (let [ks (ssv1JKS "C=AU,ST=WA,L=X,O=Z" SECRET {:end ENDDT})
+  (is (let [ks (ssv1JKS "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
             fout (tempFile "xxxx" ".jks")
             ok? (inst? KeyStore ks)
-            f (spitKeyStore ks fout HELPME)
+            f (spitKeyStore ks fout help-me)
             len (.length f)]
         (deleteQ f)
         (and ok? (> len 0))))
 
-  (is (let [r (.keyEntity ROOTCS HELPME)
+  (is (let [r (.keyEntity root-cs help-me)
             fout (tempFile "xxxx" ".p12")
             ks (ssv3PKCS12 r
                            "C=AU,ST=WA,L=Z,O=X"
-                           SECRET {:end ENDDT})
+                           secret {:end end-date})
             ok? (inst? KeyStore ks)
-            f (spitKeyStore ks fout HELPME)
+            f (spitKeyStore ks fout help-me)
             len (.length f)]
         (deleteQ f)
         (and ok? (> len 0))))
 
-  (is (let [r (.keyEntity ROOTKS HELPME)
+  (is (let [r (.keyEntity root-ks help-me)
             fout (tempFile "xxxx" ".jks")
             ks (ssv3JKS r
                         "C=AU,ST=WA,L=Z,O=X"
-                        SECRET {:end ENDDT})
+                        secret {:end end-date})
             ok? (inst? KeyStore ks)
-            f (spitKeyStore ks fout HELPME)
+            f (spitKeyStore ks fout help-me)
             len (.length f)]
         (deleteQ f)
         (and ok? (> len 0))))
 
-  (is (let [r (.keyEntity ROOTCS HELPME)
+  (is (let [r (.keyEntity root-cs help-me)
             fout (tempFile "xxxx" ".p7b")
             b (exportPkcs7 r)
             f (exportPkcs7File r fout)

@@ -148,11 +148,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(def ^:private ^String DEF_ALGO "SHA1WithRSAEncryption")
-(def ^:private ^String DEF_MAC "HmacSHA512")
+(def ^:private ^String def-algo "SHA1WithRSAEncryption")
+(def ^:private ^String def-mac "HmacSHA512")
 ;;(def ^:private EXPLICIT_SIGNING :EXPLICIT)
 ;;(def ^:private IMPLICIT_SIGNING :IMPLICIT)
-(def ^:private ENC_ALGOS
+(def ^:private enc-algos
   #{"AES-128-CBC" "AES-128-CFB" "AES-128-ECB" "AES-128-OFB"
     "AES-192-CBC" "AES-192-CFB" "AES-192-ECB" "AES-192-OFB"
     "AES-256-CBC" "AES-256-CFB" "AES-256-ECB" "AES-256-OFB"
@@ -163,14 +163,13 @@
     "DES-EDE3-ECB" "DES-EDE3-OFB"
     "RC2-CBC" "RC2-CFB" "RC2-ECB" "RC2-OFB"
     "RC2-40-CBC" "RC2-64-CBC" })
-(def ^String SHA512RSA "SHA512withRSA")
-(def ^String SHA256RSA "SHA256withRSA")
-(def ^String SHA1RSA "SHA1withRSA")
-(def ^String MD5RSA "MD5withRSA")
-(def ^String BFISH "BlowFish")
-
-(def DER_FORM :DER)
-(def PEM_FORM :PEM)
+(def ^String sha-512-rsa "SHA512withRSA")
+(def ^String sha-256-rsa "SHA256withRSA")
+(def ^String sha1-rsa "SHA1withRSA")
+(def ^String md5-rsa "MD5withRSA")
+(def ^String blow-fish "BlowFish")
+(def der-form :DER)
+(def pem-form :PEM)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -208,14 +207,14 @@
   []
   (let
     [kgen (doto
-            (KeyGenerator/getInstance BFISH)
+            (KeyGenerator/getInstance blow-fish)
             (.init 256))]
     (-> (doto
-          (Cipher/getInstance BFISH)
+          (Cipher/getInstance blow-fish)
           (.init (Cipher/ENCRYPT_MODE)
                  (SecretKeySpec. (.. kgen
                                      generateKey
-                                     getEncoded) BFISH)))
+                                     getEncoded) blow-fish)))
         (.doFinal (bytesify "yo")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -278,7 +277,7 @@
   ^PEMEncryptor
   [^chars pwd]
   (if-not (empty? pwd)
-    (-> (->> (rand-nth (vec ENC_ALGOS))
+    (-> (->> (rand-nth (vec enc-algos))
              (withBC1 JcePEMEncryptorBuilder ))
         (.setSecureRandom (rand<>))
         (.build pwd))))
@@ -497,7 +496,7 @@
   ([^bytes skey data algo]
    {:pre [(some? skey) (some? data)]}
    (let
-     [algo (stror algo DEF_MAC)
+     [algo (stror algo def-mac)
       mac (Mac/getInstance algo *_BC_*)]
      (when-some [bits (convBytes data)]
        (->> (SecretKeySpec. skey algo)
@@ -559,7 +558,7 @@
   ^bytes
   [^PrivateKey pkey & [pwd fmt]]
   {:pre [(some? pkey)]}
-  (if (= (or fmt PEM_FORM) PEM_FORM)
+  (if (= (or fmt pem-form) pem-form)
     (exportPEM pkey pwd)
     (.getEncoded pkey)))
 
@@ -570,7 +569,7 @@
   ^bytes
   [^PublicKey pkey & [fmt]]
   {:pre [(some? pkey)]}
-  (if (= (or fmt PEM_FORM) PEM_FORM)
+  (if (= (or fmt pem-form) pem-form)
     (exportPEM pkey)
     (.getEncoded pkey)))
 
@@ -581,7 +580,7 @@
   ^bytes
   [^X509Certificate cert & [fmt]]
   {:pre [(some? cert)]}
-  (if (= (or fmt PEM_FORM) PEM_FORM)
+  (if (= (or fmt pem-form) pem-form)
     (exportPEM cert)
     (.getEncoded cert)))
 
@@ -596,7 +595,7 @@
   ([^String dnStr keylen pwd]
    {:pre [(hgl? dnStr)]}
    (let
-     [csb (withBC1 JcaContentSignerBuilder DEF_ALGO)
+     [csb (withBC1 JcaContentSignerBuilder def-algo)
       len (or keylen 1024)
       kp (asymKeyPair<> "RSA" len)
       rbr (JcaPKCS10CertificationRequestBuilder.
@@ -792,7 +791,7 @@
   [^String dnStr ^chars pwd args]
   (let
     [[pkey cert]
-     (ssv1Cert (merge {:algo DEF_ALGO
+     (ssv1Cert (merge {:algo def-algo
                        :dnStr dnStr
                        :style "RSA"} args))]
     (pkcs12<> cert pkey pwd [])))
@@ -877,7 +876,7 @@
         (makeSSV3 issuer
                   dnStr
                   pwd
-                  (merge args {:algo DEF_ALGO}))]
+                  (merge args {:algo def-algo}))]
     (pkcs12<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -907,7 +906,7 @@
                   (.build))
               (JcaSignerInfoGeneratorBuilder.))
      ;;    "SHA1withRSA"
-     cs (-> (withBC1 JcaContentSignerBuilder SHA512RSA)
+     cs (-> (withBC1 JcaContentSignerBuilder sha-512-rsa)
             (.build (.pkey pkey)))
      ^X509Certificate x509 (.cert pkey)]
     (->> (.build bdr cs x509)

@@ -14,7 +14,6 @@
 
 package czlabtest.twisty;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import junit.framework.JUnit4TestAdapter;
 

@@ -1,3 +1,6 @@
+#oldstore pass=helpme, key pass=secret
+#store pass=sesame, key pass=secret
+
 #CA Signing Cert/Key
 #openssl req -x509 -config openssl-ca.cnf -newkey rsa:4096 -sha256 -nodes -out cacert.pem -outform PEM
 openssl req -x509 -config openssl-ca.cnf -newkey rsa:1024 -sha256 -out cacert.pem -outform PEM

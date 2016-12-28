@@ -48,7 +48,7 @@
 (def
   ^:private
   ^X509TrustManager
-  XTM
+  x-tmgr
   (reify X509TrustManager
     (checkClientTrusted [_ chain authType]
       (log/warn "SkipCheck: CLIENT CERTIFICATE: %s"
@@ -63,7 +63,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn simpleTrustMgr<> "Checks nothing" ^X509TrustManager [] XTM)
+(defn simpleTrustMgr<> "Checks nothing" ^X509TrustManager [] x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

@@ -60,19 +60,19 @@
 (def
   ^{:private true
     :tag (charsClass)}
-  VISCHS
+  vis-chs
   (->
     (CU/shuffle (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
                      "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-"))
     (.toCharArray)))
 
-(def ^:private ^String C_KEY "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs")
-(def ^:private VISCHS_LEN (alength VISCHS))
+(def ^:private ^String c-key "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs")
+(def ^:private vischs-len (alength vis-chs))
 
 (def
   ^{:private true
     :tag (charsClass)}
-  s_asciiChars
+  s-asciiChars
   (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz1234567890"
                        "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ))
       (.toCharArray)))
@@ -80,19 +80,19 @@
 (def
   ^{:private true
     :tag (charsClass) }
-  s_pwdChars
+  s-pwdChars
   (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz"
                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                        "`1234567890-_~!@#$%^&*()" ))
       (.toCharArray)))
 
-(def ^:private ^String PWD_PFX "crypt:" )
-(def ^:private PWD_PFXLEN 6)
+(def ^:private ^String pwd-pfx "crypt:" )
+(def ^:private pwd-pfxlen 6)
 
 ;; default javax supports this
 ;; TripleDES
-(def ^:private ^String T3_DES "DESede" )
-(def ^:private ^String C_ALGO T3_DES)
+(def ^:private ^String t3-des "DESede")
+(def ^:private ^String c-algo t3-des)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -102,7 +102,7 @@
   [^bytes kee algo]
   (let [bits (* 8 (alength kee))]
     (cond
-      (and (= T3_DES algo)
+      (and (= t3-des algo)
            (< bits 192)) ;; 8x 3 = 24 bytes
       (throwBadArg "TripleDES key length must be 192")
       (and (= "AES" algo)
@@ -128,7 +128,7 @@
         (vargs Byte/TYPE (take 16 pwd))
         :else pwd)
 
-      T3_DES
+      t3-des
       (if (> blen 24)
         ;; 24 bytes
         (vargs Byte/TYPE (take 24 pwd))
@@ -139,7 +139,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; caesar cipher
 (defmacro ^:private identCh
-  "Get a character" [pos] `(aget VISCHS (int ~pos)))
+  "Get a character" [pos] `(aget vis-chs (int ~pos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -147,7 +147,7 @@
   "Locate a character"
   ^Integer
   [^Character ch]
-  (-> (some #(if (= ch (aget VISCHS %1)) %1) (range VISCHS_LEN)) (or -1)))
+  (-> (some #(if (= ch (aget vis-chs %1)) %1) (range vischs-len)) (or -1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -155,8 +155,8 @@
   ""
   [delta cpos]
   (let [ptr (+ cpos delta)]
-    (-> (if (>= ptr VISCHS_LEN)
-          (- ptr VISCHS_LEN) ptr)
+    (-> (if (>= ptr vischs-len)
+          (- ptr vischs-len) ptr)
         (identCh ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -166,7 +166,7 @@
   [delta cpos]
   (let [ptr (- cpos delta)]
     (-> (if (< ptr 0)
-          (+ VISCHS_LEN ptr) ptr)
+          (+ vischs-len ptr) ptr)
         (identCh ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -206,7 +206,7 @@
   (if (or (== shiftpos 0)
           (nichts? text))
     text
-    (let [delta (mod (Math/abs (int shiftpos)) VISCHS_LEN)
+    (let [delta (mod (Math/abs (int shiftpos)) vischs-len)
           pf (partial shiftenc shiftpos delta)
           ca (.toCharArray text)
           out (amap ca pos ret
@@ -222,7 +222,7 @@
   (if (or (== shiftpos 0)
           (nichts? text))
     text
-    (let [delta (mod (Math/abs (int shiftpos)) VISCHS_LEN)
+    (let [delta (mod (Math/abs (int shiftpos)) vischs-len)
           pf (partial shiftdec shiftpos delta)
           ca (.toCharArray text)
           out (amap ca pos ret
@@ -362,7 +362,7 @@
         (ensureKeySize pkey s)
         (javaEncr pkey clear s)))
 
-    (algo [_] T3_DES)))
+    (algo [_] t3-des)))
     ;;PBEWithMD5AndDES))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -478,7 +478,7 @@
         (ensureKeySize pkey s)
         (bcEncr pkey clear s)))
 
-    (algo [_] T3_DES)))
+    (algo [_] t3-des)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords
@@ -549,7 +549,7 @@
         (nichts? pwdStr)
         ""
         :else
-        (str PWD_PFX (.encrypt (jasyptCryptor<>)
+        (str pwd-pfx (.encrypt (jasyptCryptor<>)
                                (.toCharArray pkey)
                                pwdStr))))
 
@@ -565,26 +565,26 @@
 
   ([^String pwdStr pkey]
    {:pre [(or (nil? pkey)(string? pkey))]}
-   (let [pkey (stror pkey C_KEY)]
+   (let [pkey (stror pkey c-key)]
      (if
-       (.startsWith (str pwdStr) PWD_PFX)
+       (.startsWith (str pwdStr) pwd-pfx)
        (mkPwd
          (.decrypt (jasyptCryptor<>)
                    (.toCharArray pkey)
-                   (.substring pwdStr PWD_PFXLEN)) pkey)
+                   (.substring pwdStr pwd-pfxlen)) pkey)
        (mkPwd pwdStr pkey)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn randomStr
   "Generate random text"
-  ^String [len] (createXXX s_asciiChars len))
+  ^String [len] (createXXX s-asciiChars len))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn strongPwd<>
   "Generate a strong password"
-  ^IPassword [len] (passwd<> (createXXX s_pwdChars len)))
+  ^IPassword [len] (passwd<> (createXXX s-pwdChars len)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

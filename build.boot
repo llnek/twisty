@@ -10,9 +10,9 @@
     [czlab/czlab-xlib "0.1.0" ]
 
     ;;[org.clojure/math.numeric-tower "0.0.4" ]
-    [org.bouncycastle/bcprov-jdk15on "1.55"]
-    [org.bouncycastle/bcmail-jdk15on "1.55"]
-    [org.bouncycastle/bcpkix-jdk15on "1.55"]
+    [org.bouncycastle/bcprov-jdk15on "1.56"]
+    [org.bouncycastle/bcmail-jdk15on "1.56"]
+    [org.bouncycastle/bcpkix-jdk15on "1.56"]
     [org.jasypt/jasypt "1.9.2" ]
     ;;[org.mindrot/jbcrypt "0.3m" ]
 

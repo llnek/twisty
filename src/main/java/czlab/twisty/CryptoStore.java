@@ -79,7 +79,7 @@ public interface CryptoStore {
   /**
    * Add a PKCS7 object.
    */
-  public void addPKCS7Entity(Object input);
+  public void addPKCS7Entity(Object arg);
 
   /**
    * Remove object from store.

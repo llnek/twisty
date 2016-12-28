@@ -18,10 +18,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.security.cert.CertPath;
-import java.security.cert.Certificate;
 import java.security.KeyStore;
 import java.security.Security;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 
 import javax.net.ssl.ManagerFactoryParameters;
@@ -35,6 +34,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
  * @author Kenneth Leung
  *
  */
+@SuppressWarnings("unused")
 public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
 
   @Override
@@ -45,16 +45,16 @@ public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
 
   public static void main(String[] args) {
     try {
-      Security.addProvider(new BouncyCastleProvider());      
+      Security.addProvider(new BouncyCastleProvider());
       KeyStore s= KeyStore.getInstance("PKCS12", "BC");
       ByteArrayOutputStream baos= new ByteArrayOutputStream();
       s.load(null, null);
-      try (InputStream inp= new FileInputStream("/wdrive/myspace/crypto/artifacts/servercert.pem")) {
+      try (InputStream inp= new FileInputStream("/wdrive/myspace/twisty/attic/servercert.pem")) {
         CertificateFactory fac= CertificateFactory.getInstance( "X.509");
         Object cp= fac.generateCertificates(inp);
         Object obj= fac.getCertPathEncodings().next();
-        
-//        s.setCertificateEntry("aaa", c);        
+
+//        s.setCertificateEntry("aaa", c);
 //        s.store(baos, "sesame".toCharArray());
 //        //Object e= s.aliases();
         System.out.println( s.toString());
@@ -65,7 +65,7 @@ public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
       s.load(inp, "sesame".toCharArray());
       Certificate c= s.getCertificate("aaa");
       System.out.println( c.toString());
-      out=out;
+      out=null;
     }
     catch (Throwable t) {
       t.printStackTrace();

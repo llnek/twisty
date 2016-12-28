@@ -33,12 +33,12 @@ public interface IPassword {
   public char[] toCharArray();
 
   /**
-   * A tuple(2) ['hashed value' 'salt']
+   * A map(2) {:hashed 'hashed value' :salt 'salt'}
    */
   public Object stronglyHashed();
 
   /**
-   * A tuple(2) ['hashed value' 'salt']
+   * A map(2) {:hashed 'hashed value' :salt 'salt'}
    */
   public Object hashed();
 
