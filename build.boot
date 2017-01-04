@@ -9,7 +9,6 @@
 
     [czlab/czlab-xlib "0.1.0" ]
 
-    ;;[org.clojure/math.numeric-tower "0.0.4" ]
     [org.bouncycastle/bcprov-jdk15on "1.56"]
     [org.bouncycastle/bcmail-jdk15on "1.56"]
     [org.bouncycastle/bcpkix-jdk15on "1.56"]
@@ -35,11 +34,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(require '[czlab.tpcl.boot :as b :refer [artifactID fp! ge]]
+(require '[czlab.pariah.boot :as b :refer [artifactID fp! ge]]
          '[clojure.tools.logging :as log]
          '[clojure.java.io :as io]
          '[clojure.string :as cs]
-         '[czlab.xlib.antlib :as a])
+         '[czlab.pariah.antlib :as a])
 
 (import '[java.io File])
 
