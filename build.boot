@@ -13,11 +13,12 @@
     [org.jasypt/jasypt "1.9.2" ]
     ;;[org.mindrot/jbcrypt "0.3m" ]
 
-    [org.apache.commons/commons-email "1.4" ]
-    [com.sun.mail/javax.mail "1.5.6" ]
+    [org.apache.commons/commons-email "1.4"]
+    [com.sun.mail/javax.mail "1.5.6"]
 
-    [org.clojure/clojure "1.8.0" ]
-    [czlab/czlab-xlib "0.1.0" ]
+    [czlab/czlab-pariah "0.1.0" :scope "provided"]
+    [org.clojure/clojure "1.8.0"]
+    [czlab/czlab-xlib "0.1.0"]
   ]
 
   :source-paths #{"src/main/clojure" "src/main/java"}
