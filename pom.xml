@@ -16,7 +16,7 @@
   <scm>
     <connection>scm:git:git://github.com/llnek/twisty.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/llnek/twisty.git</developerConnection>
-    <tag>e3d4e9d7673f3c3a6b5e472aaca3da55b9051f9e
+    <tag>b94c4b677ab8ef73953af4e487c130f490e34959
 </tag>
     <url>https://github.com/llnek/twisty</url>
   </scm>

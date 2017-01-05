@@ -18,6 +18,8 @@
                  ;;[org.mindrot/jbcrypt "0.3m"]
                  [czlab/czlab-xlib "0.1.0"]]
 
+  :plugins [[lein-codox "0.10.2"]]
+
   :profiles {:provided {:dependencies
                         [[net.mikera/cljunit "0.6.0" :scope "test"]
                          [junit/junit "4.12" :scope "test"]
