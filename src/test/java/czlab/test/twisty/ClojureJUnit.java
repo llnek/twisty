@@ -8,27 +8,23 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package czlab.twisty;
+package czlab.test.twisty;
 
-import java.security.cert.Certificate;
-import java.security.PrivateKey;
+import mikera.cljunit.ClojureTest;
+import java.util.Arrays;
+import java.util.List;
 
 /**
- *
  * @author Kenneth Leung
- *
  */
-public interface PKeyGist {
-
-  /**/
-  public Certificate[] chain();
-
-  /**/
-  public Certificate cert();
-
-  /**/
-  public PrivateKey pkey();
-
+public class ClojureJUnit extends ClojureTest {
+  @Override
+  public List<String> namespaces() {
+    return Arrays.asList(new String[] {
+      "czlab.test.twisty.test",
+      "czlab.test.twisty.mime"
+    });
+  }
 }
 
 
