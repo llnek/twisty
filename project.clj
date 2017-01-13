@@ -2,11 +2,11 @@
 ;;
 (defproject io.czlab/twisty "0.1.0"
 
-  :description "Useful s/mime, crypto functions"
-  :url "https://github.com/llnek/twisty"
-
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+
+  :description "Useful s/mime, crypto functions"
+  :url "https://github.com/llnek/twisty"
 
   :dependencies [[org.bouncycastle/bcprov-jdk15on "1.56"]
                  [org.bouncycastle/bcmail-jdk15on "1.56"]
@@ -19,7 +19,7 @@
                  [io.czlab/xlib "0.1.0"]]
 
   :plugins [[lein-codox "0.10.2"]
-            [lein-czlab "0.1.0"]]
+            [lein-czlab "0.1.1"]]
   :hooks [leiningen.lein-czlab]
 
   :profiles {:provided {:dependencies
@@ -34,7 +34,7 @@
   :aot :all
 
   ;;:jar-exclusions [#"(?:^|/).svn/"]
-  :root-package "czlab"
+  :coordinate! "czlab"
   :omit-source true
 
   :java-source-paths ["src/main/java" "src/test/java"]
