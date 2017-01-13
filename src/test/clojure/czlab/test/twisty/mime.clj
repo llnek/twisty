@@ -33,7 +33,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(def ^:private root-pfx (resBytes "czlab/twisty/test.pfx"))
+(def ^:private root-pfx (resBytes "czlab/test/twisty/test.pfx"))
 (def ^:private help-me (.toCharArray "helpme"))
 (def ^:private des-ede3-cbc CMSAlgorithm/DES_EDE3_CBC)
 (def ^:private
@@ -48,7 +48,7 @@
 
   (testing
     "related to: smime"
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [msg (mimeMsg<> nil nil inp)
                 ^Multipart mp (.getContent msg)]
             (and (>= (.indexOf
@@ -59,7 +59,7 @@
                  (not (isDataCompressed? mp))
                  (not (isDataEncrypted? mp))))))
 
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
                 rc (smimeDigSig (.pkey g)
@@ -68,7 +68,7 @@
                                 (into [] (.chain g)))]
             (isDataSigned? rc))))
 
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
                 rc (smimeDigSig (.pkey g)
@@ -77,7 +77,7 @@
                                 (into [] (.chain g)))]
             (isDataSigned? rc))))
 
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
                 bp (-> ^Multipart
@@ -89,7 +89,7 @@
                                 (into [] (.chain g)))]
             (isDataSigned? rc))))
 
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 mp (smimeDigSig (.pkey g)
                                 (mimeMsg<> nil nil inp)
@@ -106,7 +106,7 @@
                 rc (peekSmimeSignedContent mp3)]
             (inst? Multipart rc))))
 
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 cs (into [] (.chain g))
                 mp (smimeDigSig (.pkey g)
@@ -187,7 +187,7 @@
           (and (some? dg)
                (instBytes? dg))))
 
-    (is (with-open [inp (resStream "czlab/twisty/mime.eml")]
+    (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [msg (mimeMsg<> "" (char-array 0) inp)
                 bp (smimeDeflate msg)
                 ^XData x (smimeInflate bp)]

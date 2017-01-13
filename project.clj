@@ -19,8 +19,7 @@
                  [io.czlab/xlib "0.1.0"]]
 
   :plugins [[lein-codox "0.10.2"]
-            [lein-czlab "0.1.1"]]
-  :hooks [leiningen.lein-czlab]
+            [lein-pprint "1.1.2"]]
 
   :profiles {:provided {:dependencies
                         [[net.mikera/cljunit "0.6.0" :scope "test"]

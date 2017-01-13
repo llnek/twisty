@@ -49,10 +49,10 @@
 
 (def
   ^{:private true :tag (bytesClass)}
-  root-pfx (resBytes "czlab/twisty/test.pfx"))
+  root-pfx (resBytes "czlab/test/twisty/test.pfx"))
 (def
   ^{:private true :tag (bytesClass)}
-  root-jks (resBytes "czlab/twisty/test.jks"))
+  root-jks (resBytes "czlab/test/twisty/test.jks"))
 
 (def
   ^{:private true :tag (charsClass)}
@@ -84,8 +84,8 @@
     (is (isCompressed? "application/pkcs7-mime; compressed-data"))
     (is (not (isCompressed? "text/plain"))))
 
-  (is (not (jksFile? (resUrl "czlab/twisty/test.p12"))))
-  (is (jksFile? (resUrl "czlab/twisty/test.jks")))
+  (is (not (jksFile? (resUrl "czlab/test/twisty/test.p12"))))
+  (is (jksFile? (resUrl "czlab/test/twisty/test.jks")))
 
   (is (= "SHA-512" (.getAlgorithm (msgDigest "SHA-512"))))
   (is (= "MD5" (.getAlgorithm (msgDigest "MD5"))))
@@ -120,7 +120,7 @@
     (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
 
     (is (let [g (convPKey (resUrl
-                            "czlab/twisty/test.p12")
+                            "czlab/test/twisty/test.p12")
                           help-me
                           help-me)
               t (tempFile)
@@ -174,7 +174,7 @@
 
   (is (let [s (session<> "joe" secret)
             s0 (session<>)
-            b (resBytes "czlab/twisty/mime.eml")
+            b (resBytes "czlab/test/twisty/mime.eml")
             m (mimeMsg<> (streamify b))
             c (.getContent m)
             z (isDataCompressed? c)
@@ -195,7 +195,7 @@
     (is (= (digest<md5> (bytesify "hello world"))
            (digest<md5> (bytesify "hello world")))))
 
-  (is (let [b (resBytes "czlab/twisty/cert.crt")
+  (is (let [b (resBytes "czlab/test/twisty/cert.crt")
             c (convCert b)
             g (certGist c)
             ok? (validCert? c)]
