@@ -11,11 +11,11 @@
 
   czlab.twisty.stores
 
-  (:require [czlab.xlib.logging :as log])
+  (:require [czlab.basal.logging :as log])
 
   (:use [czlab.twisty.core]
-        [czlab.xlib.core]
-        [czlab.xlib.str])
+        [czlab.basal.core]
+        [czlab.basal.str])
 
   (:import [java.io File FileInputStream IOException InputStream]
            [javax.net.ssl KeyManagerFactory TrustManagerFactory]

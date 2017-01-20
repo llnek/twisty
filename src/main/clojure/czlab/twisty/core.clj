@@ -11,15 +11,15 @@
 
   czlab.twisty.core
 
-  (:require [czlab.xlib.meta :refer [bytesClass]]
-            [czlab.xlib.dates :refer [+months]]
-            [czlab.xlib.logging :as log]
+  (:require [czlab.basal.meta :refer [bytesClass]]
+            [czlab.basal.dates :refer [+months]]
+            [czlab.basal.logging :as log]
             [clojure.java.io :as io]
             [clojure.string :as cs])
 
-  (:use [czlab.xlib.core]
-        [czlab.xlib.io]
-        [czlab.xlib.str])
+  (:use [czlab.basal.core]
+        [czlab.basal.io]
+        [czlab.basal.str])
 
   (:import [javax.activation DataHandler CommandMap MailcapCommandMap]
            [javax.mail BodyPart MessagingException Multipart Session]
@@ -134,7 +134,7 @@
             MimeMessage
             MimeMultipart
             MimeUtility]
-           [czlab.xlib XData]
+           [czlab.jasal XData]
            [java.lang Math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

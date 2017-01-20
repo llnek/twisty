@@ -11,13 +11,13 @@
 
   czlab.twisty.codec
 
-  (:require [czlab.xlib.logging :as log]
-            [czlab.xlib.io :refer [baos<>]])
+  (:require [czlab.basal.logging :as log]
+            [czlab.basal.io :refer [baos<>]])
 
-  (:use [czlab.xlib.consts]
-        [czlab.xlib.core]
-        [czlab.xlib.meta]
-        [czlab.xlib.str])
+  (:use [czlab.basal.consts]
+        [czlab.basal.core]
+        [czlab.basal.meta]
+        [czlab.basal.str])
 
   (:import [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
            [org.bouncycastle.crypto.paddings PaddedBufferedBlockCipher]
@@ -32,7 +32,7 @@
            [java.security Key KeyFactory SecureRandom]
            [javax.crypto Cipher]
            [czlab.twisty Cryptor IPassword]
-           [czlab.xlib CU]
+           [czlab.jasal CU]
            [org.mindrot.jbcrypt BCrypt]
            [org.bouncycastle.crypto.engines
             BlowfishEngine

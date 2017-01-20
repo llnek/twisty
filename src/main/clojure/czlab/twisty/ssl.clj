@@ -12,11 +12,11 @@
   czlab.twisty.ssl
 
   (:require [czlab.twisty.stores :refer [cryptoStore<>]]
-            [czlab.xlib.logging :as log])
+            [czlab.basal.logging :as log])
 
   (:use [czlab.twisty.core]
-        [czlab.xlib.str]
-        [czlab.xlib.core])
+        [czlab.basal.str]
+        [czlab.basal.core])
 
   (:import [java.security.cert X509Certificate]
            [java.security KeyStore]

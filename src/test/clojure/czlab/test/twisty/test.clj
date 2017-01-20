@@ -11,10 +11,10 @@
   (:use [czlab.twisty.stores]
         [czlab.twisty.codec]
         [czlab.twisty.ssl]
-        [czlab.xlib.core]
-        [czlab.xlib.meta]
-        [czlab.xlib.str]
-        [czlab.xlib.io]
+        [czlab.basal.core]
+        [czlab.basal.meta]
+        [czlab.basal.str]
+        [czlab.basal.io]
         [clojure.test]
         [czlab.twisty.core])
 

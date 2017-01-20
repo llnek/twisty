@@ -11,14 +11,14 @@
 
   czlab.twisty.smime
 
-  (:require [czlab.xlib.dates :refer [+months]]
-            [czlab.xlib.logging :as log]
+  (:require [czlab.basal.dates :refer [+months]]
+            [czlab.basal.logging :as log]
             [clojure.string :as cs])
 
   (:use [czlab.twisty.core]
-        [czlab.xlib.core]
-        [czlab.xlib.io]
-        [czlab.xlib.str])
+        [czlab.basal.core]
+        [czlab.basal.io]
+        [czlab.basal.str])
 
   (:import [javax.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
@@ -31,7 +31,7 @@
            [czlab.twisty PKeyGist SDataSource]
            [javax.activation DataHandler]
            [clojure.lang APersistentMap]
-           [czlab.xlib XData]
+           [czlab.jasal XData]
            [org.bouncycastle.asn1.cms
             AttributeTable
             IssuerAndSerialNumber]

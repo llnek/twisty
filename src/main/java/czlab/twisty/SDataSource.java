@@ -11,8 +11,8 @@
 package czlab.twisty;
 
 import javax.activation.DataSource;
-import static czlab.xlib.CU.nsb;
-import czlab.xlib.XData;
+import static czlab.jasal.CU.nsb;
+import czlab.jasal.XData;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;

@@ -12,9 +12,9 @@
         [czlab.twisty.codec]
         [czlab.twisty.smime]
         [czlab.twisty.core]
-        [czlab.xlib.core]
-        [czlab.xlib.io]
-        [czlab.xlib.meta]
+        [czlab.basal.core]
+        [czlab.basal.io]
+        [czlab.basal.meta]
         [clojure.test])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
@@ -28,7 +28,7 @@
            [javax.activation DataHandler DataSource]
            [java.util Date GregorianCalendar]
            [javax.mail Multipart BodyPart]
-           [czlab.xlib XData]
+           [czlab.jasal XData]
            [czlab.twisty SDataSource]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
