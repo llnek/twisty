@@ -282,8 +282,8 @@
   "If url points to a JKS key file"
   [^URL keyUrl]
   (some-> keyUrl
-          (.getFile )
-          (lcase)
+          .getFile
+          lcase
           (.endsWith ".jks")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -303,8 +303,7 @@
   ^BigInteger
   []
   (BigInteger/valueOf
-    (Math/abs (-> (Random. (now<>))
-                  (.nextLong)))))
+    (Math/abs (-> (Random. (now<>)) .nextLong))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -345,7 +344,7 @@
     [e
      (->> (KeyStore$PasswordProtection. pwd)
           (.getEntry store n)
-          (cast? KeyStore$PrivateKeyEntry ))]
+          (cast? KeyStore$PrivateKeyEntry))]
     (reify PKeyGist
       (chain [_] (.getCertificateChain e))
       (cert [_] (.getCertificate e))
@@ -360,7 +359,7 @@
   {:pre [(some? store)]}
   (if-some
     [e (->> (.getEntry store n nil)
-            (cast? KeyStore$TrustedCertificateEntry ))]
+            (cast? KeyStore$TrustedCertificateEntry))]
     (.getTrustedCertificate e)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -392,12 +391,12 @@
   [^KeyStore store arg ^chars pwd2]
   {:pre [(some? store)]}
   (let
-    [[del ^InputStream inp]
+    [[del? ^InputStream inp]
      (coerceToInputStream arg)]
     (try
       (doto store (.load inp pwd2))
       (finally
-        (if del (closeQ inp))))))
+        (if del? (closeQ inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -433,13 +432,14 @@
   ^APersistentVector
   [arg]
   (let
-    [[del ^InputStream inp] (coerceToInputStream arg)]
+    [[del? ^InputStream inp]
+     (coerceToInputStream arg)]
     (try
      (-> (CertificateFactory/getInstance "X.509")
          (.generateCertificates inp)
-         (vec))
+         vec)
      (finally
-       (if del (closeQ inp))))))
+       (if del? (closeQ inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -448,12 +448,13 @@
   ^Certificate
   [arg]
   (let
-    [[del ^InputStream inp] (coerceToInputStream arg)]
+    [[del? ^InputStream inp]
+     (coerceToInputStream arg)]
     (try
      (-> (CertificateFactory/getInstance "X.509")
          (.generateCertificate inp))
      (finally
-       (if del (closeQ inp))))))
+       (if del? (closeQ inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -509,7 +510,7 @@
    (if-some
      [bits (convBytes data)]
      (->> (-> (stror algo "SHA-512")
-              (MessageDigest/getInstance )
+              (MessageDigest/getInstance)
               (.digest bits))
           (Base64/toBase64String )))))
 
@@ -533,12 +534,12 @@
   "Serialize object in PEM format"
   ^bytes
   [obj & [^chars pwd]]
-  (if (some? obj)
+  (if obj
     (let [sw (StringWriter.)
           ec (pemencr<> pwd)
           pw (PEMWriter. sw)]
       (->>
-        (if (some? ec)
+        (if ec
           (JcaMiscPEMGenerator. obj ec)
           (JcaMiscPEMGenerator. obj))
         (.writeObject pw ))
@@ -593,8 +594,7 @@
       len (or keylen 1024)
       kp (asymKeyPair<> "RSA" len)
       rbr (JcaPKCS10CertificationRequestBuilder.
-            (X500Principal. dnStr)
-            (.getPublic kp))
+            (X500Principal. dnStr) (.getPublic kp))
       k (.getPrivate kp)
       rc (->> (.build csb k) (.build rbr))]
      (log/debug "csr: dnStr= %s, key-len= %d" dnStr len)
@@ -626,8 +626,8 @@
 
       X509TrustedCertificateBlock
       (-> ^X509TrustedCertificateBlock obj
-          (.getCertificateHolder )
-          (toXCert))
+          .getCertificateHolder
+          toXCert)
 
       SubjectPublicKeyInfo
       (.getPublicKey pc ^SubjectPublicKeyInfo obj)
@@ -666,7 +666,7 @@
        dc (-> (JcePEMDecryptorProviderBuilder.)
               (.build pwd))
        pc (withBC JcaPEMKeyConverter)
-       obj (-> (PEMParser. rdr) (.readObject ))]
+       obj (-> (PEMParser. rdr) .readObject)]
       (->>
         (condp = (class obj)
           PKCS8EncryptedPrivateKeyInfo
@@ -680,7 +680,7 @@
                 (.decryptKeyPair dc))
             (.getKeyPair pc))
           obj)
-        (pemparse2 )))))
+        pemparse2))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -754,10 +754,10 @@
   (let
     [kp (asymKeyPair<> style
                        (or keylen 1024))
-     start (or start (now<date>))
+     start (or start (date<>))
      end (->> (or validFor 12)
-              (+months )
-              (.getTime)
+              +months
+              .getTime
               (or end ))
      prv (.getPrivate kp)
      pub (.getPublic kp)
@@ -770,7 +770,7 @@
             (withBC1 algo *_BC_*)
             (.build prv))
      cert (toXCert (.build bdr cs))]
-    (.checkValidity cert (now<date>))
+    (.checkValidity cert (date<>))
     (.verify cert pub)
     (log/debug (str "mkSSV1Cert: dn= %s "
                     ",algo= %s,start= %s"

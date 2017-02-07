@@ -141,7 +141,9 @@
   "Locate a character"
   ^Integer
   [^Character ch]
-  (-> (some #(if (= ch (aget vis-chs %1)) %1) (range vischs-len)) (or -1)))
+  (-> (some #(if (= ch (aget vis-chs %1)) %1)
+            (range vischs-len))
+      (or -1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -307,7 +309,7 @@
        baos (baos<>)
        out (->> (.getOutputSize c plen)
                 (max BUF_SZ)
-                (byte-array))
+                byte-array)
        n (.update c p 0 plen out 0)]
       (if (> n 0)
         (.write baos out 0 n))
@@ -323,7 +325,7 @@
   ^bytes
   [pkey data algo]
   {:pre [(instBytes? pkey)]}
-  (when (some? data)
+  (when data
     (->> (java-encrypt pkey algo)
          (javaCodec pkey data))))
 
@@ -334,7 +336,7 @@
   ^bytes
   [pkey encoded algo]
   {:pre [(instBytes? pkey)]}
-  (when (some? encoded)
+  (when encoded
     (->> (java-decrypt pkey algo)
          (javaCodec pkey encoded))))
 
@@ -368,7 +370,8 @@
     "Blowfish" (BlowfishEngine.)
     "DESede" (DESedeEngine.)
     "AES" (AESEngine.)
-    "RSA" (RSAEngine.)))
+    "RSA" (RSAEngine.)
+    nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
@@ -376,14 +379,14 @@
   "Encrypt using a public key, returns a base64 encoded cipher"
   ^bytes
   [^bytes pubKey data]
-  (when (some? data)
+  (when data
     (let
       [^Key pk (-> (KeyFactory/getInstance "RSA")
                    (.generatePublic
                      (X509EncodedKeySpec. pubKey)))
        cipher (doto (->> "RSA/ECB/PKCS1Padding"
-                         (Cipher/getInstance))
-                    (.init Cipher/ENCRYPT_MODE pk))]
+                         Cipher/getInstance)
+                (.init Cipher/ENCRYPT_MODE pk))]
       (->> (coerce data)
            (.doFinal cipher )))))
 
@@ -393,14 +396,14 @@
   "Decrypt using a private key, input is a base64 encoded cipher"
   ^bytes
   [^bytes prvKey encoded]
-  (when (some? encoded)
+  (when encoded
     (let
       [^Key pk (-> (KeyFactory/getInstance "RSA")
                    (.generatePrivate
                      (PKCS8EncodedKeySpec. prvKey)))
        cipher (doto (->> "RSA/ECB/PKCS1Padding"
-                         (Cipher/getInstance ))
-                   (.init Cipher/DECRYPT_MODE pk))]
+                         Cipher/getInstance)
+                (.init Cipher/DECRYPT_MODE pk))]
       (->> (coerce encoded)
            (.doFinal cipher )))))
 
@@ -410,11 +413,11 @@
   "Decrypt using BouncyCastle"
   ^bytes
   [pkey encoded algo]
-  (when (some? encoded)
+  (when encoded
     (let
       [cipher (doto (-> (bcXrefCipherEngine algo)
-                        (CBCBlockCipher. )
-                        (PaddedBufferedBlockCipher. ))
+                        CBCBlockCipher.
+                        PaddedBufferedBlockCipher.)
                 (.init false
                        (KeyParameter.
                          (keyAsBits pkey algo))))
@@ -435,11 +438,11 @@
   "Encrypt using BouncyCastle, returning a base64 encoded cipher"
   ^bytes
   [pkey data algo]
-  (when (some? data)
+  (when data
     (let
       [cipher (doto (-> (bcXrefCipherEngine algo)
-                        (CBCBlockCipher. )
-                        (PaddedBufferedBlockCipher. ))
+                        CBCBlockCipher.
+                        PaddedBufferedBlockCipher.)
                 (.init true
                        (KeyParameter.
                          (keyAsBits pkey algo))))
@@ -528,7 +531,7 @@
 
     (hashed [_]
       (if-not (nil? pwdStr)
-        (let [s (BCrypt/gensalt 10) ]
+        (let [s (BCrypt/gensalt 10)]
           {:hash (BCrypt/hashpw pwdStr s)
            :salt s})
         {:hash "" :salt ""}))
@@ -582,5 +585,4 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
-
 
