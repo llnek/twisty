@@ -53,34 +53,34 @@
 ;;
 (def
   ^{:private true
-    :tag (charsClass)}
+    :tag "[C"}
   vis-chs
   (->
     (CU/shuffle (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
                      "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-"))
-    (.toCharArray)))
+    .toCharArray))
 
 (def ^:private ^String c-key "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs")
 (def ^:private vischs-len (alength vis-chs))
 
 (def
   ^{:private true
-    :tag (charsClass)}
+    :tag "[C"}
   s-asciiChars
   (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz1234567890"
                        "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ))
-      (.toCharArray)))
+      .toCharArray))
 
 (def
   ^{:private true
-    :tag (charsClass) }
+    :tag "[C]"}
   s-pwdChars
   (-> (CU/shuffle (str "abcdefghijklmnopqrstuvqxyz"
                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                       "`1234567890-_~!@#$%^&*()" ))
-      (.toCharArray)))
+                       "`1234567890-_~!@#$%^&*()"))
+      .toCharArray))
 
-(def ^:private ^String pwd-pfx "crypt:" )
+(def ^:private ^String pwd-pfx "crypt:")
 (def ^:private pwd-pfxlen 6)
 
 ;; default javax supports this
