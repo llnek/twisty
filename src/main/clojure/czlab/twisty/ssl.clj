@@ -47,13 +47,12 @@
     (checkClientTrusted [_ chain authType]
       (log/warn "SkipCheck: CLIENT CERTIFICATE: %s"
                 (some-> ^X509Certificate
-                        (first chain) (.getSubjectDN))))
+                        (first chain) .getSubjectDN)))
     (checkServerTrusted [_ chain authType]
       (log/warn "SkipCheck: SERVER CERTIFICATE: %s"
                 (some-> ^X509Certificate
-                        (first chain) (.getSubjectDN))))
-    (getAcceptedIssuers [_]
-      (into-array X509Certificate []))))
+                        (first chain) .getSubjectDN)))
+    (getAcceptedIssuers [_] (vargs X509Certificate []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -62,7 +61,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- simpleTrustManagers
-  "" [] (into-array TrustManager [(simpleTrustMgr<>)]))
+  "" [] (vargs TrustManager [(simpleTrustMgr<>)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -86,13 +85,13 @@
      [cs (-> (pkcsStore<>)
              (cryptoStore<> nil))
       ctx (-> (stror flavor "TLS")
-              (SSLContext/getInstance ))]
+              SSLContext/getInstance)]
      (.addKeyEntity cs pkey pwd)
      (.init ctx
             (-> (.keyManagerFactory cs)
-                (.getKeyManagers ))
+                .getKeyManagers )
             (-> (.trustManagerFactory cs)
-                (.getTrustManagers ))
+                .getTrustManagers )
             (rand<> true))
      ctx)))
 

@@ -138,17 +138,17 @@
                    (.getEncoded issuerDN))
                  (.getSerialNumber subj))
      dm1 (->> issAndSer
-              (SMIMEEncryptionKeyPreferenceAttribute. )
+              SMIMEEncryptionKeyPreferenceAttribute.
               (.add signedAttrs ))
      bdr (doto
            (JcaSignerInfoGeneratorBuilder.
              (-> (withBC JcaDigestCalculatorProviderBuilder)
-                 (.build)))
+                 .build))
            (.setDirectSignature true))
      cs (-> (withBC1 JcaContentSignerBuilder algo)
             (.build pkey))]
     (->> (AttributeTable. signedAttrs)
-         (DefaultSignedAttributeTableGenerator. )
+         DefaultSignedAttributeTableGenerator.
          (.setSignedAttributeGenerator bdr ))
     (->> (.build bdr cs subj)
          (.addSignerInfoGenerator gen ))
@@ -201,8 +201,8 @@
               (BcDigestCalculatorProvider.)
               mp
               (getCharset (.getContentType mp) "binary"))
-          (.getContent)
-          (.getContent))))
+            .getContent
+            .getContent)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -213,11 +213,10 @@
   (loop
     [rec (withBC1 JceKeyTransEnvelopedRecipient pkey)
      it (-> (.getRecipientInfos env)
-            (.getRecipients)
-            (.iterator))
+            .getRecipients
+            .iterator)
      rc nil]
-    (if (or (some? rc)
-            (not (.hasNext it)))
+    (if (or rc (not (.hasNext it)))
       rc
       (recur rec it
              (-> ^RecipientInformation (.next it)
@@ -235,7 +234,8 @@
                  (toBytes (.getContentStream cms)) nil)
               pkeys)]
     (if (nil? rc)
-      (trap! GeneralSecurityException "No matching decryption key"))
+      (trap! GeneralSecurityException
+             "No matching decryption key"))
     rc))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -274,8 +274,7 @@
         (withBC1 JceKeyTransRecipientInfoGenerator cert)))
     (.generate
       (cast? MimeBodyPart bp)
-      (-> (withBC1 JceCMSContentEncryptorBuilder algo)
-          (.build)))))
+      (. (withBC1 JceCMSContentEncryptorBuilder algo) build))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -287,9 +286,8 @@
       (.addRecipientInfoGenerator
         (withBC1 JceKeyTransRecipientInfoGenerator cert)))
     (.generate
-      (doto msg (.getContent ))
-      (-> (withBC1 JceCMSContentEncryptorBuilder algo)
-          (.build)))))
+      (doto msg .getContent)
+      (. (withBC1 JceCMSContentEncryptorBuilder algo) build))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -311,8 +309,7 @@
   [^BodyPart bp]
   (if (nil? bp)
     (xdata<>)
-    (with-open [inp (.getInputStream bp)]
-      (smimeInflate inp))))
+    (with-open [inp (.getInputStream bp)] (smimeInflate inp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -334,8 +331,8 @@
   ""
   [^JcaCertStore cs ^SignerInformation si]
   (loop
-    [c (.getMatches cs (.getSID si))
-     it (some-> c (.iterator))
+    [c (. cs getMatches (.getSID si))
+     it (some-> c .iterator)
      digest nil
      stop false]
     (if (or stop
@@ -375,8 +372,8 @@
   (let
     [sls (some-> (toCMS xs)
                  (CMSSignedData. sig)
-                 (.getSignerInfos)
-                 (.getSigners))
+                 .getSignerInfos
+                 .getSigners)
      cs (JcaCertStore. [cert])
      rc (some (partial siTester cs) (seq sls))]
     (if (nil? rc)
@@ -399,7 +396,7 @@
            (SMIMESigned. mp cte)
            (SMIMESigned. mp))
       sns (-> (.getSignerInfos sc)
-              (.getSigners))
+              .getSigners)
       cs (JcaCertStore. certs)
       rc (some (partial siTester cs) (seq sns))]
      (if (nil? rc)
@@ -408,7 +405,7 @@
      {:content
       (some-> sc
               (.getContentAsMimeMessage (session<>))
-              (.getContent))
+              .getContent)
       :digest rc})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -420,8 +417,8 @@
   {:pre [(not-empty certs)]}
   (let
     [bdr (-> (withBC JcaDigestCalculatorProviderBuilder)
-             (.build)
-             (JcaSignerInfoGeneratorBuilder.))
+             .build
+             JcaSignerInfoGeneratorBuilder.)
      cs (-> (withBC1 JcaContentSignerBuilder algo)
             (.build pkey))
      gen (CMSSignedDataGenerator.)
@@ -431,8 +428,7 @@
       (.addSignerInfoGenerator
         (.build bdr cs ^X509Certificate cert))
       (.addCertificates (JcaCertStore. certs)))
-    (-> (.generate gen (toCMS xs) false)
-        (.getEncoded))))
+    (-> (.generate gen (toCMS xs) false) .getEncoded)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

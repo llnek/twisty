@@ -98,7 +98,7 @@
                 baos (baos<>)
                 _ (doto (mimeMsg<> nil nil)
                     (.setContent (cast? Multipart mp))
-                    (.saveChanges)
+                    .saveChanges
                     (.writeTo baos))
                 msg3 (mimeMsg<> nil nil
                                 (streamify (.toByteArray baos)))
@@ -116,7 +116,7 @@
                 baos (baos<>)
                 _ (doto (mimeMsg<> nil nil)
                     (.setContent (cast? Multipart mp))
-                    (.saveChanges)
+                    .saveChanges
                     (.writeTo baos))
                 msg3 (mimeMsg<> nil nil
                                 (streamify (.toByteArray baos)))
@@ -140,7 +140,7 @@
                   (.setContent
                     (.getContent bp2)
                     (.getContentType bp2))
-                  (.saveChanges)
+                  .saveChanges
                   (.writeTo baos))
               msg2 (mimeMsg<> (streamify (.toByteArray baos)))
               enc (isEncrypted? (.getContentType msg2))
@@ -170,7 +170,7 @@
                   (.setContent
                     (.getContent bp3)
                     (.getContentType bp3))
-                  (.saveChanges)
+                  .saveChanges
                   (.writeTo baos))
               msg3 (mimeMsg<> (streamify (.toByteArray baos)))
               enc (isEncrypted? (.getContentType msg3))
@@ -184,22 +184,19 @@
               cs (into [] (.chain g))
               sig (pkcsDigSig (.pkey g) cs sha-512-rsa data)
               dg (testPkcsDigSig (first cs) data sig)]
-          (and (some? dg)
-               (instBytes? dg))))
+          (and dg (instBytes? dg))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [msg (mimeMsg<> "" (char-array 0) inp)
                 bp (smimeDeflate msg)
                 ^XData x (smimeInflate bp)]
-            (and (some? x)
-                 (> (alength (.getBytes x)) 0)))))
+            (and x (> (alength (.getBytes x)) 0)))))
 
     (is (let [bp (smimeDeflate "text/plain"
                                (xdata<> "heeloo world"))
               baos (baos<>)
               ^XData x (smimeInflate bp)]
-          (and (some? x)
-               (> (alength (.getBytes x)) 0))))
+          (and x (> (alength (.getBytes x)) 0))))
 
     (is (let [bp (smimeDeflate "text/plain"
                                 (xdata<> "heeloo world")
@@ -207,32 +204,31 @@
                                 "some-id")
               baos (baos<>)
               ^XData x (smimeInflate bp)]
-          (and (some? x)
-               (> (alength (.getBytes x)) 0)))))
+          (and x (> (alength (.getBytes x)) 0)))))
 
   (testing
     "related to: digest"
-    (is (let [f (digest<sha1> (bytesify "heeloo world"))]
-          (and (some? f) (> (.length f) 0))))
+    (is (let [f (digest<> (bytesify "heeloo world") :sha-1)]
+          (and f (> (.length f) 0))))
 
-    (is (let [f (digest<md5> (bytesify "heeloo world"))]
-          (and (some? f) (> (.length f) 0))))
+    (is (let [f (digest<> (bytesify "heeloo world") :md5)]
+          (and f (> (.length f) 0))))
 
-    (is (let [f (digest<sha1> (bytesify "heeloo world"))
-              g (digest<md5> (bytesify "heeloo world"))]
+    (is (let [f (digest<> (bytesify "heeloo world") :sha-1)
+              g (digest<> (bytesify "heeloo world") :md5)]
           (if (= f g) false true)))
 
-    (is (let [f (digest<sha1> (bytesify "heeloo world"))
-              g (digest<sha1> (bytesify "heeloo world"))]
+    (is (let [f (digest<> (bytesify "heeloo world") :sha-1)
+              g (digest<> (bytesify "heeloo world") :sha-1)]
           (= f g)))
 
-    (is (let [f (digest<md5> (bytesify "heeloo world"))
-              g (digest<md5> (bytesify "heeloo world"))]
+    (is (let [f (digest<> (bytesify "heeloo world") :md5)
+              g (digest<> (bytesify "heeloo world") :md5)]
           (= f g))))
 
   (is (string? "That's all folks!")))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;EOF
 
-
-;;(clojure.test/run-tests 'czlab.test.twisty.mime)
 

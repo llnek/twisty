@@ -262,7 +262,7 @@
   ""
   ^X509Certificate
   [^X509CertificateHolder h]
-  (-> JcaX509CertificateConverter (withBC ) (.getCertificate h)))
+  (-> JcaX509CertificateConverter withBC (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -293,8 +293,9 @@
   MD5
   SHA-1, SHA-256, SHA-384, SHA-512"
   ^MessageDigest
-  [^String algo]
-  (MessageDigest/getInstance algo *_BC_*))
+  [algo]
+  (-> (ucase (strKW algo))
+      (MessageDigest/getInstance  *_BC_*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -510,9 +511,9 @@
    (if-some
      [bits (convBytes data)]
      (->> (-> (stror algo "SHA-512")
-              (MessageDigest/getInstance)
+              MessageDigest/getInstance
               (.digest bits))
-          (Base64/toBase64String )))))
+          Base64/toBase64String ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -526,7 +527,7 @@
      (log/debug "gen keypair for algo %s, len %d" algo len)
      (-> (doto (KeyPairGenerator/getInstance algo *_BC_*)
                (.initialize (int len) (rand<> true)))
-         (.generateKeyPair )))))
+         .generateKeyPair ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -544,7 +545,7 @@
           (JcaMiscPEMGenerator. obj))
         (.writeObject pw ))
       (.flush pw)
-      (bytesify (.toString sw)))))
+      (bytesify (str sw)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -704,7 +705,7 @@
     (.setKeyEntry (alias<>)
                   pk
                   pwd
-                  (into-array Certificate certs))))
+                  (vargs Certificate certs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -818,13 +819,13 @@
      subject (X500Principal. dnStr)
      exu (JcaX509ExtensionUtils.)
      end (->> (or validFor 12)
-              (+months )
-              (.getTime)
+              +months
+              .getTime
               (or end ))
-     start (or start (now<date>))
+     start (or start (date<>))
      len (or keylen 1024)
      kp (-> (.pkey issuer)
-            (.getAlgorithm )
+            .getAlgorithm
             (asymKeyPair<> len))
      bdr (JcaX509v3CertificateBuilder.
            rootc
@@ -845,7 +846,7 @@
         false
         (.createSubjectKeyIdentifier exu (.getPublic kp))))
     (let [ct (toXCert (.build bdr cs))]
-      (.checkValidity ct (now<date>))
+      (.checkValidity ct (date<>))
       (.verify ct (.getPublicKey rootc))
       [(.getPrivate kp) ct])))
 
@@ -897,8 +898,8 @@
      gen (CMSSignedDataGenerator.)
      cl (into [] (.chain pkey))
      bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)
-                  (.build))
-              (JcaSignerInfoGeneratorBuilder.))
+                  .build)
+              JcaSignerInfoGeneratorBuilder.)
      ;;    "SHA1withRSA"
      cs (-> (withBC1 JcaContentSignerBuilder sha-512-rsa)
             (.build (.pkey pkey)))
@@ -907,7 +908,7 @@
          (.addSignerInfoGenerator gen ))
     (->> (JcaCertStore. cl)
          (.addCertificates gen ))
-    (-> (.generate gen xxx) (.getEncoded))))
+    (-> (.generate gen xxx) .getEncoded)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -929,7 +930,7 @@
    (Session/getInstance
      (System/getProperties)
      (if (hgl? user)
-       (->> (if (some? pwd) (String. pwd))
+       (->> (if pwd (String. pwd))
             (DefaultAuthenticator. user))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -967,13 +968,13 @@
   (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
-           (.getContentType)
-           (isSigned? ))
+           .getContentType
+           isSigned? )
       (finally
         (resetStream! inp)))
     (if-some [mp (cast? Multipart obj)]
       (->> (.getContentType mp)
-           (isSigned? ))
+           isSigned? )
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -984,17 +985,17 @@
   (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
-           (.getContentType )
-           (isCompressed? ))
+           .getContentType
+           isCompressed? )
       (finally
         (resetStream! inp)))
     (condp instance? obj
       Multipart (->> (cast? Multipart obj)
-                     (.getContentType )
-                     (isCompressed? ))
+                     .getContentType
+                     isCompressed? )
       BodyPart (->> (cast? BodyPart obj)
-                    (.getContentType )
-                    (isCompressed? ))
+                    .getContentType
+                    isCompressed? )
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1005,17 +1006,17 @@
   (if-some [inp (maybeStream obj)]
     (try
       (->> (mimeMsg<> "" nil inp)
-           (.getContentType )
-           (isEncrypted? ))
+           .getContentType
+           isEncrypted? )
       (finally
         (resetStream! inp)))
     (condp instance? obj
       Multipart (->> (cast? Multipart obj)
-                     (.getContentType )
-                     (isEncrypted? ))
+                     .getContentType
+                     isEncrypted? )
       BodyPart (->> (cast? BodyPart obj)
-                    (.getContentType )
-                    (isEncrypted? ))
+                    .getContentType
+                    isEncrypted? )
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1030,7 +1031,7 @@
      (if (hgl? cType)
        (try! (-> (ContentType. cType)
                  (.getParameter "charset")
-                 (MimeUtility/javaCharset ))))
+                 MimeUtility/javaCharset )))
      (if (hgl? dft)
        (MimeUtility/javaCharset dft)))))
 
@@ -1039,6 +1040,7 @@
 (defn- fingerprint<>
   ""
   [^bytes data ^String algo]
+  {:pre [(keyword? algo)]}
   (let
     [hv (.digest (msgDigest algo) data)
      hlen (alength hv)
@@ -1057,19 +1059,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn digest<sha1>
-  "Generate a fingerprint/digest using SHA-1"
+(defn digest<>
+  "Generate a fingerprint/digest using the given algo"
   ^String
-  [^bytes data]
-  (fingerprint<> data "SHA-1"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn digest<md5>
-  "Generate a fingerprint/digest using MD5"
-  ^String
-  [^bytes data]
-  (fingerprint<> data "MD5"))
+  [^bytes data algo]
+  (fingerprint<> data algo))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1078,7 +1072,7 @@
   ^CertGist
   [^X509Certificate x509]
 
-  (if (some? x509)
+  (if x509
     (reify CertGist
       (issuer [_] (.getIssuerX500Principal x509))
       (subj [_] (.getSubjectX500Principal x509))
@@ -1090,7 +1084,7 @@
 (defn validCert?
   "Validate this Certificate"
   [^X509Certificate x509]
-  (try!! false (do->true (.checkValidity x509 (now<date>)) )))
+  (try!! false (do->true (.checkValidity x509 (date<>)) )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

@@ -36,30 +36,30 @@
 (def ^:private end-date (.getTime (GregorianCalendar. 2050 1 1)))
 
 (def
-  ^{:private true :tag (charsClass)}
+  ^{:private true :tag "[C"}
   c-key (.toCharArray "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
-  ^{:private true :tag (bytesClass)}
+  ^{:private true :tag "[B"}
   b-key (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
-  ^{:private true :tag (charsClass)}
+  ^{:private true :tag "[C"}
   test-pwd (.toCharArray "secretsecretsecretsecretsecret"))
 
 (def
-  ^{:private true :tag (bytesClass)}
+  ^{:private true :tag "[B"}
   root-pfx (resBytes "czlab/test/twisty/test.pfx"))
 (def
-  ^{:private true :tag (bytesClass)}
+  ^{:private true :tag "[B"}
   root-jks (resBytes "czlab/test/twisty/test.jks"))
 
 (def
-  ^{:private true :tag (charsClass)}
+  ^{:private true :tag "[C"}
   help-me (.toCharArray "helpme"))
 
 (def
-  ^{:private true :tag (charsClass)}
+  ^{:private true :tag "[C"}
   secret (.toCharArray "secret"))
 
 (def ^:private ^CryptoStore
@@ -186,20 +186,20 @@
 
   (testing
     "related to: msg digest"
-    (is (not= (digest<sha1> (bytesify "hello world"))
-              (digest<md5> (bytesify "hello world"))))
+    (is (not= (digest<> (bytesify "hello world") :sha-1)
+              (digest<> (bytesify "hello world") :md5)))
 
-    (is (= (digest<sha1> (bytesify "hello world"))
-           (digest<sha1> (bytesify "hello world"))))
+    (is (= (digest<> (bytesify "hello world") :sha-1)
+           (digest<> (bytesify "hello world") :sha-1)))
 
-    (is (= (digest<md5> (bytesify "hello world"))
-           (digest<md5> (bytesify "hello world")))))
+    (is (= (digest<> (bytesify "hello world") :md5)
+           (digest<> (bytesify "hello world") :md5))))
 
   (is (let [b (resBytes "czlab/test/twisty/cert.crt")
             c (convCert b)
             g (certGist c)
             ok? (validCert? c)]
-        (and (some? c) (some? g) ok?)))
+        (and c g ok?)))
 
   (is (some? (simpleTrustMgr<>)))
 
@@ -327,6 +327,6 @@
 
   (is (string? "That's all folks!")))
 
-
-;;(clojure.test/run-tests 'czlab.test.twisty.test)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;EOF
 
