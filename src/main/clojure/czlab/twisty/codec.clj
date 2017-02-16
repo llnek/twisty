@@ -50,14 +50,15 @@
 ;; Blowfish
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
+;; DO NOT change this string as it is used by the caesar.js.  Make sure
+;; you change both the front-end and back-end version of this string!
 (def
   ^{:private true
     :tag "[C"}
   vis-chs
   (->
-    (CU/shuffle (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
-                     "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-"))
+    (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
+                     "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")
     .toCharArray))
 
 (def ^:private ^String c-key "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs")
