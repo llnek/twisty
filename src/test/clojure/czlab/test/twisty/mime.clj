@@ -104,7 +104,7 @@
                                 (streamify (.toByteArray baos)))
                 mp3 (.getContent msg3)
                 rc (peekSmimeSignedContent mp3)]
-            (inst? Multipart rc))))
+            (ist? Multipart rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
@@ -124,7 +124,7 @@
                 rc (testSmimeDigSig mp3 cs)]
             (and (map? rc)
                  (== (count rc) 2)
-                 (inst? Multipart (:content rc))
+                 (ist? Multipart (:content rc))
                  (instBytes? (:digest rc))))))
 
     (is (let [s (SDataSource. (bytesify "yoyo-jojo") "text/plain")

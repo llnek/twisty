@@ -90,7 +90,7 @@
   (is (= "SHA-512" (.getAlgorithm (msgDigest "SHA-512"))))
   (is (= "MD5" (.getAlgorithm (msgDigest "MD5"))))
 
-  (is (inst? BigInteger (nextSerial)))
+  (is (ist? BigInteger (nextSerial)))
 
   (is (not= (alias<>)(alias<>)))
   (is (string? (alias<>)))
@@ -115,7 +115,7 @@
               e (.keyEntity root-cs n help-me)]
           (and (== 1 c)
                (string? n)
-               (inst? PKeyGist e))))
+               (ist? PKeyGist e))))
 
     (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
 
@@ -272,7 +272,7 @@
     (is (= (.length (.text (strongPwd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
-    (is (inst? IPassword (passwd<> "secret-text")))
+    (is (ist? IPassword (passwd<> "secret-text")))
 
     (is (.startsWith (.encoded (passwd<> "secret-text")) "crypt:")))
 
@@ -282,7 +282,7 @@
     (is (let [ks (ssv1PKCS12 "C=AU,ST=NSW,L=Sydney,O=Google"
                              secret {:end end-date :keylen 1024 })
               fout (tempFile "Joe Blogg" ".p12")
-              ok? (inst? KeyStore ks)
+              ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
               len (.length f)]
           (deleteQ f)
@@ -290,7 +290,7 @@
 
     (is (let [ks (ssv1JKS "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
               fout (tempFile "xxxx" ".jks")
-              ok? (inst? KeyStore ks)
+              ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
               len (.length f)]
           (deleteQ f)
@@ -301,7 +301,7 @@
               ks (ssv3PKCS12 r
                              "C=AU,ST=WA,L=Z,O=X"
                              secret {:end end-date})
-              ok? (inst? KeyStore ks)
+              ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
               len (.length f)]
           (deleteQ f)
@@ -312,7 +312,7 @@
               ks (ssv3JKS r
                           "C=AU,ST=WA,L=Z,O=X"
                           secret {:end end-date})
-              ok? (inst? KeyStore ks)
+              ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
               len (.length f)]
           (deleteQ f)

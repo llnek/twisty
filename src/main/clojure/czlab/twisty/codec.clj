@@ -14,8 +14,7 @@
   (:require [czlab.basal.logging :as log]
             [czlab.basal.io :refer [baos<>]])
 
-  (:use [czlab.basal.consts]
-        [czlab.basal.core]
+  (:use [czlab.basal.core]
         [czlab.basal.meta]
         [czlab.basal.str])
 
@@ -510,7 +509,7 @@
 
     (toString [this] (.text this))
     (equals [this obj]
-      (and (inst? IPassword obj)
+      (and (ist? IPassword obj)
            (= (.toString this)
               (str obj))))
     (hashCode [this]

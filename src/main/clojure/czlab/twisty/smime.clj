@@ -11,8 +11,7 @@
 
   czlab.twisty.smime
 
-  (:require [czlab.basal.dates :refer [+months]]
-            [czlab.basal.logging :as log]
+  (:require [czlab.basal.logging :as log]
             [clojure.string :as cs])
 
   (:use [czlab.twisty.core]

@@ -12,7 +12,7 @@
   czlab.twisty.core
 
   (:require [czlab.basal.meta :refer [bytesClass]]
-            [czlab.basal.dates :refer [+months]]
+            [czlab.basal.dates :refer [addMonths]]
             [czlab.basal.logging :as log]
             [clojure.java.io :as io]
             [clojure.string :as cs])
@@ -320,7 +320,7 @@
   ^String
   []
   (format "%s#%04d"
-          (-> (juid)
+          (-> (jid<>)
               (.substring 0 3)) (seqint)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -757,7 +757,7 @@
                        (or keylen 1024))
      start (or start (date<>))
      end (->> (or validFor 12)
-              +months
+              addMonths
               .getTime
               (or end ))
      prv (.getPrivate kp)
@@ -819,7 +819,7 @@
      subject (X500Principal. dnStr)
      exu (JcaX509ExtensionUtils.)
      end (->> (or validFor 12)
-              +months
+              addMonths
               .getTime
               (or end ))
      start (or start (date<>))
