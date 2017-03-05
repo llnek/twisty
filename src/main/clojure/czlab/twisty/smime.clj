@@ -24,7 +24,9 @@
            [java.security.cert Certificate X509Certificate]
            [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
            [org.bouncycastle.cert X509CertificateHolder]
-           [org.bouncycastle.asn1 ASN1EncodableVector]
+           [org.bouncycastle.asn1
+            ASN1EncodableVector
+            ASN1ObjectIdentifier]
            [org.bouncycastle.cert.jcajce JcaCertStore]
            [org.bouncycastle.asn1.x500 X500Name]
            [czlab.twisty PKeyGist SDataSource]
@@ -101,12 +103,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn strSigningAlgo
-  ""
-  ^String
-  [algo]
+(defn strSigningAlgo "BC's internal value" ^String [algo]
   (case algo
     "SHA-512" SMIMESignedGenerator/DIGEST_SHA512
+    "SHA-256" SMIMESignedGenerator/DIGEST_SHA256
+    "SHA-384" SMIMESignedGenerator/DIGEST_SHA384
     "SHA-1" SMIMESignedGenerator/DIGEST_SHA1
     "MD5" SMIMESignedGenerator/DIGEST_MD5
     (throwBadArg "Unsupported signing algo: %s" algo)))
@@ -116,76 +117,73 @@
 (defn- signerGentor<>
   "Create a SignedGenerator"
   ^SMIMESignedGenerator
-  [^PrivateKey pkey ^String algo certs]
+  [^PrivateKey pkey algo certs]
   {:pre [(not-empty certs)]}
+
   (let
-    [gen (SMIMESignedGenerator. "base64")
-     caps (doto (SMIMECapabilityVector.)
+    [caps (doto (SMIMECapabilityVector.)
             (.addCapability SMIMECapability/dES_EDE3_CBC)
             (.addCapability SMIMECapability/rC2_CBC, 128)
             (.addCapability SMIMECapability/dES_CBC))
-     signedAttrs
-     (doto (ASN1EncodableVector.)
-       (.add (SMIMECapabilitiesAttribute. caps)))
      ^X509Certificate subj (first certs)
-     ^X509Certificate issuer (or (fnext certs) subj)
-     issuerDN (.getSubjectX500Principal issuer)
-     ;; add an encryption key pref for encrypted resps -
-     ;; normally this would be diff from the signing cert
-     issAndSer (IssuerAndSerialNumber.
-                 (X500Name/getInstance
-                   (.getEncoded issuerDN))
-                 (.getSerialNumber subj))
-     dm1 (->> issAndSer
-              SMIMEEncryptionKeyPreferenceAttribute.
-              (.add signedAttrs ))
+     ^X509Certificate issuer (or (second certs) subj)
+     signedAttrs (ASN1EncodableVector.)
+     algo (ucase (strKW algo))
+     _ (->> (SMIMECapabilitiesAttribute. caps)
+            (.add signedAttrs))
+     _ (->> (IssuerAndSerialNumber.
+              (-> issuer
+                  .getSubjectX500Principal
+                  .getEncoded
+                  X500Name/getInstance)
+              (.getSerialNumber subj))
+            SMIMEEncryptionKeyPreferenceAttribute.
+            (.add signedAttrs ))
      bdr (doto
-           (JcaSignerInfoGeneratorBuilder.
-             (-> (withBC JcaDigestCalculatorProviderBuilder)
-                 .build))
+           (-> JcaDigestCalculatorProviderBuilder
+               withBC
+               .build
+               JcaSignerInfoGeneratorBuilder.)
            (.setDirectSignature true))
-     cs (-> (withBC1 JcaContentSignerBuilder algo)
-            (.build pkey))]
-    (->> (AttributeTable. signedAttrs)
-         DefaultSignedAttributeTableGenerator.
-         (.setSignedAttributeGenerator bdr ))
-    (->> (.build bdr cs subj)
-         (.addSignerInfoGenerator gen ))
-    (->> (JcaCertStore. certs)
-         (.addCertificates gen ))
-    gen))
+     cs (-> JcaContentSignerBuilder (withBC1 algo) (.build pkey))]
+
+    (. bdr setSignedAttributeGenerator
+       (->> signedAttrs
+            AttributeTable.
+            DefaultSignedAttributeTableGenerator.))
+
+    (doto (SMIMESignedGenerator. "base64")
+      (.addSignerInfoGenerator (.build bdr cs subj))
+      (.addCertificates (JcaCertStore. certs)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmulti smimeDigSig
-  "Sign and returns a Multipart" {:tag Object} (fn [a b & xs] (class b)))
+  "Sign and returns a Multipart" (fn [a b & xs] (class b)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
   MimeMessage
-  [^PrivateKey pkey ^MimeMessage mmsg ^String algo certs]
+  [pkey ^MimeMessage mmsg algo certs]
   (let [g (signerGentor<> pkey algo certs)]
-    ;; force internal processing, just in case
-    (.getContent mmsg)
+    (.getContent mmsg) ;; force internal processing, just in case
     (.generate g mmsg)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
   Multipart
-  [^PrivateKey pkey ^Multipart mp ^String algo certs]
+  [pkey mp algo certs]
   (smimeDigSig pkey
                (doto (mimeMsg<>)
-                 (.setContent mp))
-               algo
-               certs))
+                 (.setContent mp)) algo certs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeDigSig
   BodyPart
-  [^PrivateKey pkey ^BodyPart bp ^String algo certs]
+  [pkey bp algo certs]
   (-> (signerGentor<> pkey algo certs)
       (.generate (cast? MimeBodyPart bp))))
 
@@ -193,9 +191,8 @@
 ;;
 (defn peekSmimeSignedContent
   "Get the content ignoring the signing stuff"
-  ^Object
-  [^Multipart mp]
-  (let [mp (cast? MimeMultipart mp)]
+  [^Multipart arg]
+  (let [mp (cast? MimeMultipart arg)]
     (some-> (SMIMESignedParser.
               (BcDigestCalculatorProvider.)
               mp
@@ -206,14 +203,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- smimeDec
-  "SMIME decryption"
+  "Smime decryption"
   ^CMSTypedStream
   [^PrivateKey pkey ^SMIMEEnveloped env]
   (loop
     [rec (withBC1 JceKeyTransEnvelopedRecipient pkey)
-     it (-> (.getRecipientInfos env)
-            .getRecipients
-            .iterator)
+     it (-> env .getRecipientInfos .getRecipients .iterator)
      rc nil]
     (if (or rc (not (.hasNext it)))
       rc
@@ -224,14 +219,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- smimeLoopDec
-  ""
-  ^bytes
-  [^SMIMEEnveloped ev pkeys]
+  "" ^bytes [^SMIMEEnveloped ev pkeys]
+
   (let
     [rc (some #(if-some
-                 [cms (smimeDec ^PrivateKey %1 ev)]
-                 (toBytes (.getContentStream cms)) nil)
-              pkeys)]
+                 [cms (smimeDec %1 ev)]
+                 (toBytes (.getContentStream cms)) ) pkeys)]
     (if (nil? rc)
       (trap! GeneralSecurityException
              "No matching decryption key"))
@@ -266,7 +259,8 @@
 ;;
 (defmethod smimeEncrypt
   BodyPart
-  [^X509Certificate cert ^String algo ^BodyPart bp]
+  [^X509Certificate cert ^ASN1ObjectIdentifier algo ^BodyPart bp]
+
   (->
     (doto (SMIMEEnvelopedGenerator.)
       (.addRecipientInfoGenerator
@@ -279,7 +273,8 @@
 ;;
 (defmethod smimeEncrypt
   MimeMessage
-  [^X509Certificate cert ^String algo ^MimeMessage msg]
+  [cert ^ASN1ObjectIdentifier algo ^MimeMessage msg]
+
   (->
     (doto (SMIMEEnvelopedGenerator.)
       (.addRecipientInfoGenerator
@@ -292,9 +287,8 @@
 ;;
 (defmethod smimeEncrypt
   Multipart
-  [^X509Certificate cert ^String algo ^Multipart mp]
-  (smimeEncrypt
-    cert algo (doto (mimeMsg<>) (.setContent mp))))
+  [cert ^ASN1ObjectIdentifier algo ^Multipart mp]
+  (smimeEncrypt cert algo (doto (mimeMsg<>) (.setContent mp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -327,8 +321,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- siTester
-  ""
-  [^JcaCertStore cs ^SignerInformation si]
+  "" [^JcaCertStore cs ^SignerInformation si]
   (loop
     [c (. cs getMatches (.getSID si))
      it (some-> c .iterator)
@@ -355,9 +348,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- toCMS
-  ""
-  ^CMSProcessable
-  [^XData xs]
+  "" ^CMSProcessable [^XData xs]
   (if (.isFile xs)
     (CMSProcessableFile. (.fileRef xs))
     (CMSProcessableByteArray. (.getBytes xs))))
@@ -366,8 +357,8 @@
 ;;
 (defn testPkcsDigSig
   "Verify the signed object with the signature"
-  ^bytes
-  [^Certificate cert ^XData xs ^bytes sig]
+  ^bytes [^Certificate cert ^XData xs ^bytes sig]
+
   (let
     [sls (some-> (toCMS xs)
                  (CMSSignedData. sig)
@@ -412,12 +403,14 @@
 (defn pkcsDigSig
   "Sign some data"
   ^bytes
-  [^PrivateKey pkey certs ^String algo ^XData xs]
+  [^PrivateKey pkey certs algo ^XData xs]
   {:pre [(not-empty certs)]}
+
   (let
     [bdr (-> (withBC JcaDigestCalculatorProviderBuilder)
              .build
              JcaSignerInfoGeneratorBuilder.)
+     algo (ucase (strKW algo))
      cs (-> (withBC1 JcaContentSignerBuilder algo)
             (.build pkey))
      gen (CMSSignedDataGenerator.)

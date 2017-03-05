@@ -39,17 +39,15 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(def
-  ^:private
-  ^X509TrustManager
+(def ^:private
   x-tmgr
   (reify X509TrustManager
     (checkClientTrusted [_ chain authType]
-      (log/warn "SkipCheck: CLIENT CERTIFICATE: %s"
+      (log/warn "skipcheck: client certificate: %s"
                 (some-> ^X509Certificate
                         (first chain) .getSubjectDN)))
     (checkServerTrusted [_ chain authType]
-      (log/warn "SkipCheck: SERVER CERTIFICATE: %s"
+      (log/warn "skipcheck: server certificate: %s"
                 (some-> ^X509Certificate
                         (first chain) .getSubjectDN)))
     (getAcceptedIssuers [_] (vargs X509Certificate []))))
@@ -65,18 +63,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn sslTrustMgrFactory<>
-  ""
-  []
+(defn sslTrustMgrFactory<> "" []
   (proxy [SSLTrustMgrFactory][]
-    (engineGetTrustManagers []
-      (simpleTrustManagers))))
+    (engineGetTrustManagers [] (simpleTrustManagers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn sslContext<>
-  "Make a server-side SSLContext"
-  {:tag SSLContext}
+  "Create a server-side ssl-context" {:tag SSLContext}
 
   ([pkey pwd] (sslContext<> pkey pwd nil))
 

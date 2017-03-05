@@ -39,10 +39,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn cryptoStore<>
-  "Create a crypto store"
-  {:tag CryptoStore}
+  "Create a crypto store" {:tag CryptoStore}
 
-  ([^chars pwd] (cryptoStore<> (pkcsStore<> nil pwd)))
+  ([pwd] (cryptoStore<> (pkcsStore<> nil pwd)))
   ([] (cryptoStore<> (pkcsStore<>)))
   ([^KeyStore store ^chars passwd]
    {:pre [(some? store)]}
@@ -53,20 +52,20 @@
      (addCertEntity [_ cert]
        (.setCertificateEntry store (alias<>) cert))
      (trustManagerFactory [_]
-       (doto (TrustManagerFactory/getInstance
-               (TrustManagerFactory/getDefaultAlgorithm))
+       (doto (-> (TrustManagerFactory/getDefaultAlgorithm)
+                 TrustManagerFactory/getInstance)
              (.init store)))
      (keyManagerFactory [_]
-       (doto (KeyManagerFactory/getInstance
-               (KeyManagerFactory/getDefaultAlgorithm))
+       (doto (-> (KeyManagerFactory/getDefaultAlgorithm)
+                 KeyManagerFactory/getInstance)
              (.init store passwd)))
      (certAliases [_] (filterEntries store :certs))
      (keyAliases [_] (filterEntries store :keys))
      (keyEntity [_ nm pwd] (pkeyGist<> store nm pwd))
      (keyEntity [this pwd]
-       (let [a (.keyAliases this)]
-         (if (== 1 (count a))
-           (.keyEntity this (str (first a)) pwd)
+       (let [[f & more] (.keyAliases this)]
+         (if (and f (empty? more))
+           (.keyEntity this (str f) pwd)
            (throwBadArg "Store has many keys"))))
      (certEntity [_ nm] (tcert<> store nm))
      (removeEntity [_ nm]
@@ -77,15 +76,14 @@
      (intern [_] store)
      (password [_] passwd)
      (write [_ out pwd] (.store store out pwd))
-     (write [this out] (.write this out passwd))
+     (write [me out] (.write me out passwd))
      (trustedCerts [me]
-       (map #(.certEntity me (str %)) (.certAliases me)))
+       (mapv #(.certEntity me (str %)) (.certAliases me)))
      (addPKCS7Entity [_ arg]
-       (let [certs (convCerts arg)]
-         (doseq [c certs]
-           (.setCertificateEntry store
-                                 (alias<>)
-                                 ^Certificate c)))))))
+       (doseq [c (convCerts arg)]
+         (.setCertificateEntry store
+                               (alias<>)
+                               ^Certificate c))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

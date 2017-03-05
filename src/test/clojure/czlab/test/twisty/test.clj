@@ -269,7 +269,7 @@
 
   (testing
     "related to: passwords"
-    (is (= (.length (.text (strongPwd<> 16))) 16))
+    (is (= (.length (.text (strongPasswd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
     (is (ist? IPassword (passwd<> "secret-text")))

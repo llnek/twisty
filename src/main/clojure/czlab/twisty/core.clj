@@ -288,7 +288,9 @@
   SHA-1, SHA-256, SHA-384, SHA-512"
   ^MessageDigest
   [algo]
-  (-> (ucase (strKW algo)) (MessageDigest/getInstance  *-bc-*)))
+  (-> (ucase (strKW algo))
+      (stror "SHA-512")
+      (MessageDigest/getInstance  *-bc-*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -322,10 +324,10 @@
 ;;
 (defn pkeyGist<>
   "Get private key from store"
-  ^PKeyGist [store ^String n ^chars pwd] {:pre [(some? store)]}
+  ^PKeyGist [store alias ^chars pwd] {:pre [(some? store)]}
 
   (if-some [e (->> (KeyStore$PasswordProtection. pwd)
-                   (. ^KeyStore store getEntry n)
+                   (. ^KeyStore store getEntry ^String alias)
                    (cast? KeyStore$PrivateKeyEntry))]
     (reify PKeyGist
       (chain [_] (.getCertificateChain e))
@@ -336,9 +338,9 @@
 ;;
 (defn tcert<>
   "Get cert from store"
-  ^Certificate [store ^String n] {:pre [(some? store)]}
+  ^Certificate [store alias] {:pre [(some? store)]}
 
-  (if-some [e (->> (. ^KeyStore store getEntry n nil)
+  (if-some [e (->> (. ^KeyStore store getEntry ^String alias nil)
                    (cast? KeyStore$TrustedCertificateEntry))]
     (.getTrustedCertificate e)))
 
@@ -444,10 +446,13 @@
   "Create Message Auth Code" {:tag String}
 
   ([skey data] (genMac skey data nil))
-  ([^bytes skey data algo]
+  ([skey data algo]
    {:pre [(some? skey) (some? data)]}
    (let
-     [algo (stror algo def-mac)
+     [skey (convBytes skey)
+      algo (-> (strKW algo)
+               ucase
+               (stror def-mac))
       mac (Mac/getInstance algo *-bc-*)]
      (when-some [bits (convBytes data)]
        (->> (SecretKeySpec. skey algo)
@@ -464,8 +469,7 @@
   ([data algo]
    (if-some
      [bits (convBytes data)]
-     (->> (-> (stror algo "SHA-512")
-              MessageDigest/getInstance
+     (->> (-> (msgDigest algo)
               (.digest bits))
           Base64/toBase64String ))))
 
@@ -863,45 +867,34 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- maybeStream
-  "Coerce object as input-stream" ^InputStream [obj]
-
-  (condp instance? obj
-    String (streamify (bytesify obj))
-    (bytesClass) (streamify obj)
-    InputStream obj
-    nil))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn isDataSigned?
-  "Is stream-like object/message-part is signed?"
-  [^Object obj]
+  "Is object/message-part signed?" [obj]
 
-  (if-some [inp (maybeStream obj)]
-    (try
+  (if-some [x (inputStream?? obj)]
+    (let-try [[del? inp] x]
       (->> (mimeMsg<> "" nil inp)
            .getContentType
            isSigned? )
       (finally
-        (resetStream! inp)))
+        (if del? (closeQ inp)
+          (resetStream! inp))))
     (if-some [mp (cast? Multipart obj)]
-      (->> (.getContentType mp)
-           isSigned? )
+      (->> (.getContentType mp) isSigned? )
       (throwIOE "Invalid content: %s" (getClassname obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn isDataCompressed?
-  "Is stream-like object/message-part is compressed?"
-  [^Object obj]
-  (if-some [inp (maybeStream obj)]
-    (try
+  "Is object/message-part compressed?" [obj]
+
+  (if-some [x (inputStream?? obj)]
+    (let-try [[del? inp] x]
       (->> (mimeMsg<> "" nil inp)
            .getContentType
            isCompressed? )
       (finally
-        (resetStream! inp)))
+        (if del? (closeQ inp)
+          (resetStream! inp))))
     (condp instance? obj
       Multipart (->> (cast? Multipart obj)
                      .getContentType
@@ -914,15 +907,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn isDataEncrypted?
-  "Check if this stream-like object/message-part is encrypted"
-  [^Object obj]
-  (if-some [inp (maybeStream obj)]
-    (try
+  "Is object/message-part encrypted?" [obj]
+
+  (if-some [x (inputStream?? obj)]
+    (let-try [[del? inp] x]
       (->> (mimeMsg<> "" nil inp)
            .getContentType
            isEncrypted? )
       (finally
-        (resetStream! inp)))
+        (if del? (closeQ inp)
+          (resetStream! inp))))
     (condp instance? obj
       Multipart (->> (cast? Multipart obj)
                      .getContentType
@@ -935,8 +929,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn getCharset
-  "Deduce the char-set from content-type"
-  {:tag String}
+  "Charset from content-type" {:tag String}
 
   ([cType] (getCharset cType nil))
   ([^String cType ^String dft]
@@ -950,20 +943,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- fingerprint<>
-  ""
-  [^bytes data ^String algo]
-  {:pre [(keyword? algo)]}
-  (let
-    [hv (.digest (msgDigest algo) data)
-     hlen (alength hv)
-     tail (dec hlen)]
+(defn- fingerprint<> "" [data algo]
+
+  (let [hv (. (msgDigest algo) digest ^bytes data)
+        hlen (alength hv)
+        tail (dec hlen)]
     (loop [ret (strbf<>)
            i 0]
       (if (>= i hlen)
         (str ret)
         (let [n (-> (bit-and (aget ^bytes hv i) 0xff)
-                    (Integer/toString  16)
+                    (Integer/toString 16)
                     ucase)]
           (doto ret
             (.append (if (== (.length n) 1) (str "0" n) n))
@@ -973,17 +963,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn digest<>
-  "Generate a fingerprint/digest using the given algo"
-  ^String
-  [^bytes data algo]
-  (fingerprint<> data algo))
+  "Data's fingerprint" ^String [data algo]
+  (if-some [b (convBytes data)]
+    (-> (msgDigest algo) (.  digest b) Hex/toHexString )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn certGist
-  "Get some basic info from Certificate"
-  ^CertGist
-  [^X509Certificate x509]
+  "Basic info from cert" ^CertGist [^X509Certificate x509]
 
   (if x509
     (reify CertGist
@@ -995,8 +982,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn validCert?
-  "Validate this Certificate"
-  [^X509Certificate x509]
+  "" [^X509Certificate x509]
   (try!! false (do->true (.checkValidity x509 (date<>)) )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
