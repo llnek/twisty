@@ -59,7 +59,11 @@
            "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")
       .toCharArray))
 
-(def ^:private ^String c-key "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs")
+(def
+  ^{:private true
+    :tag "[C"}
+  c-key (-> "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" .toCharArray))
+
 (def ^:private vischs-len (alength vis-chs))
 
 (def ^:private
@@ -440,7 +444,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- mkPwd
-  "" [^String pwdStr ^String pkey]
+  "" [^String pwdStr ^chars pkey]
 
   (reify Object
 
@@ -483,7 +487,7 @@
         ""
         :else
         (str pwd-pfx (.encrypt (jasyptCryptor<>)
-                               (.toCharArray pkey)
+                               pkey
                                pwdStr))))
 
     (text [_] (if (hgl? pwdStr) (str pwdStr)))))
@@ -496,13 +500,13 @@
   ([pwdStr] (passwd<> pwdStr nil))
 
   ([^String pwdStr pkey]
-   {:pre [(or (nil? pkey)(string? pkey))]}
-   (let [pkey (stror pkey c-key)]
+   {:pre [(or (nil? pkey)(instChars? pkey))]}
+   (let [pkey (or pkey c-key)]
      (if
        (.startsWith (str pwdStr) pwd-pfx)
        (mkPwd
          (.decrypt (jasyptCryptor<>)
-                   (.toCharArray pkey)
+                   pkey
                    (.substring pwdStr pwd-pfxlen)) pkey)
        (mkPwd pwdStr pkey)))))
 
