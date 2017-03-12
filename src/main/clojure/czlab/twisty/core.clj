@@ -209,7 +209,7 @@
                  (SecretKeySpec. (.. kgen
                                      generateKey
                                      getEncoded) blow-fish)))
-        (.doFinal (bytesify "yo")))))
+        (.doFinal (bytesit "yo")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -500,7 +500,7 @@
              (JcaMiscPEMGenerator. obj))
            (.writeObject pw ))
       (.flush pw)
-      (bytesify (str sw)))))
+      (bytesit (str sw)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -816,7 +816,7 @@
 ;;
 (defn exportPkcs7 "" ^bytes [^PKeyGist pkey]
   (let
-    [xxx (CMSProcessableByteArray. (bytesify "?"))
+    [xxx (CMSProcessableByteArray. (bytesit "?"))
      gen (CMSSignedDataGenerator.)
      cl (into [] (.chain pkey))
      bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)

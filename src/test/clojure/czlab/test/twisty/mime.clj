@@ -101,7 +101,7 @@
                     .saveChanges
                     (.writeTo baos))
                 msg3 (mimeMsg<> nil nil
-                                (streamify (.toByteArray baos)))
+                                (streamit (.toByteArray baos)))
                 mp3 (.getContent msg3)
                 rc (peekSmimeSignedContent mp3)]
             (ist? Multipart rc))))
@@ -119,7 +119,7 @@
                     .saveChanges
                     (.writeTo baos))
                 msg3 (mimeMsg<> nil nil
-                                (streamify (.toByteArray baos)))
+                                (streamit (.toByteArray baos)))
                 mp3 (.getContent msg3)
                 rc (testSmimeDigSig mp3 cs)]
             (and (map? rc)
@@ -127,7 +127,7 @@
                  (ist? Multipart (:content rc))
                  (instBytes? (:digest rc))))))
 
-    (is (let [s (SDataSource. (bytesify "yoyo-jojo") "text/plain")
+    (is (let [s (SDataSource. (bytesit "yoyo-jojo") "text/plain")
               g (.keyEntity root-cs help-me)
               cs (into [] (.chain g))
               bp (doto (MimeBodyPart.)
@@ -142,18 +142,18 @@
                     (.getContentType bp2))
                   .saveChanges
                   (.writeTo baos))
-              msg2 (mimeMsg<> (streamify (.toByteArray baos)))
+              msg2 (mimeMsg<> (streamit (.toByteArray baos)))
               enc (isEncrypted? (.getContentType msg2))
               rc (smimeDecrypt msg2 [(.pkey g)])]
           (and (instBytes? rc)
                (> (.indexOf
-                    (stringify rc) "yoyo-jojo") 0))))
+                    (strit rc) "yoyo-jojo") 0))))
 
     (is (let [g (.keyEntity root-cs help-me)
               s2 (SDataSource.
-                   (bytesify "what's up dawg") "text/plain")
+                   (bytesit "what's up dawg") "text/plain")
               s1 (SDataSource.
-                   (bytesify "hello world") "text/plain")
+                   (bytesit "hello world") "text/plain")
               cs (into [] (.chain g))
               bp2 (doto (MimeBodyPart.)
                     (.setDataHandler (DataHandler. s2)))
@@ -172,12 +172,12 @@
                     (.getContentType bp3))
                   .saveChanges
                   (.writeTo baos))
-              msg3 (mimeMsg<> (streamify (.toByteArray baos)))
+              msg3 (mimeMsg<> (streamit (.toByteArray baos)))
               enc (isEncrypted? (.getContentType msg3))
               rc (smimeDecrypt msg3 [(.pkey g)])]
           (and (instBytes? rc)
-               (> (.indexOf (stringify rc) "what's up dawg") 0)
-               (> (.indexOf (stringify rc) "hello world") 0))))
+               (> (.indexOf (strit rc) "what's up dawg") 0)
+               (> (.indexOf (strit rc) "hello world") 0))))
 
     (is (let [data (xdata<> "heeloo world")
               g (.keyEntity root-cs help-me)
@@ -208,22 +208,22 @@
 
   (testing
     "related to: digest"
-    (is (let [f (digest<> (bytesify "heeloo world") :sha-1)]
+    (is (let [f (digest<> (bytesit "heeloo world") :sha-1)]
           (and f (> (.length f) 0))))
 
-    (is (let [f (digest<> (bytesify "heeloo world") :md5)]
+    (is (let [f (digest<> (bytesit "heeloo world") :md5)]
           (and f (> (.length f) 0))))
 
-    (is (let [f (digest<> (bytesify "heeloo world") :sha-1)
-              g (digest<> (bytesify "heeloo world") :md5)]
+    (is (let [f (digest<> (bytesit "heeloo world") :sha-1)
+              g (digest<> (bytesit "heeloo world") :md5)]
           (if (= f g) false true)))
 
-    (is (let [f (digest<> (bytesify "heeloo world") :sha-1)
-              g (digest<> (bytesify "heeloo world") :sha-1)]
+    (is (let [f (digest<> (bytesit "heeloo world") :sha-1)
+              g (digest<> (bytesit "heeloo world") :sha-1)]
           (= f g)))
 
-    (is (let [f (digest<> (bytesify "heeloo world") :md5)
-              g (digest<> (bytesify "heeloo world") :md5)]
+    (is (let [f (digest<> (bytesit "heeloo world") :md5)
+              g (digest<> (bytesit "heeloo world") :md5)]
           (= f g))))
 
   (is (string? "That's all folks!")))

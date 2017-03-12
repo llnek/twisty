@@ -41,7 +41,7 @@
 
 (def
   ^{:private true :tag "[B"}
-  b-key (bytesify "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+  b-key (bytesit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
   ^{:private true :tag "[C"}
@@ -105,7 +105,7 @@
               x (.toCharArray "a")
               _ (.write root-cs out x)
               b (.toByteArray out)
-              i (streamify b)
+              i (streamit b)
               s (cryptoStore<> (pkcsStore<> i x) x)]
           (some? (.intern s))))
 
@@ -156,9 +156,9 @@
               prv (.getPrivate kp)
               b1 (exportPrivateKey prv secret)
               b2 (exportPublicKey pub)]
-          (and (hgl? (stringify b))
-               (hgl? (stringify b1))
-               (hgl? (stringify b2))))))
+          (and (hgl? (strit b))
+               (hgl? (strit b1))
+               (hgl? (strit b2))))))
 
   (testing
     "related to: cert service request"
@@ -175,7 +175,7 @@
   (is (let [s (session<> "joe" secret)
             s0 (session<>)
             b (resBytes "czlab/test/twisty/mime.eml")
-            m (mimeMsg<> (streamify b))
+            m (mimeMsg<> (streamit b))
             c (.getContent m)
             z (isDataCompressed? c)
             g (isDataSigned? c)
@@ -186,14 +186,14 @@
 
   (testing
     "related to: msg digest"
-    (is (not= (digest<> (bytesify "hello world") :sha-1)
-              (digest<> (bytesify "hello world") :md5)))
+    (is (not= (digest<> (bytesit "hello world") :sha-1)
+              (digest<> (bytesit "hello world") :md5)))
 
-    (is (= (digest<> (bytesify "hello world") :sha-1)
-           (digest<> (bytesify "hello world") :sha-1)))
+    (is (= (digest<> (bytesit "hello world") :sha-1)
+           (digest<> (bytesit "hello world") :sha-1)))
 
-    (is (= (digest<> (bytesify "hello world") :md5)
-           (digest<> (bytesify "hello world") :md5))))
+    (is (= (digest<> (bytesit "hello world") :md5)
+           (digest<> (bytesit "hello world") :md5))))
 
   (is (let [b (resBytes "czlab/test/twisty/cert.crt")
             c (convCert b)
@@ -237,35 +237,35 @@
     "related to: java crypto"
     (is (= "heeloo"
            (let [c (javaCryptor<>)]
-             (stringify (.decrypt c
+             (strit (.decrypt c
                                   b-key
                                   (.encrypt c b-key "heeloo"))))))
 
     (is (= "heeloo"
            (let [c (javaCryptor<>)
-                 pkey (bytesify (String. test-pwd))]
-             (stringify (.decrypt c
+                 pkey (bytesit (String. test-pwd))]
+             (strit (.decrypt c
                                   pkey (.encrypt c pkey "heeloo")))))))
 
   (testing
     "related to: bouncycastle crypto"
     (is (= "heeloo"
            (let [c (bcastleCryptor<>)]
-             (stringify (.decrypt c
+             (strit (.decrypt c
                                   b-key
                                   (.encrypt c b-key "heeloo"))))))
 
     (is (= "heeloo"
            (let [c (bcastleCryptor<>)
-                 pkey (bytesify (String. test-pwd))]
-             (stringify (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
+                 pkey (bytesit (String. test-pwd))]
+             (strit (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
     (is (= "heeloo"
            (let [kp (asymKeyPair<> "RSA" 1024)
                  pu (.getEncoded (.getPublic kp))
                  pv (.getEncoded (.getPrivate kp))]
-             (stringify (asymDecr pv
-                                  (asymEncr pu (bytesify "heeloo"))))))))
+             (strit (asymDecr pv
+                                  (asymEncr pu (bytesit "heeloo"))))))))
 
   (testing
     "related to: passwords"
