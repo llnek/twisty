@@ -456,17 +456,13 @@
 
       (stronglyHashed [_]
         (if (and pwd (not-empty pwd))
-          (let [s (BCrypt/gensalt 12)]
-            {:hash (BCrypt/hashpw (str _) s)
-             :salt s})
-          {:hash "" :salt ""}))
+          (->> (BCrypt/gensalt 12)
+               (BCrypt/hashpw (str _))) ""))
 
       (hashed [_]
         (if (and pwd (not-empty pwd))
-          (let [s (BCrypt/gensalt 10)]
-            {:hash (BCrypt/hashpw (str _) s)
-             :salt s})
-          {:hash "" :salt ""}))
+          (->> (BCrypt/gensalt 10)
+               (BCrypt/hashpw (str _))) ""))
 
       (validateHash [_ pwdHashed]
         (BCrypt/checkpw (str _) pwdHashed))

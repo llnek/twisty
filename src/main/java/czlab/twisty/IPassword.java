@@ -23,14 +23,12 @@ public interface IPassword {
   public boolean validateHash(String targetHashed);
 
   /**
-   * A map(2) {:hashed 'hashed value' :salt 'salt'}
    */
-  public Object stronglyHashed();
+  public String stronglyHashed();
 
   /**
-   * A map(2) {:hashed 'hashed value' :salt 'salt'}
    */
-  public Object hashed();
+  public String hashed();
 
   /**
    * The encoded value.
