@@ -15,7 +15,7 @@
                  [commons-codec/commons-codec "1.10"]
                  [com.sun.mail/javax.mail "1.5.6"]
                  [org.jasypt/jasypt "1.9.2"]
-                 ;;[org.mindrot/jbcrypt "0.3m"]
+                 [org.mindrot/jbcrypt "0.4"]
                  [io.czlab/basal "1.0.0"]]
 
   :plugins [[cider/cider-nrepl "0.14.0"]

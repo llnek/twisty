@@ -55,34 +55,31 @@
   ^{:private true
     :tag "[C"}
   vis-chs
-  (-> (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
-           "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")
-      .toCharArray))
+  (charsit
+    (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
+         "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")))
 
 (def
   ^{:private true
     :tag "[C"}
-  c-key (-> "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs" .toCharArray))
+  c-key (charsit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def ^:private vischs-len (alength vis-chs))
 
 (def ^:private
   s-asciiChars
   (-> (str "abcdefghijklmnopqrstuvqxyz1234567890"
-           "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" )
-      CU/shuffle
-      .toCharArray))
+           "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ) CU/shuffle charsit))
 
 (def ^:private
   s-pwdChars
   (-> (str "abcdefghijklmnopqrstuvqxyz"
            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-           "`1234567890-_~!@#$%^&*()")
-      CU/shuffle
-      .toCharArray))
+           "`1234567890-_~!@#$%^&*()") CU/shuffle charsit))
 
 (def ^:private ^String pwd-pfx "crypt:")
 (def ^:private pwd-pfxlen 6)
+(def ^:private CZERO (.toCharArray ""))
 
 ;; default javax supports this
 ;; TripleDES
@@ -443,72 +440,69 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- mkPwd
-  "" [^String pwdStr ^chars pkey]
+(defn- mkPwd "" [pwd pkey]
 
-  (reify Object
+  (let [pkey (charsit pkey)
+        pwd (charsit pwd)]
+    (reify Object
 
-    (toString [this] (.text this))
-    (equals [this obj]
-      (and (ist? IPassword obj)
-           (= (.toString this) (str obj))))
-    (hashCode [this]
-      (.hashCode (str (.text this))))
+      (hashCode [this] (.hashCode (str this)))
+      (toString [this] (strit (.text this)))
+      (equals [this obj]
+        (and (ist? IPassword obj)
+             (= (str this) (str obj))))
 
-    IPassword
+      IPassword
 
-    (toCharArray [_]
-      (if (nil? pwdStr)
-        (char-array 0)
-        (.toCharArray pwdStr)))
+      (stronglyHashed [_]
+        (if (and pwd (not-empty pwd))
+          (let [s (BCrypt/gensalt 12)]
+            {:hash (BCrypt/hashpw (str _) s)
+             :salt s})
+          {:hash "" :salt ""}))
 
-    (stronglyHashed [_]
-      (if (hgl? pwdStr)
-        (let [s (BCrypt/gensalt 12)]
-          {:hash (BCrypt/hashpw pwdStr s)
-           :salt s})
-        {:hash "" :salt ""}))
+      (hashed [_]
+        (if (and pwd (not-empty pwd))
+          (let [s (BCrypt/gensalt 10)]
+            {:hash (BCrypt/hashpw (str _) s)
+             :salt s})
+          {:hash "" :salt ""}))
 
-    (hashed [_]
-      (if (hgl? pwdStr)
-        (let [s (BCrypt/gensalt 10)]
-          {:hash (BCrypt/hashpw pwdStr s)
-           :salt s})
-        {:hash "" :salt ""}))
+      (validateHash [_ pwdHashed]
+        (BCrypt/checkpw (str _) pwdHashed))
 
-    (validateHash [this pwdHashed]
-      (BCrypt/checkpw (.text this) pwdHashed))
+      (encoded [_]
+        (cond
+          (nil? pwd)
+          nil
+          (empty? pwd)
+          CZERO
+          :else
+          (charsit
+            (str pwd-pfx (. (jasyptCryptor<>)
+                            encrypt
+                            pkey
+                            (str _))))))
 
-    (encoded [_]
-      (cond
-        (nil? pwdStr)
-        nil
-        (nichts? pwdStr)
-        ""
-        :else
-        (str pwd-pfx (.encrypt (jasyptCryptor<>)
-                               pkey
-                               pwdStr))))
-
-    (text [_] (if (hgl? pwdStr) (str pwdStr)))))
+      (text [_] pwd))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn passwd<>
   "Create a password object" {:tag IPassword}
 
-  ([pwdStr] (passwd<> pwdStr nil))
+  ([pwd] (passwd<> pwd nil))
 
-  ([^String pwdStr pkey]
-   {:pre [(or (nil? pkey)(instChars? pkey))]}
-   (let [pkey (or pkey c-key)]
+  ([pwd pkey]
+   (let [pkey (or (charsit pkey) c-key)
+         s (strit pwd)]
      (if
-       (.startsWith (str pwdStr) pwd-pfx)
+       (some-> s (.startsWith pwd-pfx))
        (mkPwd
          (.decrypt (jasyptCryptor<>)
                    pkey
-                   (.substring pwdStr pwd-pfxlen)) pkey)
-       (mkPwd pwdStr pkey)))))
+                   (.substring s pwd-pfxlen)) pkey)
+       (mkPwd pwd pkey)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -520,7 +514,8 @@
 ;;
 (defn strongPasswd<>
   "Generate a strong password"
-  ^IPassword [len] (passwd<> (createXXX s-pwdChars len)))
+  ^IPassword [len] (passwd<>
+                     (charsit (createXXX s-pwdChars len))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

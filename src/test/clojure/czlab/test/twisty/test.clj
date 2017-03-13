@@ -269,12 +269,16 @@
 
   (testing
     "related to: passwords"
-    (is (= (.length (.text (strongPasswd<> 16))) 16))
+    (is (= (alength ^chars (.text (strongPasswd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
     (is (ist? IPassword (passwd<> "secret-text")))
 
-    (is (.startsWith (.encoded (passwd<> "secret-text")) "crypt:")))
+    (is (.startsWith
+          (strit (.encoded (passwd<> "secret-text"))) "crypt:"))
+
+    (is (= "hello joe!"
+           (str (passwd<> (.encoded (passwd<> "hello joe!")))))))
 
   (testing
     "related to: keystores"

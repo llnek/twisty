@@ -23,11 +23,6 @@ public interface IPassword {
   public boolean validateHash(String targetHashed);
 
   /**
-   * Get the password.
-   */
-  public char[] toCharArray();
-
-  /**
    * A map(2) {:hashed 'hashed value' :salt 'salt'}
    */
   public Object stronglyHashed();
@@ -40,12 +35,12 @@ public interface IPassword {
   /**
    * The encoded value.
    */
-  public String encoded();
+  public char[] encoded();
 
   /**
    * The text value.
    */
-  public String text();
+  public char[] text();
 
 }
 
