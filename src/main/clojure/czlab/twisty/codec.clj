@@ -440,47 +440,50 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defstateful Password
+  Object
+  (hashCode [this] (.hashCode (str this)))
+  (toString [this] (strit (.text this)))
+  (equals [this obj]
+    (and (ist? IPassword obj)
+         (= (str this) (str obj))))
+  IPassword
+  (stronglyHashed [_]
+    (let [{:keys [pwd]} @data]
+      (if (and pwd
+               (not-empty pwd))
+        (->> (BCrypt/gensalt 12)
+             (BCrypt/hashpw (str _))) "")))
+  (hashed [_]
+    (let [{:keys [pwd]} @data]
+      (if (and pwd
+               (not-empty pwd))
+        (->> (BCrypt/gensalt 10)
+             (BCrypt/hashpw (str _))) "")))
+  (validateHash [_ pwdHashed]
+    (BCrypt/checkpw (str _) pwdHashed))
+  (encoded [_]
+    (let [{:keys [pkey pwd]} @data]
+      (cond
+        (nil? pwd)
+        nil
+        (empty? pwd)
+        CZERO
+        :else
+        (charsit
+          (str pwd-pfx (. (jasyptCryptor<>)
+                          encrypt
+                          pkey
+                          (str _)))))))
+  (text [_] (:pwd @data)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn- mkPwd "" [pwd pkey]
 
-  (let [pkey (charsit pkey)
-        pwd (charsit pwd)]
-    (reify Object
-
-      (hashCode [this] (.hashCode (str this)))
-      (toString [this] (strit (.text this)))
-      (equals [this obj]
-        (and (ist? IPassword obj)
-             (= (str this) (str obj))))
-
-      IPassword
-
-      (stronglyHashed [_]
-        (if (and pwd (not-empty pwd))
-          (->> (BCrypt/gensalt 12)
-               (BCrypt/hashpw (str _))) ""))
-
-      (hashed [_]
-        (if (and pwd (not-empty pwd))
-          (->> (BCrypt/gensalt 10)
-               (BCrypt/hashpw (str _))) ""))
-
-      (validateHash [_ pwdHashed]
-        (BCrypt/checkpw (str _) pwdHashed))
-
-      (encoded [_]
-        (cond
-          (nil? pwd)
-          nil
-          (empty? pwd)
-          CZERO
-          :else
-          (charsit
-            (str pwd-pfx (. (jasyptCryptor<>)
-                            encrypt
-                            pkey
-                            (str _))))))
-
-      (text [_] pwd))))
+  (entity<> Password
+            {:pkey (charsit pkey)
+             :pwd (charsit pwd)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
