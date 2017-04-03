@@ -90,7 +90,7 @@
 ;;
 (defprotocol Cryptor
   ""
-  (decrypt [_ pkey cipherData] "")
+  (decrypt [_ pkey data] "")
   (encrypt [_ pkey data] "")
   (^String algo [_] ""))
 
@@ -209,7 +209,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro defCaesarCryptor "" [] `(CaesarCryptor.))
+(defmacro caesarCryptor<> "" [] `(CaesarCryptor.))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jasypt cryptor
@@ -229,7 +229,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro defJasyptCryptor "" [] `(JasyptCryptor.))
+(defmacro jasyptCryptor<> "" [] `(JasyptCryptor.))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
@@ -283,7 +283,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro defJavaCryptor "" [] `(JavaCryptor.))
+(defmacro javaCryptor<> "" [] `(JavaCryptor.))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
@@ -313,7 +313,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro defAsymCryptor "" [] `(AsymCryptor.))
+(defmacro asymCryptor<> "" [] `(AsymCryptor.))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
@@ -356,7 +356,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro defBCastleCryptor "" [] `(BCastleCryptor.))
+(defmacro bcastleCryptor<> "" [] `(BCastleCryptor.))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords
@@ -413,7 +413,7 @@
         CZERO
         :else
         (charsit
-          (str pwd-pfx (. (defJasyptCryptor)
+          (str pwd-pfx (. (jasyptCryptor<>)
                           encrypt
                           pkey
                           (str me)))))))
@@ -428,10 +428,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defpasswd
+(defn passwd<>
   "Create a password object" {:tag IPassword}
 
-  ([pwd] (defpasswd pwd nil))
+  ([pwd] (passwd<> pwd nil))
 
   ([pwd pkey]
    (let [pkey (or (charsit pkey) c-key)
@@ -439,7 +439,7 @@
      (if
        (some-> s (.startsWith pwd-pfx))
        (mkPwd
-         (. (defJasyptCryptor)
+         (. (jasyptCryptor<>)
             decrypt
             pkey
             (.substring s pwd-pfxlen)) pkey)
@@ -455,7 +455,7 @@
 ;;
 (defn strongPasswd<>
   "Generate a strong password"
-  ^IPassword [len] (defpasswd
+  ^IPassword [len] (passwd<>
                      (charsit (createXXX s-pwdChars len))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

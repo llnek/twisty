@@ -29,7 +29,7 @@
             ASN1ObjectIdentifier]
            [org.bouncycastle.cert.jcajce JcaCertStore]
            [org.bouncycastle.asn1.x500 X500Name]
-           [czlab.twisty PKeyGist SDataSource]
+           [czlab.twisty SDataSource]
            [javax.activation DataHandler]
            [clojure.lang APersistentMap]
            [czlab.jasal XData]

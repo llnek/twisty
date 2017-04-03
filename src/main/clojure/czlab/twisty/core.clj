@@ -204,7 +204,7 @@
             (.init 256))]
     (-> (doto
           (Cipher/getInstance blow-fish)
-          (.init (Cipher/ENCRYPT_MODE)
+          (.init Cipher/ENCRYPT_MODE
                  (SecretKeySpec. (.. kgen
                                      generateKey
                                      getEncoded) blow-fish)))
@@ -374,32 +374,34 @@
 ;;
 (defn initStore!
   "Initialize the key-store"
-  ^KeyStore [store arg ^chars pwd2] {:pre [(some? store)]}
+  ^KeyStore [store arg pwd2] {:pre [(some? store)]}
 
   (let [[del? inp] (inputStream?? arg)]
     (try
-      (doto ^KeyStore store (.load ^InputStream inp pwd2))
+      (doto ^KeyStore
+        store
+        (.load ^InputStream inp (charsit pwd2)))
       (finally (if del? (closeQ inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pkcsStore<>
+(defn defPkcs12
   "Create a PKCS12 key-store" {:tag KeyStore}
 
-  ([arg] (pkcsStore<> arg nil))
-  ([] (pkcsStore<> nil nil))
-  ([arg ^chars pwd2]
+  ([arg] (defPkcs12 arg nil))
+  ([] (defPkcs12 nil nil))
+  ([arg pwd2]
    (-> (KeyStore/getInstance "PKCS12" *-bc-*)
        (initStore! arg pwd2))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn jksStore<>
+(defn defJks
   "Create a JKS key-store" {:tag KeyStore}
 
-  ([arg] (jksStore<> arg nil))
-  ([] (jksStore<> nil nil))
-  ([arg ^chars pwd2]
+  ([arg] (defJks arg nil))
+  ([] (defJks nil nil))
+  ([arg pwd2]
    (-> (->> (Security/getProvider "SUN")
             (KeyStore/getInstance "JKS"))
        (initStore! arg pwd2))))
@@ -431,14 +433,14 @@
   ([arg pwd] (convPKey arg pwd nil))
   ([arg ^chars pwd ^chars pwdStore]
    (let
-     [ks (initStore! (pkcsStore<>) arg  pwdStore)
+     [ks (initStore! (defPkcs12) arg pwdStore)
       n (first (filterEntries ks :keys))]
      (if (hgl? n)
        (defPKeyGist ks n pwd)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn easyPolicy<>
+(defn defEasyPolicy
   "Enables all permissions" ^Policy []
   (proxy [Policy] []
     (getPermissions [cs]
@@ -479,10 +481,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn asymKeyPair<>
+(defn defAsymKeyPair
   "Create a Asymmetric key-pair" {:tag KeyPair}
 
-  ([algo] (asymKeyPair<> algo nil))
+  ([algo] (defAsymKeyPair algo nil))
   ([^String algo keylen]
    (let [len (or keylen 1024)]
      (log/debug "gen keypair for algo %s, len %d" algo len)
@@ -533,17 +535,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn csreq<>
+(defn defCSReq
   "A PKCS10 (csr-request)" {:tag APersistentVector}
 
-  ([dnStr keylen] (csreq<> dnStr keylen nil))
-  ([dnStr] (csreq<> dnStr 1024 nil))
+  ([dnStr keylen] (defCSReq dnStr keylen nil))
+  ([dnStr] (defCSReq dnStr 1024 nil))
   ([^String dnStr keylen pwd]
    {:pre [(hgl? dnStr)]}
    (let
      [csb (withBC1 JcaContentSignerBuilder def-algo)
       len (or keylen 1024)
-      kp (asymKeyPair<> "RSA" len)
+      kp (defAsymKeyPair "RSA" len)
       rbr (JcaPKCS10CertificationRequestBuilder.
             (X500Principal. dnStr) (.getPublic kp))
       k (.getPrivate kp)
@@ -640,7 +642,7 @@
                                  (some? fout)]}
   (let [f (io/file fout)
         out (baos<>)]
-    (. ^KeyStore store store out ^chars pwd2)
+    (. ^KeyStore store store out (charsit pwd2))
     (doto f (writeFile (.toByteArray out)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -648,7 +650,7 @@
 (defn- setKeyEntry "" ^KeyStore [store pk pwd certs]
   (doto ^KeyStore store
     (.setKeyEntry (alias<>)
-                  ^PrivateKey pk ^chars pwd (vargs Certificate certs))))
+                  ^PrivateKey pk (charsit pwd) (vargs Certificate certs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -658,33 +660,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn jks<>
+(defn defJks+
   "Create jks store"
   ^KeyStore
-  [^X509Certificate cert ^PrivateKey pk ^chars pwd certs]
+  [^X509Certificate cert ^PrivateKey pk pwd certs]
   {:pre [(some? cert)(some? pk)]}
 
-  (doto (jksStore<>)
+  (doto (defJks)
      (setKeyEntry pk
                   pwd
                   (cons cert (or certs [])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pkcs12<>
+(defn defPkcs12+
   "Create pkcs12 store"
   ^KeyStore
-  [^X509Certificate cert ^PrivateKey pk ^chars pwd certs]
+  [^X509Certificate cert ^PrivateKey pk pwd certs]
   {:pre [(some? cert)(some? pk)]}
 
-  (doto (pkcsStore<>)
+  (doto (defPkcs12)
      (setKeyEntry pk
                   pwd
                   (cons cert (or certs [])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ssv1Cert
+(defn defSsv1Cert
   "Create self-signed cert, issuer is self"
   ^APersistentVector
   [{:keys [^String dnStr

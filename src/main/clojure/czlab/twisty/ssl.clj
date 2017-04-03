@@ -11,7 +11,7 @@
 
   czlab.twisty.ssl
 
-  (:require [czlab.twisty.stores :refer [cryptoStore<>]]
+  (:require [czlab.twisty.store :refer [defCryptoStore]]
             [czlab.basal.logging :as log])
 
   (:use [czlab.twisty.core]
@@ -23,8 +23,6 @@
            [java.net URL]
            [czlab.twisty
             IPassword
-            PKeyGist
-            CryptoStore
             SSLTrustMgrFactory]
            [javax.net.ssl
             TrustManager
@@ -54,44 +52,42 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn simpleTrustMgr<> "Checks nothing" ^X509TrustManager [] x-tmgr)
+(defn defSimpleTrustMgr "Checks nothing" ^X509TrustManager [] x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- simpleTrustManagers
-  "" [] (vargs TrustManager [(simpleTrustMgr<>)]))
+  "" [] (vargs TrustManager [(defSimpleTrustMgr)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn sslTrustMgrFactory<> "" []
+(defn defSslTrustMgrFactory "" []
   (proxy [SSLTrustMgrFactory][]
     (engineGetTrustManagers [] (simpleTrustManagers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn sslContext<>
+(defn defSslContext
   "Create a server-side ssl-context" {:tag SSLContext}
 
-  ([pkey pwd] (sslContext<> pkey pwd nil))
+  ([pkey pwd] (defSslContext pkey pwd nil))
 
-  ([^PKeyGist pkey ^chars pwd flavor]
+  ([pkey pwd flavor]
    (let
-     [cs (-> (pkcsStore<>)
-             (cryptoStore<> nil))
-      ctx (-> (stror flavor "TLS")
-              SSLContext/getInstance)]
+     [ctx (-> (stror flavor "TLS")
+              SSLContext/getInstance)
+      ^czlab.twisty.store.CrytoStore
+      cs (defCryptoStore)]
      (.addKeyEntity cs pkey pwd)
      (.init ctx
-            (-> (.keyManagerFactory cs)
-                .getKeyManagers )
-            (-> (.trustManagerFactory cs)
-                .getTrustManagers )
+            (.. cs keyManagerFactory getKeyManagers)
+            (.. cs trustManagerFactory getTrustManagers)
             (rand<> true))
      ctx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn sslClientCtx<>
+(defn defSslClientCtx
   "A client-side SSLContext"
   ^SSLContext
   [ssl?]
