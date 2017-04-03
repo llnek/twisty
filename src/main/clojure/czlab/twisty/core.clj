@@ -26,7 +26,6 @@
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [org.apache.commons.mail DefaultAuthenticator]
            [javax.net.ssl X509TrustManager TrustManager]
-           [czlab.twisty IPassword PKeyGist CertGist]
            [org.bouncycastle.util.encoders Hex Base64]
            [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
            [org.bouncycastle.asn1 ASN1EncodableVector]
@@ -310,29 +309,34 @@
   "A new random name" ^String []
   (format "%s#%04d" (-> (jid<>) (.substring 0 4)) (seqint)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pkeyGist*<>
-  "Private key info" ^PKeyGist [k c certs]
-
-  (reify PKeyGist
-    (chain [_] (vargs Certificate certs))
-    (cert [_] ^Certificate c)
-    (pkey [_] ^PrivateKey k)))
+(defstateful PKeyGist)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn pkeyGist<>
+(defn defPKeyGist*
+  "Private key info" [^PrivateKey pkey
+                      ^Certificate cert listOfCerts]
+  (entity<> PKeyGist
+            {:chain (into [] listOfCerts)
+             :cert cert
+             :pkey pkey}))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn defPKeyGist
   "Get private key from store"
-  ^PKeyGist [store alias ^chars pwd] {:pre [(some? store)]}
+  [store alias ^chars pwd]
+  {:pre [(some? store)
+         (hgl? alias)]}
 
   (if-some [e (->> (KeyStore$PasswordProtection. pwd)
                    (. ^KeyStore store getEntry ^String alias)
                    (cast? KeyStore$PrivateKeyEntry))]
-    (reify PKeyGist
-      (chain [_] (.getCertificateChain e))
-      (cert [_] (.getCertificate e))
-      (pkey [_] (.getPrivateKey e)))))
+    (defPKeyGist* (.getPrivateKey e)
+                  (.getCertificate e)
+                  (.getCertificateChain e))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -421,8 +425,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn convPKey
-  "To a Private Key" {:tag PKeyGist}
+(defn convPKey "To a Private Key"
+  {:tag czlab.twisty.core.PKeyGist}
 
   ([arg pwd] (convPKey arg pwd nil))
   ([arg ^chars pwd ^chars pwdStore]
@@ -430,7 +434,7 @@
      [ks (initStore! (pkcsStore<>) arg  pwdStore)
       n (first (filterEntries ks :keys))]
      (if (hgl? n)
-       (pkeyGist<> ks n pwd)))))
+       (defPKeyGist ks n pwd)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -736,17 +740,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ssv3Cert
-  "SSV3 server key"
+(defn ssv3Cert "SSV3 server key"
   ^APersistentVector
-  [^PKeyGist issuer {:keys [^String dnStr
-                            ^String algo
-                            ^Date start
-                            ^Date end
-                            keylen
-                            validFor] :as args}]
+  [^czlab.twisty.core.PKeyGist
+   issuer
+   {:keys [^String dnStr
+           ^String algo
+           ^Date start
+           ^Date end
+           keylen validFor] :as args}]
   (let
-    [^X509Certificate rootc (.cert issuer)
+    [^X509Certificate rootc (:cert @issuer)
      subject (X500Principal. dnStr)
      exu (JcaX509ExtensionUtils.)
      end (->> (or validFor 12)
@@ -755,7 +759,7 @@
               (or end ))
      start (or start (date<>))
      len (or keylen 1024)
-     kp (-> (.pkey issuer)
+     kp (-> (:pkey @issuer)
             .getAlgorithm
             (asymKeyPair<> len))
      bdr (JcaX509v3CertificateBuilder.
@@ -766,7 +770,7 @@
            subject
            (.getPublic kp))
      cs (-> (withBC1 JcaContentSignerBuilder algo *-bc-*)
-            (.build (.pkey issuer)))]
+            (.build (:pkey @issuer)))]
     (doto bdr
       (.addExtension
         X509Extension/authorityKeyIdentifier
@@ -784,7 +788,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- makeSSV3
-  "" [^PKeyGist issuer ^String dnStr ^chars pwd args]
+  "" [^czlab.twisty.core.PKeyGist issuer
+      ^String dnStr
+      ^chars pwd args]
 
   (let [[pkey cert] (ssv3Cert issuer
                               (assoc args :dnStr dnStr))]
@@ -814,18 +820,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn exportPkcs7 "" ^bytes [^PKeyGist pkey]
+(defn exportPkcs7 "" ^bytes [^czlab.twisty.core.PKeyGist pkey]
   (let
     [xxx (CMSProcessableByteArray. (bytesit "?"))
      gen (CMSSignedDataGenerator.)
-     cl (into [] (.chain pkey))
+     cl (:chain @pkey))
      bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)
                   .build)
               JcaSignerInfoGeneratorBuilder.)
      ;;    "SHA1withRSA"
      cs (-> (withBC1 JcaContentSignerBuilder sha-512-rsa)
-            (.build (.pkey pkey)))
-     ^X509Certificate x509 (.cert pkey)]
+            (.build (:pkey @pkey)))
+     ^X509Certificate x509 (:cert @pkey)]
     (->> (.build bdr cs x509)
          (.addSignerInfoGenerator gen ))
     (->> (JcaCertStore. cl)
@@ -967,17 +973,21 @@
   (if-some [b (convBytes data)]
     (-> (msgDigest algo) (.  digest b) Hex/toHexString )))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defstateful CertGist)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn certGist
-  "Basic info from cert" ^CertGist [^X509Certificate x509]
-
+(defn defCertGist "Basic info from cert"
+  ^czlab.twisty.core.CertGist
+  [^X509Certificate x509]
   (if x509
-    (reify CertGist
-      (issuer [_] (.getIssuerX500Principal x509))
-      (subj [_] (.getSubjectX500Principal x509))
-      (notBefore [_] (.getNotBefore x509))
-      (notAfter [_] (.getNotAfter x509)))))
+    (entity<> CertGist
+              {:issuer (.getIssuerX500Principal x509)
+               :subj (.getSubjectX500Principal x509)
+               :notBefore (.getNotBefore x509)
+               :notAfter (.getNotAfter x509)})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

@@ -36,16 +36,38 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defprotocol PKCSKeyStore
+  (keyEntity [_ pwd] [_ alias pwd] )
+  (certEntity [_ alias] )
+  (intermediateCAs [_] )
+  (rootCAs [_] )
+  (trustedCerts [_] )
+  (addKeyEntity [_ gist pwd])
+  (trustManagerFactory [_] )
+  (keyManagerFactory [_] )
+  (certAliases [_])
+  (keyAliases [_] )
+  (addCertEntity [_ cert] )
+  (addPKCS7Entity [_ arg] )
+  (removeEntity [_ alias] )
+  (intern [_] )
+  (password [_] )
+  (write [_ out] [_ out pwd] ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro defCryptoStore ""
+  ([pwd] `(defCryptoStore (defPkcs12 nil ~pwd)))
+  ([] `(defCryptoStore (defPkcs12)))
+  ([ks pwd]
+   `(entity<> CryptoStore {:store ks :passwd pwd})))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn cryptoStore<>
-  "Create a crypto store" {:tag CryptoStore}
-
-  ([pwd] (cryptoStore<> (pkcsStore<> nil pwd)))
-  ([] (cryptoStore<> (pkcsStore<>)))
-  ([^KeyStore store ^chars passwd]
-   {:pre [(some? store)]}
-   (reify CryptoStore
+(defstateful CryptoStore
+   CryptoStore
      (addKeyEntity [_ gist pwd]
        (.setKeyEntry store
                      (alias<>) (.pkey gist) pwd (.chain gist)))
