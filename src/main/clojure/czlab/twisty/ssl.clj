@@ -11,7 +11,7 @@
 
   czlab.twisty.ssl
 
-  (:require [czlab.twisty.store :refer [defCryptoStore]]
+  (:require [czlab.twisty.store :refer [cryptoStore<>]]
             [czlab.basal.logging :as log])
 
   (:use [czlab.twisty.core]
@@ -52,42 +52,42 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defSimpleTrustMgr "Checks nothing" ^X509TrustManager [] x-tmgr)
+(defn simpleTrustMgr<> "Checks nothing" ^X509TrustManager [] x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- simpleTrustManagers
-  "" [] (vargs TrustManager [(defSimpleTrustMgr)]))
+  "" [] (vargs TrustManager [(simpleTrustMgr<>)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defSslTrustMgrFactory "" []
+(defn sslTrustMgrFactory<> "" []
   (proxy [SSLTrustMgrFactory][]
     (engineGetTrustManagers [] (simpleTrustManagers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defSslContext
+(defn sslContext<>
   "Create a server-side ssl-context" {:tag SSLContext}
 
-  ([pkey pwd] (defSslContext pkey pwd nil))
+  ([pkey pwd] (sslContext<> pkey pwd nil))
 
   ([pkey pwd flavor]
    (let
      [ctx (-> (stror flavor "TLS")
               SSLContext/getInstance)
-      ^czlab.twisty.store.CrytoStore
-      cs (defCryptoStore)]
+      ^czlab.twisty.store.CryptoStore
+      cs (cryptoStore<>)]
      (.addKeyEntity cs pkey pwd)
      (.init ctx
-            (.. cs keyManagerFactory getKeyManagers)
-            (.. cs trustManagerFactory getTrustManagers)
+            (. ^KeyManagerFactory (.keyManagerFactory cs) getKeyManagers)
+            (. ^TrustManagerFactory (.trustManagerFactory cs) getTrustManagers)
             (rand<> true))
      ctx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defSslClientCtx
+(defn sslClientCtx<>
   "A client-side SSLContext"
   ^SSLContext
   [ssl?]

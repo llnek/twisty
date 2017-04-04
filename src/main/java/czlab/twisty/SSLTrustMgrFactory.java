@@ -10,19 +10,9 @@
 
 package czlab.twisty;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.security.KeyStore;
-import java.security.Security;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-
 import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManagerFactorySpi;
-
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import java.security.KeyStore;
 
 /**
  * A simple trust manager.
@@ -39,34 +29,6 @@ public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
   @Override
   public void engineInit(KeyStore ks) {}
 
-  public static void main(String[] args) {
-    try {
-      Security.addProvider(new BouncyCastleProvider());
-      KeyStore s= KeyStore.getInstance("PKCS12", "BC");
-      ByteArrayOutputStream baos= new ByteArrayOutputStream();
-      s.load(null, null);
-      try (InputStream inp= new FileInputStream("servercert.pem")) {
-        CertificateFactory fac= CertificateFactory.getInstance( "X.509");
-        Object cp= fac.generateCertificates(inp);
-        Object obj= fac.getCertPathEncodings().next();
-
-//        s.setCertificateEntry("aaa", c);
-//        s.store(baos, "sesame".toCharArray());
-//        //Object e= s.aliases();
-        System.out.println( s.toString());
-      }
-      byte[] out= baos.toByteArray();
-      ByteArrayInputStream inp= new ByteArrayInputStream(out);
-      s= KeyStore.getInstance("PKCS12", "BC");
-      s.load(inp, "sesame".toCharArray());
-      Certificate c= s.getCertificate("aaa");
-      System.out.println( c.toString());
-      out=null;
-    }
-    catch (Throwable t) {
-      t.printStackTrace();
-    }
-  }
 }
 
 

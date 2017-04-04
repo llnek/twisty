@@ -30,7 +30,7 @@
            [java.io ByteArrayOutputStream]
            [java.security Key KeyFactory SecureRandom]
            [javax.crypto Cipher]
-           [czlab.twisty Cryptor IPassword]
+           [czlab.twisty IPassword]
            [czlab.jasal CU]
            [org.mindrot.jbcrypt BCrypt]
            [org.bouncycastle.crypto.engines
@@ -183,7 +183,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;"Encrypt by character rotation"
-(deftype CaesarCryptor []
+(defrecord CaesarCryptor []
   Cryptor
   (encrypt [_ shiftpos text]
     (if (or (szero? shiftpos)
@@ -191,7 +191,7 @@
       text
       (let [delta (mod (Math/abs (int shiftpos)) vischs-len)
             pf (partial shiftenc shiftpos delta)
-            ca (.toCharArray text)
+            ca (.toCharArray ^String text)
             out (amap ca pos ret
                       (caesarAMapExpr ca pos pf))]
         (String. ^chars out))))
@@ -201,7 +201,7 @@
       text
       (let [delta (mod (Math/abs (int shiftpos)) vischs-len)
             pf (partial shiftdec shiftpos delta)
-            ca (.toCharArray text)
+            ca (.toCharArray ^String text)
             out (amap ca pos ret
                       (caesarAMapExpr ca pos pf))]
         (String. ^chars out))))
@@ -209,27 +209,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro caesarCryptor<> "" [] `(CaesarCryptor.))
+(defmacro caesarCryptor<>
+  "" []
+  `~(with-meta (CaesarCryptor.)
+               {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jasypt cryptor
-(deftype JasyptCryptor []
+(defrecord JasyptCryptor []
   Cryptor
-  (decrypt [_ pkey cipherText]
+  (decrypt [_ pkey data]
     (-> (doto (StrongTextEncryptor.)
-          (.setPasswordCharArray (charsit pkey))
-          (.decrypt (strit data)))))
+          (.setPasswordCharArray (charsit pkey)))
+        (.decrypt (strit data))))
 
   (encrypt [_ pkey data]
     (-> (doto (StrongTextEncryptor.)
-          (.setPasswordCharArray (charsit pkey))
-          (.encrypt (strit data)))))
+          (.setPasswordCharArray (charsit pkey)))
+        (.encrypt (strit data))))
 
   (algo [_] "PBEWithMD5AndTripleDES"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro jasyptCryptor<> "" [] `(JasyptCryptor.))
+(defmacro jasyptCryptor<>
+  "" []
+  `~(with-meta (JasyptCryptor.)
+               {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
@@ -272,22 +278,24 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(deftype JavaCryptor []
+(defrecord JavaCryptor []
   Cryptor
   (decrypt [me pkey cipher]
     (jcryptorImpl pkey cipher (.algo me) Cipher/DECRYPT_MODE))
   (encrypt [me pkey clear]
-    (jcryptorImpl pkey cipher (.algo me) Cipher/ENCRYPT_MODE))
+    (jcryptorImpl pkey clear (.algo me) Cipher/ENCRYPT_MODE))
   ;;PBEWithMD5AndDES
   (algo [_] t3-des))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro javaCryptor<> "" [] `(JavaCryptor.))
+(defmacro javaCryptor<>
+  "" []
+  `~(with-meta (JavaCryptor.) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
-(deftype AsymCryptor []
+(defrecord AsymCryptor []
   Cryptor
   (encrypt [me pubKey data]
     (when data
@@ -313,7 +321,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro asymCryptor<> "" [] `(AsymCryptor.))
+(defmacro asymCryptor<>
+  "" []
+  `~(with-meta (AsymCryptor.) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
@@ -346,7 +356,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(deftype BCastleCryptor []
+(defrecord BCastleCryptor []
   Cryptor
   (decrypt [me pkey cipher]
     (bcXXX pkey cipher (.algo me) false))
@@ -356,7 +366,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro bcastleCryptor<> "" [] `(BCastleCryptor.))
+(defmacro bcastleCryptor<>
+  "" []
+  `~(with-meta (BCastleCryptor.) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords

@@ -8,7 +8,7 @@
 
 (ns czlab.test.twisty.test
 
-  (:use [czlab.twisty.stores]
+  (:use [czlab.twisty.store]
         [czlab.twisty.codec]
         [czlab.twisty.ssl]
         [czlab.basal.core]
@@ -18,8 +18,9 @@
         [clojure.test]
         [czlab.twisty.core])
 
-  (:import [czlab.twisty PKeyGist Cryptor CryptoStore IPassword]
-           [java.util Date GregorianCalendar]
+  (:import [java.util Date GregorianCalendar]
+           [czlab.twisty IPassword]
+           [czlab.basal Stateful]
            [java.io File]
            [java.math BigInteger]
            [java.security
@@ -62,11 +63,11 @@
   ^{:private true :tag "[C"}
   secret (.toCharArray "secret"))
 
-(def ^:private ^CryptoStore
-  root-cs (cryptoStore<> (initStore! (pkcsStore<>) root-pfx help-me) help-me))
+(def ^:private ^czlab.twisty.store.CryptoStore
+  root-cs (cryptoStore<> (pkcs12<> root-pfx help-me) help-me))
 
-(def ^:private ^CryptoStore
-  root-ks (cryptoStore<> (initStore! (jksStore<>) root-jks help-me) help-me))
+(def ^:private ^czlab.twisty.store.CryptoStore
+  root-ks (cryptoStore<> (jks<> root-jks help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -98,16 +99,16 @@
   (testing
     "related to: crypto stores"
 
-    (is (= "PKCS12" (.getType (pkcsStore<>))))
-    (is (= "JKS" (.getType (jksStore<>))))
+    (is (= "PKCS12" (.getType (pkcs12<>))))
+    (is (= "JKS" (.getType (jks<>))))
 
     (is (let [out (baos<>)
               x (.toCharArray "a")
               _ (.write root-cs out x)
               b (.toByteArray out)
               i (streamit b)
-              s (cryptoStore<> (pkcsStore<> i x) x)]
-          (some? (.intern s))))
+              s (cryptoStore<> (pkcs12<> i x) x)]
+          (ist? KeyStore (:store @s))))
 
     (is (let [a (.keyAliases root-cs)
               c (count a)
@@ -115,7 +116,7 @@
               e (.keyEntity root-cs n help-me)]
           (and (== 1 c)
                (string? n)
-               (ist? PKeyGist e))))
+               (ist? Stateful e))))
 
     (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
 
@@ -126,7 +127,7 @@
               t (tempFile)
               t (exportPkcs7File g t)
               z (.length t)
-              c (.cert g)
+              c (:cert @g)
               b (exportCert c)]
           (deleteQ t)
           (and (> z 10)
@@ -197,7 +198,7 @@
 
   (is (let [b (resBytes "czlab/test/twisty/cert.crt")
             c (convCert b)
-            g (certGist c)
+            g (certGist<> c)
             ok? (validCert? c)]
         (and c g ok?)))
 
@@ -205,18 +206,28 @@
 
   (testing
     "related to: caesar crypto"
-    (is (not= "heeloo, how are you?"
-              (caesarDecrypt 666
-                             (caesarEncrypt 709394
-                                            "heeloo, how are you?"))))
+    (is (let [c (caesarCryptor<>)]
+          (not= "heeloo, how are you?"
+                (.decrypt c
+                          666
+                          (.encrypt c
+                                    709394
+                                    "heeloo, how are you?")))))
 
-    (is (= "heeloo, how are you?"
-           (caesarDecrypt 709394
-                          (caesarEncrypt 709394
-                                         "heeloo, how are you?"))))
+    (is (let [c (caesarCryptor<>)]
+          (= "heeloo, how are you?"
+             (.decrypt c
+                       709394
+                       (.encrypt c
+                                 709394
+                                 "heeloo, how are you?")))))
 
-    (is (= "heeloo, how are you?"
-           (caesarDecrypt 13 (caesarEncrypt 13 "heeloo, how are you?")))))
+    (is (let [c (caesarCryptor<>)]
+          (= "heeloo, how are you?"
+             (.decrypt c
+                       13
+                       (.encrypt c
+                                 13 "heeloo, how are you?"))))))
 
   (testing
     "related to: jasypt crypto"
@@ -263,9 +274,12 @@
     (is (= "heeloo"
            (let [kp (asymKeyPair<> "RSA" 1024)
                  pu (.getEncoded (.getPublic kp))
-                 pv (.getEncoded (.getPrivate kp))]
-             (strit (asymDecr pv
-                                  (asymEncr pu (bytesit "heeloo"))))))))
+                 pv (.getEncoded (.getPrivate kp))
+                 cc (asymCryptor<>)]
+             (strit (.decrypt cc
+                              pv
+                              (.encrypt cc
+                                        pu (bytesit "heeloo"))))))))
 
   (testing
     "related to: passwords"
@@ -283,8 +297,8 @@
   (testing
     "related to: keystores"
 
-    (is (let [ks (ssv1PKCS12 "C=AU,ST=NSW,L=Sydney,O=Google"
-                             secret {:end end-date :keylen 1024 })
+    (is (let [ks (ssv1PKCS12<> "C=AU,ST=NSW,L=Sydney,O=Google"
+                               secret {:end end-date :keylen 1024 })
               fout (tempFile "Joe Blogg" ".p12")
               ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
@@ -292,7 +306,7 @@
           (deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [ks (ssv1JKS "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
+    (is (let [ks (ssv1JKS<> "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
               fout (tempFile "xxxx" ".jks")
               ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
@@ -302,9 +316,9 @@
 
     (is (let [r (.keyEntity root-cs help-me)
               fout (tempFile "xxxx" ".p12")
-              ks (ssv3PKCS12 r
-                             "C=AU,ST=WA,L=Z,O=X"
-                             secret {:end end-date})
+              ks (ssv3PKCS12<> r
+                               "C=AU,ST=WA,L=Z,O=X"
+                               secret {:end end-date})
               ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
               len (.length f)]
@@ -313,9 +327,9 @@
 
     (is (let [r (.keyEntity root-ks help-me)
               fout (tempFile "xxxx" ".jks")
-              ks (ssv3JKS r
-                          "C=AU,ST=WA,L=Z,O=X"
-                          secret {:end end-date})
+              ks (ssv3JKS<> r
+                            "C=AU,ST=WA,L=Z,O=X"
+                            secret {:end end-date})
               ok? (ist? KeyStore ks)
               f (spitKeyStore ks fout help-me)
               len (.length f)]

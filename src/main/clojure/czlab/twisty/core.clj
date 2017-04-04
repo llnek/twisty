@@ -133,6 +133,7 @@
             MimeMessage
             MimeMultipart
             MimeUtility]
+           [czlab.basal Stateful]
            [czlab.jasal XData]
            [java.lang Math]))
 
@@ -313,11 +314,15 @@
 ;;
 (defstateful PKeyGist)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmulti pkeyGist<> "" {:tag Stateful} (fn [a _ _] (class a)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defPKeyGist*
-  "Private key info" [^PrivateKey pkey
-                      ^Certificate cert listOfCerts]
+(defmethod pkeyGist<> PrivateKey
+  [^PrivateKey pkey
+   ^Certificate cert listOfCerts]
   (entity<> PKeyGist
             {:chain (into [] listOfCerts)
              :cert cert
@@ -325,26 +330,24 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defPKeyGist
-  "Get private key from store"
-  [store alias ^chars pwd]
-  {:pre [(some? store)
-         (hgl? alias)]}
+(defmethod pkeyGist<> KeyStore
+  [^KeyStore store ^String alias pwd]
+  {:pre [(hgl? alias)]}
 
-  (if-some [e (->> (KeyStore$PasswordProtection. pwd)
-                   (. ^KeyStore store getEntry ^String alias)
+  (if-some [e (->> (KeyStore$PasswordProtection. (charsit pwd))
+                   (. store getEntry alias)
                    (cast? KeyStore$PrivateKeyEntry))]
-    (defPKeyGist* (.getPrivateKey e)
-                  (.getCertificate e)
-                  (.getCertificateChain e))))
+    (pkeyGist<> (.getPrivateKey e)
+                (.getCertificate e)
+                (.getCertificateChain e))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn tcert<>
   "Get cert from store"
-  ^Certificate [store alias] {:pre [(some? store)]}
+  ^Certificate [^KeyStore store ^String alias] {:pre [(some? store)]}
 
-  (if-some [e (->> (. ^KeyStore store getEntry ^String alias nil)
+  (if-some [e (->> (. store getEntry alias nil)
                    (cast? KeyStore$TrustedCertificateEntry))]
     (.getTrustedCertificate e)))
 
@@ -385,22 +388,22 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defPkcs12
+(defn pkcs12<>
   "Create a PKCS12 key-store" {:tag KeyStore}
 
-  ([arg] (defPkcs12 arg nil))
-  ([] (defPkcs12 nil nil))
+  ([arg] (pkcs12<> arg nil))
+  ([] (pkcs12<> nil nil))
   ([arg pwd2]
    (-> (KeyStore/getInstance "PKCS12" *-bc-*)
        (initStore! arg pwd2))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defJks
+(defn jks<>
   "Create a JKS key-store" {:tag KeyStore}
 
-  ([arg] (defJks arg nil))
-  ([] (defJks nil nil))
+  ([arg] (jks<> arg nil))
+  ([] (jks<> nil nil))
   ([arg pwd2]
    (-> (->> (Security/getProvider "SUN")
             (KeyStore/getInstance "JKS"))
@@ -428,19 +431,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn convPKey "To a Private Key"
-  {:tag czlab.twisty.core.PKeyGist}
 
   ([arg pwd] (convPKey arg pwd nil))
   ([arg ^chars pwd ^chars pwdStore]
    (let
-     [ks (initStore! (defPkcs12) arg pwdStore)
+     [ks (initStore! (pkcs12<>) arg pwdStore)
       n (first (filterEntries ks :keys))]
      (if (hgl? n)
-       (defPKeyGist ks n pwd)))))
+       (pkeyGist<> ks n pwd)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defEasyPolicy
+(defn easyPolicy<>
   "Enables all permissions" ^Policy []
   (proxy [Policy] []
     (getPermissions [cs]
@@ -481,10 +483,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defAsymKeyPair
+(defn asymKeyPair<>
   "Create a Asymmetric key-pair" {:tag KeyPair}
 
-  ([algo] (defAsymKeyPair algo nil))
+  ([algo] (asymKeyPair<> algo nil))
   ([^String algo keylen]
    (let [len (or keylen 1024)]
      (log/debug "gen keypair for algo %s, len %d" algo len)
@@ -535,17 +537,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defCSReq
+(defn csreq<>
   "A PKCS10 (csr-request)" {:tag APersistentVector}
 
-  ([dnStr keylen] (defCSReq dnStr keylen nil))
-  ([dnStr] (defCSReq dnStr 1024 nil))
+  ([dnStr keylen] (csreq<> dnStr keylen nil))
+  ([dnStr] (csreq<> dnStr 1024 nil))
   ([^String dnStr keylen pwd]
    {:pre [(hgl? dnStr)]}
    (let
      [csb (withBC1 JcaContentSignerBuilder def-algo)
       len (or keylen 1024)
-      kp (defAsymKeyPair "RSA" len)
+      kp (asymKeyPair<> "RSA" len)
       rbr (JcaPKCS10CertificationRequestBuilder.
             (X500Principal. dnStr) (.getPublic kp))
       k (.getPrivate kp)
@@ -660,33 +662,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defJks+
+(defn intoJks<>
   "Create jks store"
   ^KeyStore
   [^X509Certificate cert ^PrivateKey pk pwd certs]
   {:pre [(some? cert)(some? pk)]}
 
-  (doto (defJks)
+  (doto (jks<>)
      (setKeyEntry pk
                   pwd
                   (cons cert (or certs [])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defPkcs12+
+(defn intoPkcs12<>
   "Create pkcs12 store"
   ^KeyStore
   [^X509Certificate cert ^PrivateKey pk pwd certs]
   {:pre [(some? cert)(some? pk)]}
 
-  (doto (defPkcs12)
+  (doto (pkcs12<>)
      (setKeyEntry pk
                   pwd
                   (cons cert (or certs [])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defSsv1Cert
+(defn ssv1Cert
   "Create self-signed cert, issuer is self"
   ^APersistentVector
   [{:keys [^String dnStr
@@ -722,23 +724,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ssv1PKCS12
+(defn ssv1PKCS12<>
   "(root level) store" ^KeyStore [dnStr pwd args]
 
   (let [[pkey cert] (ssv1Cert (merge {:algo def-algo
                                       :dnStr dnStr
                                       :style "RSA"} args))]
-    (pkcs12<> cert pkey pwd [])))
+    (intoPkcs12<> cert pkey pwd [])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ssv1JKS
+(defn ssv1JKS<>
   "(root level) store" ^KeyStore [dnStr pwd args]
 
   (let [[pkey cert] (ssv1Cert (merge {:algo "SHA1withDSA"
                                       :dnStr dnStr
                                       :style "DSA"} args))]
-    (jks<> cert pkey pwd [])))
+    (intoJks<> cert pkey pwd [])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -761,7 +763,8 @@
               (or end ))
      start (or start (date<>))
      len (or keylen 1024)
-     kp (-> (:pkey @issuer)
+     kp (-> ^PrivateKey
+            (:pkey @issuer)
             .getAlgorithm
             (asymKeyPair<> len))
      bdr (JcaX509v3CertificateBuilder.
@@ -790,43 +793,41 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- makeSSV3
-  "" [^czlab.twisty.core.PKeyGist issuer
-      ^String dnStr
-      ^chars pwd args]
+  "" [issuer ^String dnStr pwd args]
 
   (let [[pkey cert] (ssv3Cert issuer
                               (assoc args :dnStr dnStr))]
-    [pkey cert (into [] (.chain issuer))]))
+    [pkey cert (into [] (:chain @issuer))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn ssv3PKCS12
+(defn ssv3PKCS12<>
   "SSV3 type pkcs12" ^KeyStore [issuer dnStr pwd args]
 
   (let [[pkey cert certs] (makeSSV3 issuer
                                     dnStr
                                     pwd
                                     (merge args {:algo def-algo}))]
-    (pkcs12<> cert pkey pwd certs)))
+    (intoPkcs12<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JKS uses SUN and hence needs to use DSA
-(defn ssv3JKS
+(defn ssv3JKS<>
   "SSV3 type jks" ^KeyStore [issuer dnStr pwd args]
 
   (let [[pkey cert certs] (makeSSV3 issuer
                                     dnStr
                                     pwd
                                     (merge args {:algo "SHA1withDSA"}))]
-    (jks<> cert pkey pwd certs)))
+    (intoJks<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn exportPkcs7 "" ^bytes [^czlab.twisty.core.PKeyGist pkey]
+(defn exportPkcs7 "" ^bytes [^Stateful pkey]
   (let
     [xxx (CMSProcessableByteArray. (bytesit "?"))
      gen (CMSSignedDataGenerator.)
-     cl (:chain @pkey))
+     cl (:chain @pkey)
      bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)
                   .build)
               JcaSignerInfoGeneratorBuilder.)
@@ -852,11 +853,11 @@
 
   ([user] (session<> user nil))
   ([] (session<> nil nil))
-  ([^String user ^chars pwd]
+  ([^String user pwd]
    (Session/getInstance
      (System/getProperties)
      (if (hgl? user)
-       (->> (if pwd (String. pwd))
+       (->> (if pwd (strit pwd))
             (DefaultAuthenticator. user))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -864,7 +865,7 @@
 (defn mimeMsg<>
   "Create a new MIME Message" {:tag MimeMessage}
 
-  ([^String user ^chars pwd ^InputStream inp]
+  ([^String user pwd ^InputStream inp]
    (let [s (session<> user pwd)]
      (if (nil? inp)
        (MimeMessage. s)
@@ -981,8 +982,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn defCertGist "Basic info from cert"
-  ^czlab.twisty.core.CertGist
+(defn certGist<> "Basic info from cert"
   [^X509Certificate x509]
   (if x509
     (entity<> CertGist

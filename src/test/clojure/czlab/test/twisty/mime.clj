@@ -8,7 +8,7 @@
 
 (ns czlab.test.twisty.mime
 
-  (:use [czlab.twisty.stores]
+  (:use [czlab.twisty.store]
         [czlab.twisty.codec]
         [czlab.twisty.smime]
         [czlab.twisty.core]
@@ -18,7 +18,7 @@
         [clojure.test])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
-           [czlab.twisty PKeyGist IPassword CryptoStore]
+           [czlab.twisty IPassword]
            [java.io File InputStream ByteArrayOutputStream]
            [org.bouncycastle.cms CMSAlgorithm]
            [java.security Policy
@@ -37,10 +37,9 @@
 (def ^:private help-me (.toCharArray "helpme"))
 (def ^:private des-ede3-cbc CMSAlgorithm/DES_EDE3_CBC)
 (def ^:private
-  ^CryptoStore
+  ^czlab.twisty.store.CryptoStore
   root-cs
-  (cryptoStore<> (initStore! (pkcsStore<>)
-                             root-pfx help-me) help-me))
+  (cryptoStore<> (pkcs12<> root-pfx help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -62,19 +61,19 @@
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
-                rc (smimeDigSig (.pkey g)
+                rc (smimeDigSig (:pkey @g)
                                 msg
                                 sha-512-rsa
-                                (into [] (.chain g)))]
+                                (into [] (:chain @g)))]
             (isDataSigned? rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
-                rc (smimeDigSig (.pkey g)
+                rc (smimeDigSig (:pkey @g)
                                 (.getContent msg)
                                 sha-512-rsa
-                                (into [] (.chain g)))]
+                                (into [] (:chain @g)))]
             (isDataSigned? rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
@@ -83,18 +82,18 @@
                 bp (-> ^Multipart
                        (.getContent msg)
                        (.getBodyPart 1))
-                rc (smimeDigSig (.pkey g)
+                rc (smimeDigSig (:pkey @g)
                                 bp
                                 sha-512-rsa
-                                (into [] (.chain g)))]
+                                (into [] (:chain @g)))]
             (isDataSigned? rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
-                mp (smimeDigSig (.pkey g)
+                mp (smimeDigSig (:pkey @g)
                                 (mimeMsg<> nil nil inp)
                                 sha-512-rsa
-                                (into [] (.chain g)))
+                                (into [] (:chain @g)))
                 baos (baos<>)
                 _ (doto (mimeMsg<> nil nil)
                     (.setContent (cast? Multipart mp))
@@ -108,8 +107,8 @@
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
           (let [g (.keyEntity root-cs help-me)
-                cs (into [] (.chain g))
-                mp (smimeDigSig (.pkey g)
+                cs (into [] (:chain @g))
+                mp (smimeDigSig (:pkey @g)
                                 (mimeMsg<> nil nil inp)
                                 sha-512-rsa
                                 cs)
@@ -129,7 +128,7 @@
 
     (is (let [s (SDataSource. (bytesit "yoyo-jojo") "text/plain")
               g (.keyEntity root-cs help-me)
-              cs (into [] (.chain g))
+              cs (into [] (:chain @g))
               bp (doto (MimeBodyPart.)
                    (.setDataHandler (DataHandler. s)))
               ^BodyPart
@@ -144,7 +143,7 @@
                   (.writeTo baos))
               msg2 (mimeMsg<> (streamit (.toByteArray baos)))
               enc (isEncrypted? (.getContentType msg2))
-              rc (smimeDecrypt msg2 [(.pkey g)])]
+              rc (smimeDecrypt msg2 [(:pkey @g)])]
           (and (instBytes? rc)
                (> (.indexOf
                     (strit rc) "yoyo-jojo") 0))))
@@ -154,7 +153,7 @@
                    (bytesit "what's up dawg") "text/plain")
               s1 (SDataSource.
                    (bytesit "hello world") "text/plain")
-              cs (into [] (.chain g))
+              cs (into [] (:chain @g))
               bp2 (doto (MimeBodyPart.)
                     (.setDataHandler (DataHandler. s2)))
               bp1 (doto (MimeBodyPart.)
@@ -174,15 +173,15 @@
                   (.writeTo baos))
               msg3 (mimeMsg<> (streamit (.toByteArray baos)))
               enc (isEncrypted? (.getContentType msg3))
-              rc (smimeDecrypt msg3 [(.pkey g)])]
+              rc (smimeDecrypt msg3 [(:pkey @g)])]
           (and (instBytes? rc)
                (> (.indexOf (strit rc) "what's up dawg") 0)
                (> (.indexOf (strit rc) "hello world") 0))))
 
     (is (let [data (xdata<> "heeloo world")
               g (.keyEntity root-cs help-me)
-              cs (into [] (.chain g))
-              sig (pkcsDigSig (.pkey g) cs sha-512-rsa data)
+              cs (into [] (:chain @g))
+              sig (pkcsDigSig (:pkey @g) cs sha-512-rsa data)
               dg (testPkcsDigSig (first cs) data sig)]
           (and dg (instBytes? dg))))
 
