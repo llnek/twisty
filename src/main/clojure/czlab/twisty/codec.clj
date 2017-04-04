@@ -30,7 +30,6 @@
            [java.io ByteArrayOutputStream]
            [java.security Key KeyFactory SecureRandom]
            [javax.crypto Cipher]
-           [czlab.twisty IPassword]
            [czlab.jasal CU]
            [org.mindrot.jbcrypt BCrypt]
            [org.bouncycastle.crypto.engines
@@ -394,12 +393,29 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defprotocol IPassword
+  ""
+  (^boolean validateHash [_ ^String targetHashed]
+            "if the hash matches the internal value")
+
+  (^String stronglyHashed [_] "")
+
+  (^String hashed [_] "")
+
+  (^chars encoded [_] "")
+
+  (^chars text [_] ""))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defstateful Password
   Object
   (hashCode [me] (.hashCode (str me)))
   (toString [me] (strit (.text me)))
   (equals [me obj]
-    (and (ist? IPassword obj)
+    (and obj
+         (= (.getClass me)
+            (.getClass obj))
          (= (str me) (str obj))))
   IPassword
   (stronglyHashed [me]
@@ -441,7 +457,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn passwd<>
-  "Create a password object" {:tag IPassword}
+  "Create a password object" {:tag czlab.twisty.codec.Password}
 
   ([pwd] (passwd<> pwd nil))
 
@@ -467,8 +483,8 @@
 ;;
 (defn strongPasswd<>
   "Generate a strong password"
-  ^IPassword [len] (passwd<>
-                     (charsit (createXXX s-pwdChars len))))
+  ^czlab.twisty.codec.Password [len]
+  (passwd<> (charsit (createXXX s-pwdChars len))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

@@ -19,7 +19,6 @@
         [czlab.twisty.core])
 
   (:import [java.util Date GregorianCalendar]
-           [czlab.twisty IPassword]
            [czlab.basal Stateful]
            [java.io File]
            [java.math BigInteger]
@@ -286,7 +285,7 @@
     (is (= (alength ^chars (.text (strongPasswd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
-    (is (ist? IPassword (passwd<> "secret-text")))
+    (is (ist? czlab.twisty.codec.Password (passwd<> "secret-text")))
 
     (is (.startsWith
           (strit (.encoded (passwd<> "secret-text"))) "crypt:"))

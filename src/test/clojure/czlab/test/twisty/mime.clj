@@ -18,7 +18,6 @@
         [clojure.test])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
-           [czlab.twisty IPassword]
            [java.io File InputStream ByteArrayOutputStream]
            [org.bouncycastle.cms CMSAlgorithm]
            [java.security Policy
@@ -28,8 +27,7 @@
            [javax.activation DataHandler DataSource]
            [java.util Date GregorianCalendar]
            [javax.mail Multipart BodyPart]
-           [czlab.jasal XData]
-           [czlab.twisty SDataSource]))
+           [czlab.jasal XData SDataSource]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

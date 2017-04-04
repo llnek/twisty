@@ -19,11 +19,9 @@
         [czlab.basal.core])
 
   (:import [java.security.cert X509Certificate]
+           [czlab.jasal SSLTrustMgrFactory]
            [java.security KeyStore]
            [java.net URL]
-           [czlab.twisty
-            IPassword
-            SSLTrustMgrFactory]
            [javax.net.ssl
             TrustManager
             SSLEngine
