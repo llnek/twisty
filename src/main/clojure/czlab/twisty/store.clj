@@ -37,7 +37,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defprotocol ICryptoStore
+(defprotocol CryptoStore
   (keyEntity [_ pwd] [_ alias pwd] )
   (certEntity [_ alias] )
   (intermediateCAs [_] )
@@ -56,58 +56,58 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defstateful CryptoStore
-  ICryptoStore
-  (addKeyEntity [_ gist pwd]
+(defobject CryptoStoreObj
+  CryptoStore
+  (addKeyEntity [me gist pwd]
     (do->nil
       (.setKeyEntry ^KeyStore
-                    (:store @data)
+                    (:store @me)
                     (alias<>)
                     (:pkey @gist)
                     (charsit pwd) (:chain @gist))))
-  (addCertEntity [_ cert]
+  (addCertEntity [me cert]
     (do->nil
       (.setCertificateEntry ^KeyStore
-                            (:store @data) (alias<>) cert)))
+                            (:store @me) (alias<>) cert)))
 
-  (trustManagerFactory [_]
+  (trustManagerFactory [me]
     (doto (TrustManagerFactory/getInstance
             (TrustManagerFactory/getDefaultAlgorithm))
-      (.init ^KeyStore (:store @data))))
+      (.init ^KeyStore (:store @me))))
 
-  (keyManagerFactory [_]
+  (keyManagerFactory [me]
     (doto (KeyManagerFactory/getInstance
             (KeyManagerFactory/getDefaultAlgorithm))
-      (.init ^KeyStore (:store @data) (:passwd @data))))
+      (.init ^KeyStore (:store @me) (:passwd @me))))
 
-  (certAliases [_] (filterEntries (:store @data) :certs))
-  (keyAliases [_] (filterEntries (:store @data) :keys))
-  (keyEntity [_ nm pwd] (pkeyGist<>
-                          (:store @data) nm (charsit pwd)))
+  (certAliases [me] (filterEntries (:store @me) :certs))
+  (keyAliases [me] (filterEntries (:store @me) :keys))
+  (keyEntity [me nm pwd] (pkeyGist<>
+                          (:store @me) nm (charsit pwd)))
   (keyEntity [me pwd]
     (let [[f & more] (.keyAliases me)]
       (if (and f (empty? more))
         (.keyEntity me (str f) pwd)
         (throwBadArg "Store has many keys"))))
 
-  (certEntity [_ nm] (tcert<> (:store @data) nm))
-  (removeEntity [_ nm]
+  (certEntity [me nm] (tcert<> (:store @me) nm))
+  (removeEntity [me nm]
     (let [a (str nm)
-          {:keys [^KeyStore store]} @data]
+          {:keys [^KeyStore store]} @me]
       (if (.containsAlias store a)
         (.deleteEntry store a))))
 
   (intermediateCAs [_] nil) ;;(getCAs keystore true false))
   (rootCAs [_] nil) ;;(getCAs keystore false true))
-  (password [_] (:passwd @data))
-  (write [_ out pwd] (.store ^KeyStore (:store @data) out (charsit pwd)))
-  (write [me out] (.write me out (:passwd @data)))
+  (password [me] (:passwd @me))
+  (write [me out pwd] (.store ^KeyStore (:store @me) out (charsit pwd)))
+  (write [me out] (.write me out (:passwd @me)))
 
   (trustedCerts [me]
     (mapv #(.certEntity me (str %)) (.certAliases me)))
 
-  (addPKCS7Entity [_ arg]
-    (let [{:keys [store]} @data]
+  (addPKCS7Entity [me arg]
+    (let [{:keys [store]} @me]
       (doseq [c (convCerts arg)]
         (.setCertificateEntry ^KeyStore
                               store
@@ -122,9 +122,9 @@
   ([pwd] (cryptoStore<> nil pwd))
   ([] (cryptoStore<> nil))
   ([ks pwd]
-   (entity<> CryptoStore
-              {:store (or ks (pkcs12<>))
-               :passwd (charsit pwd)})))
+   (object<> CryptoStoreObj
+             {:store (or ks (pkcs12<>))
+              :passwd (charsit pwd)})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

@@ -19,7 +19,6 @@
         [czlab.twisty.core])
 
   (:import [java.util Date GregorianCalendar]
-           [czlab.basal Stateful]
            [java.io File]
            [java.math BigInteger]
            [java.security
@@ -115,7 +114,7 @@
               e (.keyEntity root-cs n help-me)]
           (and (== 1 c)
                (string? n)
-               (ist? Stateful e))))
+               (ist? clojure.lang.IDeref e))))
 
     (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
 

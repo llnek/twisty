@@ -312,7 +312,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defstateful PKeyGist)
+(defobject PKeyGist)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -323,7 +323,7 @@
 (defmethod pkeyGist<> PrivateKey
   [^PrivateKey pkey
    ^Certificate cert listOfCerts]
-  (entity<> PKeyGist
+  (object<> PKeyGist
             {:chain (into [] listOfCerts)
              :cert cert
              :pkey pkey}))
@@ -978,14 +978,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defstateful CertGist)
+(defobject CertGist)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn certGist<> "Basic info from cert"
   [^X509Certificate x509]
   (if x509
-    (entity<> CertGist
+    (object<> CertGist
               {:issuer (.getIssuerX500Principal x509)
                :subj (.getSubjectX500Principal x509)
                :notBefore (.getNotBefore x509)

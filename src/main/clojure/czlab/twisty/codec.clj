@@ -393,7 +393,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defprotocol IPassword
+(defprotocol Password
   ""
   (^boolean validateHash [_ ^String targetHashed]
             "if the hash matches the internal value")
@@ -408,7 +408,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defstateful Password
+(defobject PasswordObj
   Object
   (hashCode [me] (.hashCode (str me)))
   (toString [me] (strit (.text me)))
@@ -417,15 +417,15 @@
          (= (.getClass me)
             (.getClass obj))
          (= (str me) (str obj))))
-  IPassword
+  Password
   (stronglyHashed [me]
-    (let [{:keys [pwd]} @data]
+    (let [{:keys [pwd]} @me]
       (if (and pwd
                (not-empty pwd))
         (->> (BCrypt/gensalt 12)
              (BCrypt/hashpw (str me))) "")))
   (hashed [me]
-    (let [{:keys [pwd]} @data]
+    (let [{:keys [pwd]} @me]
       (if (and pwd
                (not-empty pwd))
         (->> (BCrypt/gensalt 10)
@@ -433,7 +433,7 @@
   (validateHash [me pwdHashed]
     (BCrypt/checkpw (str me) pwdHashed))
   (encoded [me]
-    (let [{:keys [pkey pwd]} @data]
+    (let [{:keys [pkey pwd]} @me]
       (cond
         (nil? pwd)
         nil
@@ -445,14 +445,14 @@
                           encrypt
                           pkey
                           (str me)))))))
-  (text [_] (:pwd @data)))
+  (text [me] (:pwd @me)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro ^:private mkPwd "" [pwd pkey]
-  `(entity<> Password
-            {:pwd (charsit ~pwd)
-             :pkey (charsit ~pkey)}))
+  `(object<> PasswordObj
+             {:pwd (charsit ~pwd)
+              :pkey (charsit ~pkey)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
