@@ -754,7 +754,7 @@
            ^Date end
            keylen validFor] :as args}]
   (let
-    [^X509Certificate rootc (:cert @issuer)
+    [^X509Certificate rootc (:cert issuer)
      subject (X500Principal. dnStr)
      exu (JcaX509ExtensionUtils.)
      end (->> (or validFor 12)
@@ -764,7 +764,7 @@
      start (or start (date<>))
      len (or keylen 1024)
      kp (-> ^PrivateKey
-            (:pkey @issuer)
+            (:pkey issuer)
             .getAlgorithm
             (asymKeyPair<> len))
      bdr (JcaX509v3CertificateBuilder.
@@ -775,7 +775,7 @@
            subject
            (.getPublic kp))
      cs (-> (withBC1 JcaContentSignerBuilder algo *-bc-*)
-            (.build (:pkey @issuer)))]
+            (.build (:pkey issuer)))]
     (doto bdr
       (.addExtension
         X509Extension/authorityKeyIdentifier
@@ -797,7 +797,7 @@
 
   (let [[pkey cert] (ssv3Cert issuer
                               (assoc args :dnStr dnStr))]
-    [pkey cert (into [] (:chain @issuer))]))
+    [pkey cert (into [] (:chain issuer))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -823,18 +823,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn exportPkcs7 "" ^bytes [^Stateful pkey]
+(defn exportPkcs7 "" ^bytes [pkey]
   (let
     [xxx (CMSProcessableByteArray. (bytesit "?"))
      gen (CMSSignedDataGenerator.)
-     cl (:chain @pkey)
+     cl (:chain pkey)
      bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)
                   .build)
               JcaSignerInfoGeneratorBuilder.)
      ;;    "SHA1withRSA"
      cs (-> (withBC1 JcaContentSignerBuilder sha-512-rsa)
-            (.build (:pkey @pkey)))
-     ^X509Certificate x509 (:cert @pkey)]
+            (.build (:pkey pkey)))
+     ^X509Certificate x509 (:cert pkey)]
     (->> (.build bdr cs x509)
          (.addSignerInfoGenerator gen ))
     (->> (JcaCertStore. cl)

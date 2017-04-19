@@ -182,7 +182,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;"Encrypt by character rotation"
-(defrecord CaesarCryptor []
+(defobject CaesarCryptor
   Cryptor
   (encrypt [_ shiftpos text]
     (if (or (szero? shiftpos)
@@ -208,14 +208,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro caesarCryptor<>
-  "" []
-  `~(with-meta (CaesarCryptor.)
-               {:tag 'czlab.twisty.codec.Cryptor}))
+(defmacro caesarCryptor<> "" []
+  `~(with-meta (object<> CaesarCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jasypt cryptor
-(defrecord JasyptCryptor []
+(defobject JasyptCryptor
   Cryptor
   (decrypt [_ pkey data]
     (-> (doto (StrongTextEncryptor.)
@@ -231,10 +229,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro jasyptCryptor<>
-  "" []
-  `~(with-meta (JasyptCryptor.)
-               {:tag 'czlab.twisty.codec.Cryptor}))
+(defmacro jasyptCryptor<> "" []
+  `~(with-meta (object<> JasyptCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
@@ -277,7 +273,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defrecord JavaCryptor []
+(defobject JavaCryptor
   Cryptor
   (decrypt [me pkey cipher]
     (jcryptorImpl pkey cipher (.algo me) Cipher/DECRYPT_MODE))
@@ -288,13 +284,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro javaCryptor<>
-  "" []
-  `~(with-meta (JavaCryptor.) {:tag 'czlab.twisty.codec.Cryptor}))
+(defmacro javaCryptor<> "" []
+  `~(with-meta (object<> JavaCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
-(defrecord AsymCryptor []
+(defobject AsymCryptor
   Cryptor
   (encrypt [me pubKey data]
     (when data
@@ -320,9 +315,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro asymCryptor<>
-  "" []
-  `~(with-meta (AsymCryptor.) {:tag 'czlab.twisty.codec.Cryptor}))
+(defmacro asymCryptor<> "" []
+  `~(with-meta (object<> AsymCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
@@ -355,7 +349,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defrecord BCastleCryptor []
+(defobject BCastleCryptor
   Cryptor
   (decrypt [me pkey cipher]
     (bcXXX pkey cipher (.algo me) false))
@@ -365,9 +359,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defmacro bcastleCryptor<>
-  "" []
-  `~(with-meta (BCastleCryptor.) {:tag 'czlab.twisty.codec.Cryptor}))
+(defmacro bcastleCryptor<> "" []
+  `~(with-meta (object<> BCastleCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords
@@ -400,6 +393,8 @@
 
   (^String stronglyHashed [_] "")
 
+  (^String stringify [_] "")
+
   (^String hashed [_] "")
 
   (^chars encoded [_] "")
@@ -409,31 +404,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defobject PasswordObj
-  Object
-  (hashCode [me] (.hashCode (str me)))
-  (toString [me] (strit (.text me)))
-  (equals [me obj]
-    (and obj
-         (= (.getClass me)
-            (.getClass obj))
-         (= (str me) (str obj))))
   Password
   (stronglyHashed [me]
-    (let [{:keys [pwd]} @me]
+    (let [{:keys [pwd]} me]
       (if (and pwd
                (not-empty pwd))
         (->> (BCrypt/gensalt 12)
-             (BCrypt/hashpw (str me))) "")))
+             (BCrypt/hashpw (.stringify me))) "")))
   (hashed [me]
-    (let [{:keys [pwd]} @me]
+    (let [{:keys [pwd]} me]
       (if (and pwd
                (not-empty pwd))
         (->> (BCrypt/gensalt 10)
-             (BCrypt/hashpw (str me))) "")))
+             (BCrypt/hashpw (.stringify me))) "")))
   (validateHash [me pwdHashed]
-    (BCrypt/checkpw (str me) pwdHashed))
+    (BCrypt/checkpw (.stringify me) pwdHashed))
   (encoded [me]
-    (let [{:keys [pkey pwd]} @me]
+    (let [{:keys [pkey pwd]} me]
       (cond
         (nil? pwd)
         nil
@@ -441,11 +428,11 @@
         CZERO
         :else
         (charsit
-          (str pwd-pfx (. (jasyptCryptor<>)
-                          encrypt
-                          pkey
-                          (str me)))))))
-  (text [me] (:pwd @me)))
+          (str pwd-pfx (.encrypt (jasyptCryptor<>)
+                                 pkey
+                                 (.stringify me)))))))
+  (stringify [me] (strit (.text me)))
+  (text [me] (:pwd me)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -456,10 +443,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn passwd<>
+(defn pwd<>
   "Create a password object" {:tag czlab.twisty.codec.Password}
 
-  ([pwd] (passwd<> pwd nil))
+  ([pwd] (pwd<> pwd nil))
 
   ([pwd pkey]
    (let [pkey (or (charsit pkey) c-key)
@@ -467,10 +454,8 @@
      (if
        (some-> s (.startsWith pwd-pfx))
        (mkPwd
-         (. (jasyptCryptor<>)
-            decrypt
-            pkey
-            (.substring s pwd-pfxlen)) pkey)
+         (.decrypt (jasyptCryptor<>)
+                   pkey (.substring s pwd-pfxlen)) pkey)
        (mkPwd pwd pkey)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -484,7 +469,7 @@
 (defn strongPasswd<>
   "Generate a strong password"
   ^czlab.twisty.codec.Password [len]
-  (passwd<> (charsit (createXXX s-pwdChars len))))
+  (pwd<> (charsit (createXXX s-pwdChars len))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

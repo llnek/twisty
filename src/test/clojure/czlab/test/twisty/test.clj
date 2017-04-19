@@ -106,15 +106,14 @@
               b (.toByteArray out)
               i (streamit b)
               s (cryptoStore<> (pkcs12<> i x) x)]
-          (ist? KeyStore (:store @s))))
+          (ist? KeyStore (:store s))))
 
     (is (let [a (.keyAliases root-cs)
               c (count a)
               n (first a)
               e (.keyEntity root-cs n help-me)]
           (and (== 1 c)
-               (string? n)
-               (ist? clojure.lang.IDeref e))))
+               (string? n))))
 
     (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
 
@@ -125,7 +124,7 @@
               t (tempFile)
               t (exportPkcs7File g t)
               z (.length t)
-              c (:cert @g)
+              c (:cert g)
               b (exportCert c)]
           (deleteQ t)
           (and (> z 10)
@@ -284,13 +283,13 @@
     (is (= (alength ^chars (.text (strongPasswd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
-    (is (ist? czlab.twisty.codec.Password (passwd<> "secret-text")))
+    (is (ist? czlab.twisty.codec.Password (pwd<> "secret-text")))
 
     (is (.startsWith
-          (strit (.encoded (passwd<> "secret-text"))) "crypt:"))
+          (strit (.encoded (pwd<> "secret-text"))) "crypt:"))
 
     (is (= "hello joe!"
-           (str (passwd<> (.encoded (passwd<> "hello joe!")))))))
+           (.stringify (pwd<> (.encoded (pwd<> "hello joe!")))))))
 
   (testing
     "related to: keystores"
