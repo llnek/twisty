@@ -38,75 +38,71 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defprotocol CryptoStore
-  (keyEntity [_ pwd] [_ alias pwd] )
-  (certEntity [_ alias] )
-  (intermediateCAs [_] )
-  (rootCAs [_] )
-  (trustedCerts [_] )
-  (addKeyEntity [_ gist pwd])
-  (trustManagerFactory [_] )
-  (keyManagerFactory [_] )
-  (certAliases [_])
-  (keyAliases [_] )
-  (addCertEntity [_ cert] )
-  (addPKCS7Entity [_ arg] )
-  (removeEntity [_ alias] )
-  (password [_] )
-  (write [_ out] [_ out pwd] ))
+  (key-entity [_ pwd] [_ alias pwd] )
+  (cert-entity [_ alias] )
+  (trusted-certs [_] )
+  (add-key-entity [_ gist pwd])
+  (trust-manager-factory [_] )
+  (key-manager-factory [_] )
+  (cert-aliases [_])
+  (key-aliases [_] )
+  (add-cert-entity [_ cert] )
+  (add-pkcs7 [_ arg] )
+  (remove-entity [_ alias] )
+  (pass-word [_] )
+  (write-out [_ out] [_ out pwd] ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defobject CryptoStoreObj
+(decl-object CryptoStoreObj
   CryptoStore
-  (addKeyEntity [me gist pwd]
+  (add-key-entity [me gist pwd]
     (do->nil
       (.setKeyEntry ^KeyStore
                     (:store me)
                     (alias<>)
                     (:pkey gist)
                     (charsit pwd) (:chain gist))))
-  (addCertEntity [me cert]
+  (add-cert-entity [me cert]
     (do->nil
       (.setCertificateEntry ^KeyStore
                             (:store me) (alias<>) cert)))
 
-  (trustManagerFactory [me]
+  (trust-manager-factory [me]
     (doto (TrustManagerFactory/getInstance
             (TrustManagerFactory/getDefaultAlgorithm))
       (.init ^KeyStore (:store me))))
 
-  (keyManagerFactory [me]
+  (key-manager-factory [me]
     (doto (KeyManagerFactory/getInstance
             (KeyManagerFactory/getDefaultAlgorithm))
       (.init ^KeyStore (:store me) (:passwd me))))
 
-  (certAliases [me] (filterEntries (:store me) :certs))
-  (keyAliases [me] (filterEntries (:store me) :keys))
-  (keyEntity [me nm pwd] (pkeyGist<>
+  (cert-aliases [me] (filterEntries (:store me) :certs))
+  (key-aliases [me] (filterEntries (:store me) :keys))
+  (key-entity [me nm pwd] (pkeyGist<>
                           (:store me) nm (charsit pwd)))
-  (keyEntity [me pwd]
-    (let [[f & more] (.keyAliases me)]
+  (key-entity [me pwd]
+    (let [[f & more] (key-aliases me)]
       (if (and f (empty? more))
-        (.keyEntity me (str f) pwd)
+        (key-entity me (str f) pwd)
         (throwBadArg "Store has many keys"))))
 
-  (certEntity [me nm] (tcert<> (:store me) nm))
-  (removeEntity [me nm]
+  (cert-entity [me nm] (tcert<> (:store me) nm))
+  (remove-entity [me nm]
     (let [a (str nm)
           {:keys [^KeyStore store]} me]
       (if (.containsAlias store a)
         (.deleteEntry store a))))
 
-  (intermediateCAs [_] nil) ;;(getCAs keystore true false))
-  (rootCAs [_] nil) ;;(getCAs keystore false true))
-  (password [me] (:passwd me))
-  (write [me out pwd] (.store ^KeyStore (:store me) out (charsit pwd)))
-  (write [me out] (.write me out (:passwd me)))
+  (pass-word [me] (:passwd me))
+  (write-out [me out pwd] (.store ^KeyStore (:store me) out (charsit pwd)))
+  (write-out [me out] (write-out me out (:passwd me)))
 
-  (trustedCerts [me]
-    (mapv #(.certEntity me (str %)) (.certAliases me)))
+  (trusted-certs [me]
+    (mapv #(cert-entity me (str %)) (cert-aliases me)))
 
-  (addPKCS7Entity [me arg]
+  (add-pkcs7 [me arg]
     (let [{:keys [store]} me]
       (doseq [c (convCerts arg)]
         (.setCertificateEntry ^KeyStore
@@ -116,8 +112,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn cryptoStore<>
-  "" {:tag czlab.twisty.store.CryptoStore}
+(defn cryptoStore<> ""
 
   ([pwd] (cryptoStore<> nil pwd))
   ([] (cryptoStore<> nil))

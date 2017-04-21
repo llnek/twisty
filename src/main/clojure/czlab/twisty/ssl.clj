@@ -11,7 +11,7 @@
 
   czlab.twisty.ssl
 
-  (:require [czlab.twisty.store :refer [cryptoStore<>]]
+  (:require [czlab.twisty.store :refer :all]
             [czlab.basal.logging :as log])
 
   (:use [czlab.twisty.core]
@@ -74,12 +74,11 @@
    (let
      [ctx (-> (stror flavor "TLS")
               SSLContext/getInstance)
-      ^czlab.twisty.store.CryptoStore
       cs (cryptoStore<>)]
-     (.addKeyEntity cs pkey pwd)
+     (add-key-entity cs pkey pwd)
      (.init ctx
-            (. ^KeyManagerFactory (.keyManagerFactory cs) getKeyManagers)
-            (. ^TrustManagerFactory (.trustManagerFactory cs) getTrustManagers)
+            (. ^KeyManagerFactory (key-manager-factory cs) getKeyManagers)
+            (. ^TrustManagerFactory (trust-manager-factory cs) getTrustManagers)
             (rand<> true))
      ctx)))
 

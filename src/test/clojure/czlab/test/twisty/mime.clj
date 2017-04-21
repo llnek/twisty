@@ -57,7 +57,7 @@
                  (not (isDataEncrypted? mp))))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
-          (let [g (.keyEntity root-cs help-me)
+          (let [g (key-entity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
                 rc (smimeDigSig (:pkey g)
                                 msg
@@ -66,7 +66,7 @@
             (isDataSigned? rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
-          (let [g (.keyEntity root-cs help-me)
+          (let [g (key-entity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
                 rc (smimeDigSig (:pkey g)
                                 (.getContent msg)
@@ -75,7 +75,7 @@
             (isDataSigned? rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
-          (let [g (.keyEntity root-cs help-me)
+          (let [g (key-entity root-cs help-me)
                 msg (mimeMsg<> nil nil inp)
                 bp (-> ^Multipart
                        (.getContent msg)
@@ -87,7 +87,7 @@
             (isDataSigned? rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
-          (let [g (.keyEntity root-cs help-me)
+          (let [g (key-entity root-cs help-me)
                 mp (smimeDigSig (:pkey g)
                                 (mimeMsg<> nil nil inp)
                                 sha-512-rsa
@@ -104,7 +104,7 @@
             (ist? Multipart rc))))
 
     (is (with-open [inp (resStream "czlab/test/twisty/mime.eml")]
-          (let [g (.keyEntity root-cs help-me)
+          (let [g (key-entity root-cs help-me)
                 cs (into [] (:chain g))
                 mp (smimeDigSig (:pkey g)
                                 (mimeMsg<> nil nil inp)
@@ -125,7 +125,7 @@
                  (instBytes? (:digest rc))))))
 
     (is (let [s (SDataSource. (bytesit "yoyo-jojo") "text/plain")
-              g (.keyEntity root-cs help-me)
+              g (key-entity root-cs help-me)
               cs (into [] (:chain g))
               bp (doto (MimeBodyPart.)
                    (.setDataHandler (DataHandler. s)))
@@ -146,7 +146,7 @@
                (> (.indexOf
                     (strit rc) "yoyo-jojo") 0))))
 
-    (is (let [g (.keyEntity root-cs help-me)
+    (is (let [g (key-entity root-cs help-me)
               s2 (SDataSource.
                    (bytesit "what's up dawg") "text/plain")
               s1 (SDataSource.
@@ -177,7 +177,7 @@
                (> (.indexOf (strit rc) "hello world") 0))))
 
     (is (let [data (xdata<> "heeloo world")
-              g (.keyEntity root-cs help-me)
+              g (key-entity root-cs help-me)
               cs (into [] (:chain g))
               sig (pkcsDigSig (:pkey g) cs sha-512-rsa data)
               dg (testPkcsDigSig (first cs) data sig)]

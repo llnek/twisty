@@ -102,20 +102,20 @@
 
     (is (let [out (baos<>)
               x (.toCharArray "a")
-              _ (.write root-cs out x)
+              _ (write-out root-cs out x)
               b (.toByteArray out)
               i (streamit b)
               s (cryptoStore<> (pkcs12<> i x) x)]
           (ist? KeyStore (:store s))))
 
-    (is (let [a (.keyAliases root-cs)
+    (is (let [a (key-aliases root-cs)
               c (count a)
               n (first a)
-              e (.keyEntity root-cs n help-me)]
+              e (key-entity root-cs n help-me)]
           (and (== 1 c)
                (string? n))))
 
-    (is (let [a (.certAliases root-cs) c (count a)] (== 0 c)))
+    (is (let [a (cert-aliases root-cs) c (count a)] (== 0 c)))
 
     (is (let [g (convPKey (resUrl
                             "czlab/test/twisty/test.p12")
@@ -203,7 +203,7 @@
 
   (testing
     "related to: caesar crypto"
-    (is (let [c (caesarCryptor<>)]
+    (is (let [c (caesar<>)]
           (not= "heeloo, how are you?"
                 (.decrypt c
                           666
@@ -211,7 +211,7 @@
                                     709394
                                     "heeloo, how are you?")))))
 
-    (is (let [c (caesarCryptor<>)]
+    (is (let [c (caesar<>)]
           (= "heeloo, how are you?"
              (.decrypt c
                        709394
@@ -219,7 +219,7 @@
                                  709394
                                  "heeloo, how are you?")))))
 
-    (is (let [c (caesarCryptor<>)]
+    (is (let [c (caesar<>)]
           (= "heeloo, how are you?"
              (.decrypt c
                        13
@@ -229,13 +229,13 @@
   (testing
     "related to: jasypt crypto"
     (is (= "heeloo"
-           (let [c (jasyptCryptor<>)]
+           (let [c (jasypt<>)]
              (.decrypt c
                        c-key
                        (.encrypt c c-key "heeloo")))))
 
     (is (= "heeloo"
-           (let [c (jasyptCryptor<>)
+           (let [c (jasypt<>)
                  pkey secret]
              (.decrypt c
                        pkey
@@ -244,13 +244,13 @@
   (testing
     "related to: java crypto"
     (is (= "heeloo"
-           (let [c (javaCryptor<>)]
+           (let [c (jcrypt<>)]
              (strit (.decrypt c
                                   b-key
                                   (.encrypt c b-key "heeloo"))))))
 
     (is (= "heeloo"
-           (let [c (javaCryptor<>)
+           (let [c (jcrypt<>)
                  pkey (bytesit (String. test-pwd))]
              (strit (.decrypt c
                                   pkey (.encrypt c pkey "heeloo")))))))
@@ -258,13 +258,13 @@
   (testing
     "related to: bouncycastle crypto"
     (is (= "heeloo"
-           (let [c (bcastleCryptor<>)]
+           (let [c (bcastle<>)]
              (strit (.decrypt c
                                   b-key
                                   (.encrypt c b-key "heeloo"))))))
 
     (is (= "heeloo"
-           (let [c (bcastleCryptor<>)
+           (let [c (bcastle<>)
                  pkey (bytesit (String. test-pwd))]
              (strit (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
@@ -272,7 +272,7 @@
            (let [kp (asymKeyPair<> "RSA" 1024)
                  pu (.getEncoded (.getPublic kp))
                  pv (.getEncoded (.getPrivate kp))
-                 cc (asymCryptor<>)]
+                 cc (asym<>)]
              (strit (.decrypt cc
                               pv
                               (.encrypt cc
@@ -280,16 +280,16 @@
 
   (testing
     "related to: passwords"
-    (is (= (alength ^chars (.text (strongPasswd<> 16))) 16))
+    (is (= (alength ^chars (p-text (strongPasswd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
-    (is (ist? czlab.twisty.codec.Password (pwd<> "secret-text")))
+    (is (satisfies? czlab.twisty.codec/Password (pwd<> "secret-text")))
 
     (is (.startsWith
-          (strit (.encoded (pwd<> "secret-text"))) "crypt:"))
+          (strit (p-encoded (pwd<> "secret-text"))) "crypt:"))
 
     (is (= "hello joe!"
-           (.stringify (pwd<> (.encoded (pwd<> "hello joe!")))))))
+           (stringify (pwd<> (p-encoded (pwd<> "hello joe!")))))))
 
   (testing
     "related to: keystores"
@@ -311,7 +311,7 @@
           (deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [r (.keyEntity root-cs help-me)
+    (is (let [r (key-entity root-cs help-me)
               fout (tempFile "xxxx" ".p12")
               ks (ssv3PKCS12<> r
                                "C=AU,ST=WA,L=Z,O=X"
@@ -322,7 +322,7 @@
           (deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [r (.keyEntity root-ks help-me)
+    (is (let [r (key-entity root-ks help-me)
               fout (tempFile "xxxx" ".jks")
               ks (ssv3JKS<> r
                             "C=AU,ST=WA,L=Z,O=X"
@@ -333,7 +333,7 @@
           (deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [r (.keyEntity root-cs help-me)
+    (is (let [r (key-entity root-cs help-me)
               fout (tempFile "xxxx" ".p7b")
               b (exportPkcs7 r)
               f (exportPkcs7File r fout)
