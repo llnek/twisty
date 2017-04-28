@@ -280,7 +280,7 @@
 
   (testing
     "related to: passwords"
-    (is (= (alength ^chars (p-text (strongPasswd<> 16))) 16))
+    (is (= (alength ^chars (p-text (strongPwd<> 16))) 16))
     (is (= (.length (randomStr 64)) 64))
 
     (is (satisfies? czlab.twisty.codec/Password (pwd<> "secret-text")))
