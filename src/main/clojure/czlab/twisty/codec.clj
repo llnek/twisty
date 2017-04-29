@@ -458,7 +458,7 @@
 ;;
 (defn strongPwd<>
   "Generate a strong password"
-  ^czlab.twisty.codec.Password [len]
+  [len]
   (pwd<> (charsit (createXXX s-pwdChars len))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
