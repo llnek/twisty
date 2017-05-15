@@ -280,13 +280,13 @@
     (.generate
       (doto msg .getContent)
       (.build (t/withBC1 JceCMSContentEncryptorBuilder algo)))))
-;kenl
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeEncrypt
   Multipart
   [cert ^ASN1ObjectIdentifier algo ^Multipart mp]
-  (smimeEncrypt cert algo (doto (mimeMsg<>) (.setContent mp))))
+  (smimeEncrypt cert algo (doto (t/mimeMsg<>) (.setContent mp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -299,7 +299,7 @@
   BodyPart
   [^BodyPart bp]
   (if (nil? bp)
-    (xdata<>)
+    (i/xdata<>)
     (with-open [inp (.getInputStream bp)] (smimeInflate inp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -308,12 +308,12 @@
   InputStream
   [^InputStream inp]
   (if (nil? inp)
-    (xdata<>)
+    (i/xdata<>)
     (if-some
       [cms (-> (CMSCompressedDataParser. inp)
                (.getContent (ZlibExpanderProvider.)))]
-      (readBytes (.getContentStream cms))
-      (trap! GeneralSecurityException
+      (i/rxBytes (.getContentStream cms))
+      (c/trap! GeneralSecurityException
              "Decompress stream: corrupted content"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -321,7 +321,7 @@
 (defn- siTester
   "" [^JcaCertStore cs ^SignerInformation si]
   (loop
-    [c (. cs getMatches (.getSID si))
+    [c (.getMatches cs (.getSID si))
      it (some-> c .iterator)
      digest nil
      stop false]
@@ -333,7 +333,7 @@
         [^X509CertificateHolder
          h (.next it)
          bdr
-         (withBC
+         (t/withBC
            JcaSimpleSignerInfoVerifierBuilder)
          dg
          (if
@@ -365,7 +365,7 @@
      cs (JcaCertStore. [cert])
      rc (some (partial siTester cs) (seq sls))]
     (if (nil? rc)
-      (trap! GeneralSecurityException
+      (c/trap! GeneralSecurityException
              "Decode signature: no matching cert"))
     rc))
 
@@ -380,7 +380,7 @@
   ([^MimeMultipart mp certs ^String cte]
    {:pre [(some? mp)]}
    (let
-     [sc (if (hgl? cte)
+     [sc (if (s/hgl? cte)
            (SMIMESigned. mp cte)
            (SMIMESigned. mp))
       sns (-> (.getSignerInfos sc)
@@ -388,11 +388,11 @@
       cs (JcaCertStore. certs)
       rc (some (partial siTester cs) (seq sns))]
      (if (nil? rc)
-       (trap! GeneralSecurityException
+       (c/trap! GeneralSecurityException
               "Verify signature: no matching cert"))
      {:content
       (some-> sc
-              (.getContentAsMimeMessage (session<>))
+              (.getContentAsMimeMessage (t/session<>))
               .getContent)
       :digest rc})))
 
@@ -405,11 +405,11 @@
   {:pre [(not-empty certs)]}
 
   (let
-    [bdr (-> (withBC JcaDigestCalculatorProviderBuilder)
+    [bdr (-> (t/withBC JcaDigestCalculatorProviderBuilder)
              .build
              JcaSignerInfoGeneratorBuilder.)
-     algo (ucase (strKW algo))
-     cs (-> (withBC1 JcaContentSignerBuilder algo)
+     algo (s/ucase (s/strKW algo))
+     cs (-> (t/withBC1 JcaContentSignerBuilder algo)
             (.build pkey))
      gen (CMSSignedDataGenerator.)
      cert (first certs)]
@@ -448,7 +448,7 @@
                     (ZlibCompressor.)))))
 
   ([^String cType ^XData xs ^String cloc ^String cid]
-   {:pre [(hgl? cloc)(hgl? cid)]}
+   {:pre [(s/hgl? cloc)(s/hgl? cid)]}
    (let [ds (SDataSource. xs cType)
          bp (doto (MimeBodyPart.)
               (.setHeader "content-location" cloc)

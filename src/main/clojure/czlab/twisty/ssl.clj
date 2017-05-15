@@ -11,12 +11,11 @@
 
   czlab.twisty.ssl
 
-  (:require [czlab.twisty.store :refer :all]
-            [czlab.basal.log :as log])
-
-  (:use [czlab.twisty.core]
-        [czlab.basal.str]
-        [czlab.basal.core])
+  (:require [czlab.twisty.store :as st]
+            [czlab.basal.log :as log]
+            [czlab.twisty.core :as t]
+            [czlab.basal.str :as s]
+            [czlab.basal.core :as c])
 
   (:import [java.security.cert X509Certificate]
            [czlab.jasal SSLTrustMgrFactory]
@@ -46,7 +45,7 @@
       (log/warn "skipcheck: server certificate: %s"
                 (some-> ^X509Certificate
                         (first chain) .getSubjectDN)))
-    (getAcceptedIssuers [_] (vargs X509Certificate []))))
+    (getAcceptedIssuers [_] (c/vargs X509Certificate []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -55,7 +54,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- simpleTrustManagers
-  "" [] (vargs TrustManager [(simpleTrustMgr<>)]))
+  "" [] (c/vargs TrustManager [(simpleTrustMgr<>)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -72,14 +71,14 @@
 
   ([pkey pwd flavor]
    (let
-     [ctx (-> (stror flavor "TLS")
-              SSLContext/getInstance)
-      cs (cryptoStore<>)]
+     [ctx (SSLContext/getInstance
+            (s/stror flavor "TLS"))
+      cs (st/cryptoStore<>)]
      (add-key-entity cs pkey pwd)
      (.init ctx
-            (. ^KeyManagerFactory (key-manager-factory cs) getKeyManagers)
-            (. ^TrustManagerFactory (trust-manager-factory cs) getTrustManagers)
-            (rand<> true))
+            (.getKeyManagers ^KeyManagerFactory (key-manager-factory cs))
+            (.getTrustManagers ^TrustManagerFactory (trust-manager-factory cs))
+            (c/rand<> true))
      ctx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,7 +89,7 @@
   [ssl?]
   (if ssl?
     (doto (SSLContext/getInstance "TLS")
-          (.init nil (simpleTrustManagers) (rand<>)))))
+          (.init nil (simpleTrustManagers) (c/rand<>)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
