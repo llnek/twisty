@@ -11,13 +11,12 @@
 
   czlab.twisty.smime
 
-  (:require [czlab.basal.logging :as log]
-            [clojure.string :as cs])
-
-  (:use [czlab.twisty.core]
-        [czlab.basal.core]
-        [czlab.basal.io]
-        [czlab.basal.str])
+  (:require [czlab.basal.log :as log]
+            [clojure.string :as cs]
+            [czlab.twisty.core :as t]
+            [czlab.basal.core :as c]
+            [czlab.basal.io :as i]
+            [czlab.basal.str :as s])
 
   (:import [javax.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
@@ -109,7 +108,7 @@
     "SHA-384" SMIMESignedGenerator/DIGEST_SHA384
     "SHA-1" SMIMESignedGenerator/DIGEST_SHA1
     "MD5" SMIMESignedGenerator/DIGEST_MD5
-    (throwBadArg "Unsupported signing algo: %s" algo)))
+    (c/throwBadArg "Unsupported signing algo: %s" algo)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -127,7 +126,7 @@
      ^X509Certificate subj (first certs)
      ^X509Certificate issuer (or (second certs) subj)
      signedAttrs (ASN1EncodableVector.)
-     algo (ucase (strKW algo))
+     algo (s/ucase (s/strKW algo))
      _ (->> (SMIMECapabilitiesAttribute. caps)
             (.add signedAttrs))
      _ (->> (IssuerAndSerialNumber.
@@ -140,11 +139,11 @@
             (.add signedAttrs ))
      bdr (doto
            (-> JcaDigestCalculatorProviderBuilder
-               withBC
+               t/withBC
                .build
                JcaSignerInfoGeneratorBuilder.)
            (.setDirectSignature true))
-     cs (-> JcaContentSignerBuilder (withBC1 algo) (.build pkey))]
+     cs (-> JcaContentSignerBuilder (t/withBC1 algo) (.build pkey))]
 
     (. bdr setSignedAttributeGenerator
        (->> signedAttrs
@@ -175,7 +174,7 @@
   Multipart
   [pkey mp algo certs]
   (smimeDigSig pkey
-               (doto (mimeMsg<>)
+               (doto (t/mimeMsg<>)
                  (.setContent mp)) algo certs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -184,18 +183,18 @@
   BodyPart
   [pkey bp algo certs]
   (-> (signerGentor<> pkey algo certs)
-      (.generate (cast? MimeBodyPart bp))))
+      (.generate (c/cast? MimeBodyPart bp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn peekSmimeSignedContent
   "Get the content ignoring the signing stuff"
   [^Multipart arg]
-  (let [mp (cast? MimeMultipart arg)]
+  (let [mp (c/cast? MimeMultipart arg)]
     (some-> (SMIMESignedParser.
               (BcDigestCalculatorProvider.)
               mp
-              (getCharset (.getContentType mp) "binary"))
+              (t/getCharset (.getContentType mp) "binary"))
             .getContent
             .getContent)))
 
@@ -206,8 +205,8 @@
   ^CMSTypedStream
   [^PrivateKey pkey ^SMIMEEnveloped env]
   (loop
-    [rec (withBC1 JceKeyTransEnvelopedRecipient pkey)
-     it (-> env .getRecipientInfos .getRecipients .iterator)
+    [rec (t/withBC1 JceKeyTransEnvelopedRecipient pkey)
+     it (.. env getRecipientInfos getRecipients iterator)
      rc nil]
     (if (or rc (not (.hasNext it)))
       rc
@@ -223,10 +222,10 @@
   (let
     [rc (some #(if-some
                  [cms (smimeDec %1 ev)]
-                 (toBytes (.getContentStream cms)) ) pkeys)]
+                 (i/toBytes (.getContentStream cms)) ) pkeys)]
     (if (nil? rc)
-      (trap! GeneralSecurityException
-             "No matching decryption key"))
+      (c/trap! GeneralSecurityException
+               "No matching decryption key"))
     rc))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -263,10 +262,10 @@
   (->
     (doto (SMIMEEnvelopedGenerator.)
       (.addRecipientInfoGenerator
-        (withBC1 JceKeyTransRecipientInfoGenerator cert)))
+        (t/withBC1 JceKeyTransRecipientInfoGenerator cert)))
     (.generate
-      (cast? MimeBodyPart bp)
-      (. (withBC1 JceCMSContentEncryptorBuilder algo) build))))
+      (c/cast? MimeBodyPart bp)
+      (.build (t/withBC1 JceCMSContentEncryptorBuilder algo)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -277,11 +276,11 @@
   (->
     (doto (SMIMEEnvelopedGenerator.)
       (.addRecipientInfoGenerator
-        (withBC1 JceKeyTransRecipientInfoGenerator cert)))
+        (t/withBC1 JceKeyTransRecipientInfoGenerator cert)))
     (.generate
       (doto msg .getContent)
-      (. (withBC1 JceCMSContentEncryptorBuilder algo) build))))
-
+      (.build (t/withBC1 JceCMSContentEncryptorBuilder algo)))))
+;kenl
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmethod smimeEncrypt

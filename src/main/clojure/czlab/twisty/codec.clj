@@ -11,12 +11,12 @@
 
   czlab.twisty.codec
 
-  (:require [czlab.basal.logging :as log]
-            [czlab.basal.io :refer [convBytes baos<>]])
-
-  (:use [czlab.basal.core]
-        [czlab.basal.meta]
-        [czlab.basal.str])
+  (:require [czlab.basal.log :as log]
+            [czlab.basal.io :as i
+             :refer [bytes?? baos<>]]
+            [czlab.basal.core :as c]
+            [czlab.basal.meta :as m]
+            [czlab.basal.str :as s])
 
   (:import [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
            [org.bouncycastle.crypto.paddings PaddedBufferedBlockCipher]
@@ -54,27 +54,27 @@
   ^{:private true
     :tag "[C"}
   vis-chs
-  (charsit
+  (c/charsit
     (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
          "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")))
 
 (def
   ^{:private true
     :tag "[C"}
-  c-key (charsit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+  c-key (c/charsit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def ^:private vischs-len (alength vis-chs))
 
 (def ^:private
   s-asciiChars
   (-> (str "abcdefghijklmnopqrstuvqxyz1234567890"
-           "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ) CU/shuffle charsit))
+           "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ" ) CU/shuffle c/charsit))
 
 (def ^:private
   s-pwdChars
   (-> (str "abcdefghijklmnopqrstuvqxyz"
            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-           "`1234567890-_~!@#$%^&*()") CU/shuffle charsit))
+           "`1234567890-_~!@#$%^&*()") CU/shuffle c/charsit))
 
 (def ^:private ^String pwd-pfx "crypt:")
 (def ^:private pwd-pfxlen 6)
@@ -89,24 +89,24 @@
 ;;
 (defprotocol Cryptor
   ""
-  (decrypt [_ pkey data] "")
-  (encrypt [_ pkey data] "")
-  (^String algo [_] ""))
+  (decrypt [_ pkey data] "Decrypt some data")
+  (encrypt [_ pkey data] "Encrypt some data")
+  (^String algo [_] "Encryption algorithm used"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- ensureKeySize
   "Key has enough bits?"
   ^bytes [kee algo]
-  {:pre [(instBytes? kee)]}
+  {:pre [(m/instBytes? kee)]}
   (let [bits (* 8 (alength ^bytes kee))]
     (cond
       (and (= t3-des algo)
            (< bits 192)) ;; 8x 3 = 24 bytes
-      (throwBadArg "TripleDES key length must be 192")
+      (c/throwBadArg "TripleDES key length must be 192")
       (and (= "AES" algo)
            (< bits 128))
-      (throwBadArg "AES key length must be 128 or 256")
+      (c/throwBadArg "AES key length must be 128 or 256")
       :else kee)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -120,16 +120,16 @@
       "AES"
       (cond
         (> bits 256) ;; 32 bytes
-        (vargs Byte/TYPE (take 32 pwd))
+        (c/vargs Byte/TYPE (take 32 pwd))
         ;; 128 => 16 bytes
         (and (> bits 128) (< bits 256))
-        (vargs Byte/TYPE (take 16 pwd))
+        (c/vargs Byte/TYPE (take 16 pwd))
         :else pwd)
 
       t3-des
       (if (> blen 24)
         ;; 24 bytes
-        (vargs Byte/TYPE (take 24 pwd))
+        (c/vargs Byte/TYPE (take 24 pwd))
         pwd)
 
       pwd)))
@@ -182,55 +182,55 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;"Encrypt by character rotation"
-(decl-object CaesarCryptor
+(c/decl-object CaesarCryptor
   Cryptor
   (encrypt [_ shiftpos text]
-    (if (or (szero? shiftpos)
-            (nichts? text))
+    (if (or (c/szero? shiftpos)
+            (s/nichts? text))
       text
       (let [delta (mod (Math/abs (int shiftpos)) vischs-len)
             pf (partial shiftenc shiftpos delta)
-            ca (.toCharArray ^String text)
+            ca (c/charsit text)
             out (amap ca pos ret
                       (caesarAMapExpr ca pos pf))]
-        (String. ^chars out))))
+        (c/strit out))))
   (decrypt [_ shiftpos text]
-    (if (or (szero? shiftpos)
-            (nichts? text))
+    (if (or (c/szero? shiftpos)
+            (s/nichts? text))
       text
       (let [delta (mod (Math/abs (int shiftpos)) vischs-len)
             pf (partial shiftdec shiftpos delta)
-            ca (.toCharArray ^String text)
+            ca (c/charsit text)
             out (amap ca pos ret
                       (caesarAMapExpr ca pos pf))]
-        (String. ^chars out))))
-  (algo [_] ""))
+        (c/strit out))))
+  (algo [_] "caesar"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro caesar<> "" []
-  `~(with-meta (object<> CaesarCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
+  `~(with-meta (czlab.basal.core/object<> CaesarCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jasypt cryptor
-(decl-object JasyptCryptor
+(c/decl-object JasyptCryptor
   Cryptor
   (decrypt [_ pkey data]
     (-> (doto (StrongTextEncryptor.)
-          (.setPasswordCharArray (charsit pkey)))
-        (.decrypt (strit data))))
+          (.setPasswordCharArray (c/charsit pkey)))
+        (.decrypt (c/strit data))))
 
   (encrypt [_ pkey data]
     (-> (doto (StrongTextEncryptor.)
-          (.setPasswordCharArray (charsit pkey)))
-        (.encrypt (strit data))))
+          (.setPasswordCharArray (c/charsit pkey)))
+        (.encrypt (c/strit data))))
 
   (algo [_] "PBEWithMD5AndTripleDES"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro jasypt<> "" []
-  `~(with-meta (object<> JasyptCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
+  `~(with-meta (czlab.basal.core/object<> JasyptCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
@@ -246,12 +246,12 @@
 (defn- javaCodec
   "" ^bytes [pkey data ^Cipher c]
 
-  (when-some [p (convBytes data)]
+  (when-some [p (i/bytes?? data)]
     (let
       [plen (alength p)
        baos (baos<>)
        out (->> (.getOutputSize c plen)
-                (max BUF_SZ)
+                (max c/BUF-SZ)
                 byte-array)
        n (.update c p 0 plen out 0)]
       (if (> n 0)
@@ -266,14 +266,14 @@
 (defmacro ^:private
   jcryptorImpl "" [pkey data algo mode]
   `(when ~data
-     (test-cond "pkey != bytes" (instBytes? ~pkey))
+     (c/test-cond "pkey != bytes" (m/instBytes? ~pkey))
      (ensureKeySize ~pkey ~algo)
      (->> (getCipher ~pkey ~mode ~algo)
           (javaCodec ~pkey ~data))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(decl-object JavaCryptor
+(c/decl-object JavaCryptor
   Cryptor
   (decrypt [me pkey cipher]
     (jcryptorImpl pkey cipher (.algo me) Cipher/DECRYPT_MODE))
@@ -285,38 +285,38 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro jcrypt<> "" []
-  `~(with-meta (object<> JavaCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
+  `~(with-meta (czlab.basal.core/object<> JavaCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
-(decl-object AsymCryptor
+(c/decl-object AsymCryptor
   Cryptor
   (encrypt [me pubKey data]
     (when data
       (let
-        [k (convBytes pubKey)
+        [k (i/bytes?? pubKey)
          ^Key pk (-> (KeyFactory/getInstance "RSA")
                      (.generatePublic (X509EncodedKeySpec. k)))
          cipher (doto (Cipher/getInstance (.algo me))
                   (.init Cipher/ENCRYPT_MODE pk))]
-        (->> (convBytes data)
+        (->> (i/bytes?? data)
              (.doFinal cipher )))))
   (decrypt [me prvKey data]
     (when data
       (let
-        [k (convBytes prvKey)
+        [k (i/bytes?? prvKey)
          ^Key pk (-> (KeyFactory/getInstance "RSA")
                      (.generatePrivate (PKCS8EncodedKeySpec. k)))
          cipher (doto (Cipher/getInstance (.algo me))
                   (.init Cipher/DECRYPT_MODE pk))]
-        (->> (convBytes data)
+        (->> (i/bytes?? data)
              (.doFinal cipher )))))
   (algo [_] "RSA/ECB/PKCS1Padding"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro asym<> "" []
-  `~(with-meta (object<> AsymCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
+  `~(with-meta (czlab.basal.core/object<> AsymCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
@@ -330,14 +330,14 @@
              "DESede" (DESedeEngine.)
              "AES" (AESEngine.)
              "RSA" (RSAEngine.)
-             (test-cond "no crypto engine" false))
+             (c/test-cond "no crypto engine" false))
        cipher (doto (-> eng CBCBlockCipher.
                             PaddedBufferedBlockCipher.)
                 (.init mode
                        (KeyParameter.
                          (keyAsBits pkey algo))))
-       out (byte-array BUF_SZ)
-       p (convBytes data)
+       out (byte-array c/BUF-SZ)
+       p (i/bytes?? data)
        baos (baos<>)
        c (.processBytes cipher p 0 (alength p) out 0)]
       (if (> c 0)
@@ -349,7 +349,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(decl-object BCastleCryptor
+(c/decl-object BCastleCryptor
   Cryptor
   (decrypt [me pkey cipher]
     (bcXXX pkey cipher (.algo me) false))
@@ -360,7 +360,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro bcastle<> "" []
-  `~(with-meta (object<> BCastleCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
+  `~(with-meta (czlab.basal.core/object<> BCastleCryptor) {:tag 'czlab.twisty.codec.Cryptor}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords
@@ -369,7 +369,7 @@
 
   (let [alen (alength chArray)
         b Integer/MAX_VALUE
-        r (rand<>)]
+        r (c/rand<>)]
     (cond
       (== len 0) ""
       (< len 0) nil
@@ -388,48 +388,48 @@
 ;;
 (defprotocol Password
   ""
-  (valid-hash? [_ ^String targetHashed] "")
-  (^String strongly-hashed [_] "")
-  (^String stringify [_] "")
-  (^String hashed [_] "")
-  (^chars p-encoded [_] "")
-  (^chars p-text [_] ""))
+  (valid-hash? [_ ^String targetHashed] "Check to match")
+  (^String strongly-hashed [_] "Get (string) hash value")
+  (^String stringify [_] "Get as string")
+  (^String hashed [_] "Get hash value")
+  (^chars p-encoded [_] "Get encoded value")
+  (^chars p-text [_] "Get clear text value"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(decl-object PasswordObj
+(c/decl-object PasswordObj
   Password
   (strongly-hashed [me]
     (let [{:keys [pwd]} me]
       (if (and pwd
                (not-empty pwd))
         (->> (BCrypt/gensalt 12)
-             (BCrypt/hashpw (stringify me))) "")))
+             (BCrypt/hashpw (.stringify me))) "")))
   (hashed [me]
     (let [{:keys [pwd]} me]
       (if (and pwd
                (not-empty pwd))
         (->> (BCrypt/gensalt 10)
-             (BCrypt/hashpw (stringify me))) "")))
+             (BCrypt/hashpw (.stringify me))) "")))
   (valid-hash? [me pwdHashed]
-    (BCrypt/checkpw (stringify me) pwdHashed))
+    (BCrypt/checkpw (.stringify me) pwdHashed))
   (p-encoded [me]
     (let [{:keys [pkey pwd]} me]
       (cond
         (nil? pwd) nil
         (empty? pwd) CZERO
-        :else (charsit (str pwd-pfx
+        :else (c/charsit (str pwd-pfx
                             (.encrypt (jasypt<>)
-                                      pkey (stringify me)))))))
-  (stringify [me] (strit (p-text me)))
+                                      pkey (.stringify me)))))))
+  (stringify [me] (c/strit (.p-text me)))
   (p-text [me] (:pwd me)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defmacro ^:private mkPwd "" [pwd pkey]
-  `(object<> PasswordObj
-             {:pwd (charsit ~pwd)
-              :pkey (charsit ~pkey)}))
+  `(czlab.basal.core/object<> PasswordObj
+             {:pwd (c/charsit ~pwd)
+              :pkey (c/charsit ~pkey)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -439,8 +439,8 @@
   ([pwd] (pwd<> pwd nil))
 
   ([pwd pkey]
-   (let [pkey (or (charsit pkey) c-key)
-         s (strit pwd)]
+   (let [pkey (or (c/charsit pkey) c-key)
+         s (c/strit pwd)]
      (if
        (some-> s (.startsWith pwd-pfx))
        (mkPwd
@@ -459,7 +459,7 @@
 (defn strongPwd<>
   "Generate a strong password"
   [len]
-  (pwd<> (charsit (createXXX s-pwdChars len))))
+  (pwd<> (c/charsit (createXXX s-pwdChars len))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

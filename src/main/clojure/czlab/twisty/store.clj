@@ -11,7 +11,7 @@
 
   czlab.twisty.store
 
-  (:require [czlab.basal.logging :as log])
+  (:require [czlab.basal.log :as log])
 
   (:use [czlab.twisty.core]
         [czlab.basal.core]

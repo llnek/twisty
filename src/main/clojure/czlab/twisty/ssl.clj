@@ -12,7 +12,7 @@
   czlab.twisty.ssl
 
   (:require [czlab.twisty.store :refer :all]
-            [czlab.basal.logging :as log])
+            [czlab.basal.log :as log])
 
   (:use [czlab.twisty.core]
         [czlab.basal.str]
