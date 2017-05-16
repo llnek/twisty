@@ -74,10 +74,10 @@
      [ctx (SSLContext/getInstance
             (s/stror flavor "TLS"))
       cs (st/cryptoStore<>)]
-     (add-key-entity cs pkey pwd)
+     (st/add-key-entity cs pkey pwd)
      (.init ctx
-            (.getKeyManagers ^KeyManagerFactory (key-manager-factory cs))
-            (.getTrustManagers ^TrustManagerFactory (trust-manager-factory cs))
+            (.getKeyManagers ^KeyManagerFactory (st/key-manager-factory cs))
+            (.getTrustManagers ^TrustManagerFactory (st/trust-manager-factory cs))
             (c/rand<> true))
      ctx)))
 

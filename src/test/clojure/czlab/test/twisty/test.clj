@@ -8,15 +8,16 @@
 
 (ns czlab.test.twisty.test
 
-  (:use [czlab.twisty.store]
-        [czlab.twisty.codec]
-        [czlab.twisty.ssl]
-        [czlab.basal.core]
-        [czlab.basal.meta]
-        [czlab.basal.str]
-        [czlab.basal.io]
-        [clojure.test]
-        [czlab.twisty.core])
+  (:require [czlab.twisty.store :as st]
+            [czlab.twisty.codec :as cc]
+            [czlab.twisty.ssl :as ss]
+            [czlab.basal.core :as c]
+            [czlab.basal.meta :as m]
+            [czlab.basal.str :as s]
+            [czlab.basal.io :as i]
+            [czlab.twisty.core :as t])
+
+  (:use [clojure.test])
 
   (:import [java.util Date GregorianCalendar]
            [java.io File]
@@ -36,36 +37,36 @@
 
 (def
   ^{:private true :tag "[C"}
-  c-key (.toCharArray "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+  c-key (c/charsit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
   ^{:private true :tag "[B"}
-  b-key (bytesit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
+  b-key (c/bytesit "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
 (def
   ^{:private true :tag "[C"}
-  test-pwd (.toCharArray "secretsecretsecretsecretsecret"))
+  test-pwd (c/charsit "secretsecretsecretsecretsecret"))
 
 (def
   ^{:private true :tag "[B"}
-  root-pfx (resBytes "czlab/test/twisty/test.pfx"))
+  root-pfx (c/resBytes "czlab/test/twisty/test.pfx"))
 (def
   ^{:private true :tag "[B"}
-  root-jks (resBytes "czlab/test/twisty/test.jks"))
+  root-jks (c/resBytes "czlab/test/twisty/test.jks"))
 
 (def
   ^{:private true :tag "[C"}
-  help-me (.toCharArray "helpme"))
+  help-me (c/charsit "helpme"))
 
 (def
   ^{:private true :tag "[C"}
-  secret (.toCharArray "secret"))
+  secret (c/charsit "secret"))
 
-(def ^:private ^czlab.twisty.store.CryptoStore
-  root-cs (cryptoStore<> (pkcs12<> root-pfx help-me) help-me))
+(def ^:private
+  root-cs (st/cryptoStore<> (t/pkcs12<> root-pfx help-me) help-me))
 
-(def ^:private ^czlab.twisty.store.CryptoStore
-  root-ks (cryptoStore<> (jks<> root-jks help-me) help-me))
+(def ^:private
+  root-ks (st/cryptoStore<> (t/jks<> root-jks help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -73,137 +74,137 @@
 
   (testing
     "related to: checking content-type"
-    (is (isSigned? "application/x-pkcs7-mime; signed-data"))
-    (is (isSigned? "multipart/signed"))
-    (is (not (isSigned? "text/plain")))
+    (is (t/isSigned? "application/x-pkcs7-mime; signed-data"))
+    (is (t/isSigned? "multipart/signed"))
+    (is (not (t/isSigned? "text/plain")))
 
-    (is (isEncrypted? "application/x-pkcs7-mime; enveloped-data"))
-    (is (not (isEncrypted? "text/plain")))
+    (is (t/isEncrypted? "application/x-pkcs7-mime; enveloped-data"))
+    (is (not (t/isEncrypted? "text/plain")))
 
-    (is (isCompressed? "application/pkcs7-mime; compressed-data"))
-    (is (not (isCompressed? "text/plain"))))
+    (is (t/isCompressed? "application/pkcs7-mime; compressed-data"))
+    (is (not (t/isCompressed? "text/plain"))))
 
-  (is (not (jksFile? (resUrl "czlab/test/twisty/test.p12"))))
-  (is (jksFile? (resUrl "czlab/test/twisty/test.jks")))
+  (is (not (t/jksFile? (c/resUrl "czlab/test/twisty/test.p12"))))
+  (is (t/jksFile? (c/resUrl "czlab/test/twisty/test.jks")))
 
-  (is (= "SHA-512" (.getAlgorithm (msgDigest "SHA-512"))))
-  (is (= "MD5" (.getAlgorithm (msgDigest "MD5"))))
+  (is (= "SHA-512" (.getAlgorithm (t/msgDigest "SHA-512"))))
+  (is (= "MD5" (.getAlgorithm (t/msgDigest "MD5"))))
 
-  (is (ist? BigInteger (nextSerial)))
+  (is (c/ist? BigInteger (t/nextSerial)))
 
-  (is (not= (alias<>)(alias<>)))
-  (is (string? (alias<>)))
+  (is (not= (t/alias<>)(t/alias<>)))
+  (is (string? (t/alias<>)))
 
   (testing
     "related to: crypto stores"
 
-    (is (= "PKCS12" (.getType (pkcs12<>))))
-    (is (= "JKS" (.getType (jks<>))))
+    (is (= "PKCS12" (.getType (t/pkcs12<>))))
+    (is (= "JKS" (.getType (t/jks<>))))
 
-    (is (let [out (baos<>)
-              x (.toCharArray "a")
-              _ (write-out root-cs out x)
-              b (.toByteArray out)
-              i (streamit b)
-              s (cryptoStore<> (pkcs12<> i x) x)]
-          (ist? KeyStore (:store s))))
+    (is (let [out (i/baos<>)
+              x (c/charsit "a")
+              _ (st/write-out root-cs out x)
+              b (c/bytesit out)
+              i (i/streamit b)
+              s (st/cryptoStore<> (t/pkcs12<> i x) x)]
+          (c/ist? KeyStore (:store s))))
 
-    (is (let [a (key-aliases root-cs)
+    (is (let [a (st/key-aliases root-cs)
               c (count a)
               n (first a)
-              e (key-entity root-cs n help-me)]
+              e (st/key-entity root-cs n help-me)]
           (and (== 1 c)
                (string? n))))
 
-    (is (let [a (cert-aliases root-cs) c (count a)] (== 0 c)))
+    (is (let [a (st/cert-aliases root-cs) c (count a)] (== 0 c)))
 
-    (is (let [g (convPKey (resUrl
-                            "czlab/test/twisty/test.p12")
-                          help-me
-                          help-me)
-              t (tempFile)
-              t (exportPkcs7File g t)
+    (is (let [g (t/convPKey (c/resUrl
+                              "czlab/test/twisty/test.p12")
+                            help-me
+                            help-me)
+              t (i/tempFile)
+              t (t/exportPkcs7File g t)
               z (.length t)
               c (:cert g)
-              b (exportCert c)]
-          (deleteQ t)
+              b (t/exportCert c)]
+          (i/deleteQ t)
           (and (> z 10)
                (> (alength b) 10)))))
 
-  (is (some? (easyPolicy<>)))
+  (is (some? (t/easyPolicy<>)))
 
   (testing
     "related to: mac & hash"
-    (is (= (genMac b-key "hello world")
-           (genMac b-key "hello world")))
+    (is (= (t/genMac b-key "hello world")
+           (t/genMac b-key "hello world")))
 
-    (is (not= (genMac b-key "hello maria")
-              (genMac b-key "hello world")))
+    (is (not= (t/genMac b-key "hello maria")
+              (t/genMac b-key "hello world")))
 
-    (is (= (genHash "hello world")
-           (genHash "hello world")))
+    (is (= (t/genHash "hello world")
+           (t/genHash "hello world")))
 
-    (is (not= (genHash "hello maria")
-              (genHash "hello world"))))
+    (is (not= (t/genHash "hello maria")
+              (t/genHash "hello world"))))
 
   (testing
     "related to: keypairs"
-    (is (let [kp (asymKeyPair<> "RSA" 1024)
-              b (exportPEM kp secret)
+    (is (let [kp (t/asymKeyPair<> "RSA" 1024)
+              b (t/exportPEM kp secret)
               pub (.getPublic kp)
               prv (.getPrivate kp)
-              b1 (exportPrivateKey prv secret)
-              b2 (exportPublicKey pub)]
-          (and (hgl? (strit b))
-               (hgl? (strit b1))
-               (hgl? (strit b2))))))
+              b1 (t/exportPrivateKey prv secret)
+              b2 (t/exportPublicKey pub)]
+          (and (s/hgl? (c/strit b))
+               (s/hgl? (c/strit b1))
+               (s/hgl? (c/strit b2))))))
 
   (testing
     "related to: cert service request"
     (is (let [[a b]
-              (csreq<> "C=AU,O=Org,OU=OUnit,CN=joe" 1024)]
-          (and (instBytes? a)
-               (instBytes? b))))
-    (is (let [v (csreq<>
+              (t/csreq<> "C=AU,O=Org,OU=OUnit,CN=joe" 1024)]
+          (and (m/instBytes? a)
+               (m/instBytes? b))))
+    (is (let [v (t/csreq<>
                   "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 1024 secret)]
           (and (= (count v) 2)
                (> (alength ^bytes (first v)) 0)
                (> (alength ^bytes (nth v 1)) 0)))))
 
-  (is (let [s (session<> "joe" secret)
-            s0 (session<>)
-            b (resBytes "czlab/test/twisty/mime.eml")
-            m (mimeMsg<> (streamit b))
+  (is (let [s (t/session<> "joe" secret)
+            s0 (t/session<>)
+            b (c/resBytes "czlab/test/twisty/mime.eml")
+            m (t/mimeMsg<> (i/streamit b))
             c (.getContent m)
-            z (isDataCompressed? c)
-            g (isDataSigned? c)
-            e (isDataEncrypted? c)]
+            z (t/isDataCompressed? c)
+            g (t/isDataSigned? c)
+            e (t/isDataEncrypted? c)]
         (and (not z)(not g)(not e))))
 
-  (is (some? (getCharset "text/plain; charset=utf-16")))
+  (is (some? (t/getCharset "text/plain; charset=utf-16")))
 
   (testing
     "related to: msg digest"
-    (is (not= (digest<> (bytesit "hello world") :sha-1)
-              (digest<> (bytesit "hello world") :md5)))
+    (is (not= (t/digest<> (c/bytesit "hello world") :sha-1)
+              (t/digest<> (c/bytesit "hello world") :md5)))
 
-    (is (= (digest<> (bytesit "hello world") :sha-1)
-           (digest<> (bytesit "hello world") :sha-1)))
+    (is (= (t/digest<> (c/bytesit "hello world") :sha-1)
+           (t/digest<> (c/bytesit "hello world") :sha-1)))
 
-    (is (= (digest<> (bytesit "hello world") :md5)
-           (digest<> (bytesit "hello world") :md5))))
+    (is (= (t/digest<> (c/bytesit "hello world") :md5)
+           (t/digest<> (c/bytesit "hello world") :md5))))
 
-  (is (let [b (resBytes "czlab/test/twisty/cert.crt")
-            c (convCert b)
-            g (certGist<> c)
-            ok? (validCert? c)]
+  (is (let [b (c/resBytes "czlab/test/twisty/cert.crt")
+            c (t/convCert b)
+            g (t/certGist<> c)
+            ok? (t/validCert? c)]
         (and c g ok?)))
 
-  (is (some? (simpleTrustMgr<>)))
+  (is (some? (ss/simpleTrustMgr<>)))
 
   (testing
     "related to: caesar crypto"
-    (is (let [c (caesar<>)]
+    (is (let [c (cc/caesar<>)]
           (not= "heeloo, how are you?"
                 (.decrypt c
                           666
@@ -211,7 +212,7 @@
                                     709394
                                     "heeloo, how are you?")))))
 
-    (is (let [c (caesar<>)]
+    (is (let [c (cc/caesar<>)]
           (= "heeloo, how are you?"
              (.decrypt c
                        709394
@@ -219,7 +220,7 @@
                                  709394
                                  "heeloo, how are you?")))))
 
-    (is (let [c (caesar<>)]
+    (is (let [c (cc/caesar<>)]
           (= "heeloo, how are you?"
              (.decrypt c
                        13
@@ -229,13 +230,13 @@
   (testing
     "related to: jasypt crypto"
     (is (= "heeloo"
-           (let [c (jasypt<>)]
+           (let [c (cc/jasypt<>)]
              (.decrypt c
                        c-key
                        (.encrypt c c-key "heeloo")))))
 
     (is (= "heeloo"
-           (let [c (jasypt<>)
+           (let [c (cc/jasypt<>)
                  pkey secret]
              (.decrypt c
                        pkey
@@ -244,101 +245,101 @@
   (testing
     "related to: java crypto"
     (is (= "heeloo"
-           (let [c (jcrypt<>)]
-             (strit (.decrypt c
-                                  b-key
-                                  (.encrypt c b-key "heeloo"))))))
+           (let [c (cc/jcrypt<>)]
+             (c/strit (.decrypt c
+                                b-key
+                                (.encrypt c b-key "heeloo"))))))
 
     (is (= "heeloo"
-           (let [c (jcrypt<>)
-                 pkey (bytesit (String. test-pwd))]
-             (strit (.decrypt c
-                                  pkey (.encrypt c pkey "heeloo")))))))
+           (let [c (cc/jcrypt<>)
+                 pkey (c/bytesit (String. test-pwd))]
+             (c/strit (.decrypt c
+                                pkey (.encrypt c pkey "heeloo")))))))
 
   (testing
     "related to: bouncycastle crypto"
     (is (= "heeloo"
-           (let [c (bcastle<>)]
-             (strit (.decrypt c
-                                  b-key
-                                  (.encrypt c b-key "heeloo"))))))
+           (let [c (cc/bcastle<>)]
+             (c/strit (.decrypt c
+                                b-key
+                                (.encrypt c b-key "heeloo"))))))
 
     (is (= "heeloo"
-           (let [c (bcastle<>)
-                 pkey (bytesit (String. test-pwd))]
-             (strit (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
+           (let [c (cc/bcastle<>)
+                 pkey (c/bytesit (String. test-pwd))]
+             (c/strit (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
     (is (= "heeloo"
-           (let [kp (asymKeyPair<> "RSA" 1024)
+           (let [kp (t/asymKeyPair<> "RSA" 1024)
                  pu (.getEncoded (.getPublic kp))
                  pv (.getEncoded (.getPrivate kp))
-                 cc (asym<>)]
-             (strit (.decrypt cc
-                              pv
-                              (.encrypt cc
-                                        pu (bytesit "heeloo"))))))))
+                 cc (cc/asym<>)]
+             (c/strit (.decrypt cc
+                                pv
+                                (.encrypt cc
+                                          pu (c/bytesit "heeloo"))))))))
 
   (testing
     "related to: passwords"
-    (is (= (alength ^chars (p-text (strongPwd<> 16))) 16))
-    (is (= (.length (randomStr 64)) 64))
+    (is (= (alength ^chars (cc/p-text (cc/strongPwd<> 16))) 16))
+    (is (= (.length (cc/randomStr 64)) 64))
 
-    (is (satisfies? czlab.twisty.codec/Password (pwd<> "secret-text")))
+    (is (satisfies? czlab.twisty.codec/Password (cc/pwd<> "secret-text")))
 
     (is (.startsWith
-          (strit (p-encoded (pwd<> "secret-text"))) "crypt:"))
+          (c/strit (cc/p-encoded (cc/pwd<> "secret-text"))) "crypt:"))
 
     (is (= "hello joe!"
-           (stringify (pwd<> (p-encoded (pwd<> "hello joe!")))))))
+           (cc/stringify (cc/pwd<> (cc/p-encoded (cc/pwd<> "hello joe!")))))))
 
   (testing
     "related to: keystores"
 
-    (is (let [ks (ssv1PKCS12<> "C=AU,ST=NSW,L=Sydney,O=Google"
-                               secret {:end end-date :keylen 1024 })
-              fout (tempFile "Joe Blogg" ".p12")
-              ok? (ist? KeyStore ks)
-              f (spitKeyStore ks fout help-me)
+    (is (let [ks (t/ssv1PKCS12<> "C=AU,ST=NSW,L=Sydney,O=Google"
+                                 secret {:end end-date :keylen 1024 })
+              fout (i/tempFile "Joe Blogg" ".p12")
+              ok? (c/ist? KeyStore ks)
+              f (t/spitKeyStore ks fout help-me)
               len (.length f)]
-          (deleteQ f)
+          (i/deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [ks (ssv1JKS<> "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
-              fout (tempFile "xxxx" ".jks")
-              ok? (ist? KeyStore ks)
-              f (spitKeyStore ks fout help-me)
+    (is (let [ks (t/ssv1JKS<> "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
+              fout (i/tempFile "xxxx" ".jks")
+              ok? (c/ist? KeyStore ks)
+              f (t/spitKeyStore ks fout help-me)
               len (.length f)]
-          (deleteQ f)
+          (i/deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [r (key-entity root-cs help-me)
-              fout (tempFile "xxxx" ".p12")
-              ks (ssv3PKCS12<> r
-                               "C=AU,ST=WA,L=Z,O=X"
-                               secret {:end end-date})
-              ok? (ist? KeyStore ks)
-              f (spitKeyStore ks fout help-me)
+    (is (let [r (st/key-entity root-cs help-me)
+              fout (i/tempFile "xxxx" ".p12")
+              ks (t/ssv3PKCS12<> r
+                                 "C=AU,ST=WA,L=Z,O=X"
+                                 secret {:end end-date})
+              ok? (c/ist? KeyStore ks)
+              f (t/spitKeyStore ks fout help-me)
               len (.length f)]
-          (deleteQ f)
+          (i/deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [r (key-entity root-ks help-me)
-              fout (tempFile "xxxx" ".jks")
-              ks (ssv3JKS<> r
-                            "C=AU,ST=WA,L=Z,O=X"
-                            secret {:end end-date})
-              ok? (ist? KeyStore ks)
-              f (spitKeyStore ks fout help-me)
+    (is (let [r (st/key-entity root-ks help-me)
+              fout (i/tempFile "xxxx" ".jks")
+              ks (t/ssv3JKS<> r
+                              "C=AU,ST=WA,L=Z,O=X"
+                              secret {:end end-date})
+              ok? (c/ist? KeyStore ks)
+              f (t/spitKeyStore ks fout help-me)
               len (.length f)]
-          (deleteQ f)
+          (i/deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [r (key-entity root-cs help-me)
-              fout (tempFile "xxxx" ".p7b")
-              b (exportPkcs7 r)
-              f (exportPkcs7File r fout)
+    (is (let [r (st/key-entity root-cs help-me)
+              fout (i/tempFile "xxxx" ".p7b")
+              b (t/exportPkcs7 r)
+              f (t/exportPkcs7File r fout)
               len (.length f)]
-          (and (instBytes? b) (> len 0)))))
+          (and (m/instBytes? b) (> len 0)))))
 
   (is (string? "That's all folks!")))
 
