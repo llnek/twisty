@@ -456,29 +456,50 @@
   ([skey data algo]
    {:pre [(some? skey) (some? data)]}
    (let
-     [skey (i/bytes?? skey)
-      algo (-> (s/strKW algo)
-               s/ucase
-               (s/stror def-mac))
-      mac (Mac/getInstance algo *-bc-*)]
-     (when-some [bits (i/bytes?? data)]
-       (->> (SecretKeySpec. skey algo)
-            (.init mac ))
-       (.update mac bits)
-       (Hex/toHexString (.doFinal mac))))))
+     [algo (-> (s/strKW algo) s/ucase (s/stror def-mac))
+      [z? ^InputStream inp] (i/inputStream?? data)
+      b (byte-array 4096)
+      mac (Mac/getInstance algo *-bc-*)
+      _ (if inp (->> (SecretKeySpec.
+                       (i/bytes?? skey) algo) (.init mac )))
+      x (try
+          (loop [c (if inp (.read inp b) 0)
+                 t 0]
+            (if (> c 0)
+              (do
+                (.update mac b 0 c)
+                (recur (.read inp b) (long (+ t c))))
+              (if (> t 0) (.doFinal mac))))
+          (finally
+            (if z? (i/closeQ inp))))]
+     (some-> x Hex/toHexString))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn genHash
+(defn- gen-digest "" [data algo]
+   (let [[z? ^InputStream inp] (i/inputStream?? data)
+         d (if inp (msgDigest algo))
+         b (byte-array 4096)]
+     (try
+       (loop [c (if inp (.read inp b) 0)
+              t 0]
+         (if (> c 0)
+           (do
+             (.update d b 0 c)
+             (recur (.read inp b) (long (+ t c))))
+           (if (> t 0) (.digest d))))
+       (finally
+         (if z? (i/closeQ inp))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn genDigest<>
   "Create Message Digest" {:tag String}
 
-  ([data] (genHash data nil))
+  ([data] (genDigest<> data nil))
   ([data algo]
-   (if-some
-     [bits (i/bytes?? data)]
-     (->> (-> (msgDigest algo)
-              (.digest bits))
-          Base64/toBase64String ))))
+   (some-> (gen-digest data algo)
+           Base64/toBase64String )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -951,29 +972,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- fingerprint<> "" [data algo]
+(defn fingerprint<>
+  "Data's fingerprint" {:tag String}
 
-  (let [hv (.digest (msgDigest algo) ^bytes data)
-        hlen (alength hv)
-        tail (dec hlen)]
-    (loop [ret (s/strbf<>)
-           i 0]
-      (if (>= i hlen)
-        (str ret)
-        (let [n (-> (bit-and (aget ^bytes hv i) 0xff)
-                    (Integer/toString 16)
-                    s/ucase)]
-          (doto ret
-            (.append (if (== (.length n) 1) (str "0" n) n))
-            (.append (if (== i tail) "" ":")))
-          (recur ret (inc i)))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn digest<>
-  "Data's fingerprint" ^String [data algo]
-  (if-some [b (i/bytes?? data)]
-    (-> (msgDigest algo) (.digest b) Hex/toHexString )))
+  ([data] (fingerprint<> data nil))
+  ([data algo]
+   (some-> (gen-digest data algo) Hex/toHexString )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
