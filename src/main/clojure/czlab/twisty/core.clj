@@ -457,39 +457,32 @@
    {:pre [(some? skey) (some? data)]}
    (let
      [algo (-> (s/strKW algo) s/ucase (s/stror def-mac))
-      [z? ^InputStream inp] (i/inputStream?? data)
-      b (byte-array 4096)
       mac (Mac/getInstance algo *-bc-*)
-      _ (if inp (->> (SecretKeySpec.
-                       (i/bytes?? skey) algo) (.init mac )))
-      x (try
-          (loop [c (if inp (.read inp b) 0)
-                 t 0]
-            (if (> c 0)
-              (do
-                (.update mac b 0 c)
-                (recur (.read inp b) (long (+ t c))))
-              (if (> t 0) (.doFinal mac))))
-          (finally
-            (if z? (i/closeQ inp))))]
-     (some-> x Hex/toHexString))))
+      flag (c/decl-long-var 0)
+      _ (->> (SecretKeySpec.
+               (i/bytes?? skey) algo) (.init mac))]
+     (i/chunkReadStream data
+                        (fn [buf offset len end?]
+                          (if (> len 0)
+                            (do
+                              (c/long-var flag + len)
+                              (.update mac buf offset len)))))
+     (str (some->
+            (if (c/spos? (c/long-var flag)) (.doFinal mac))
+            Hex/toHexString)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- gen-digest "" [data algo]
-   (let [[z? ^InputStream inp] (i/inputStream?? data)
-         d (if inp (msgDigest algo))
-         b (byte-array 4096)]
-     (try
-       (loop [c (if inp (.read inp b) 0)
-              t 0]
-         (if (> c 0)
-           (do
-             (.update d b 0 c)
-             (recur (.read inp b) (long (+ t c))))
-           (if (> t 0) (.digest d))))
-       (finally
-         (if z? (i/closeQ inp))))))
+   (let [d (msgDigest algo)
+         flag (c/decl-long-var 0)]
+     (i/chunkReadStream data
+                        (fn [buf offset len end?]
+                          (if (> len 0)
+                            (do
+                              (c/long-var flag + len)
+                              (.update d buf offset len)))))
+     (if (c/spos? (c/long-var flag)) (.digest d))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -498,8 +491,7 @@
 
   ([data] (genDigest<> data nil))
   ([data algo]
-   (some-> (gen-digest data algo)
-           Base64/toBase64String )))
+   (str (some-> (gen-digest data algo) Base64/toBase64String))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -977,7 +969,7 @@
 
   ([data] (fingerprint<> data nil))
   ([data algo]
-   (some-> (gen-digest data algo) Hex/toHexString )))
+   (str (some-> (gen-digest data algo) Hex/toHexString))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
