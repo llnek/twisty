@@ -449,10 +449,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn genMac
+(defn genMac<>
   "Create Message Auth Code" {:tag String}
 
-  ([skey data] (genMac skey data nil))
+  ([skey data] (genMac<> skey data nil))
   ([skey data algo]
    {:pre [(some? skey) (some? data)]}
    (let

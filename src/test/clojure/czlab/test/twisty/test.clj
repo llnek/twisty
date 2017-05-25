@@ -135,11 +135,11 @@
 
   (testing
     "related to: mac & hash"
-    (is (= (t/genMac b-key "hello world")
-           (t/genMac b-key "hello world")))
+    (is (= (t/genMac<> b-key "hello world")
+           (t/genMac<> b-key "hello world")))
 
-    (is (not= (t/genMac b-key "hello maria")
-              (t/genMac b-key "hello world")))
+    (is (not= (t/genMac<> b-key "hello maria")
+              (t/genMac<> b-key "hello world")))
 
     (is (= (t/genDigest<> "hello world")
            (t/genDigest<> "hello world")))
