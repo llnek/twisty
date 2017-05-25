@@ -205,22 +205,22 @@
 
   (testing
     "related to: digest"
-    (is (let [f (t/fingerprint<> (c/bytesit "heeloo world") :sha-1)]
+    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :sha-1)]
           (and f (> (.length f) 0))))
 
-    (is (let [f (t/fingerprint<> (c/bytesit "heeloo world") :md5)]
+    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :md5)]
           (and f (> (.length f) 0))))
 
-    (is (let [f (t/fingerprint<> (c/bytesit "heeloo world") :sha-1)
-              g (t/fingerprint<> (c/bytesit "heeloo world") :md5)]
+    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :sha-1)
+              g (t/fingerprint (c/bytesit "heeloo world") :md5)]
           (if (= f g) false true)))
 
-    (is (let [f (t/fingerprint<> (c/bytesit "heeloo world") :sha-1)
-              g (t/fingerprint<> (c/bytesit "heeloo world") :sha-1)]
+    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :sha-1)
+              g (t/fingerprint (c/bytesit "heeloo world") :sha-1)]
           (= f g)))
 
-    (is (let [f (t/fingerprint<> (c/bytesit "heeloo world") :md5)
-              g (t/fingerprint<> (c/bytesit "heeloo world") :md5)]
+    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :md5)
+              g (t/fingerprint (c/bytesit "heeloo world") :md5)]
           (= f g))))
 
   (is (string? "That's all folks!")))

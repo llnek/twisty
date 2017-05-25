@@ -135,17 +135,17 @@
 
   (testing
     "related to: mac & hash"
-    (is (= (t/genMac<> b-key "hello world")
-           (t/genMac<> b-key "hello world")))
+    (is (= (t/genMac b-key "hello world")
+           (t/genMac b-key "hello world")))
 
-    (is (not= (t/genMac<> b-key "hello maria")
-              (t/genMac<> b-key "hello world")))
+    (is (not= (t/genMac b-key "hello maria")
+              (t/genMac b-key "hello world")))
 
-    (is (= (t/genDigest<> "hello world")
-           (t/genDigest<> "hello world")))
+    (is (= (t/genDigest "hello world")
+           (t/genDigest "hello world")))
 
-    (is (not= (t/genDigest<> "hello maria")
-              (t/genDigest<> "hello world"))))
+    (is (not= (t/genDigest "hello maria")
+              (t/genDigest "hello world"))))
 
   (testing
     "related to: keypairs"
@@ -185,14 +185,14 @@
 
   (testing
     "related to: msg digest"
-    (is (not= (t/fingerprint<> (c/bytesit "hello world") :sha-1)
-              (t/fingerprint<> (c/bytesit "hello world") :md5)))
+    (is (not= (t/fingerprint (c/bytesit "hello world") :sha-1)
+              (t/fingerprint (c/bytesit "hello world") :md5)))
 
-    (is (= (t/fingerprint<> (c/bytesit "hello world") :sha-1)
-           (t/fingerprint<> (c/bytesit "hello world") :sha-1)))
+    (is (= (t/fingerprint (c/bytesit "hello world") :sha-1)
+           (t/fingerprint (c/bytesit "hello world") :sha-1)))
 
-    (is (= (t/fingerprint<> (c/bytesit "hello world") :md5)
-           (t/fingerprint<> (c/bytesit "hello world") :md5))))
+    (is (= (t/fingerprint (c/bytesit "hello world") :md5)
+           (t/fingerprint (c/bytesit "hello world") :md5))))
 
   (is (let [b (c/resBytes "czlab/test/twisty/cert.crt")
             c (t/convCert b)

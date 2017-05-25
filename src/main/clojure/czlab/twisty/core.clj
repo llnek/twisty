@@ -449,10 +449,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn genMac<>
+(defn genMac
   "Create Message Auth Code" {:tag String}
 
-  ([skey data] (genMac<> skey data nil))
+  ([skey data] (genMac skey data nil))
   ([skey data algo]
    {:pre [(some? skey) (some? data)]}
    (let
@@ -486,10 +486,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn genDigest<>
+(defn genDigest
   "Create Message Digest" {:tag String}
 
-  ([data] (genDigest<> data nil))
+  ([data] (genDigest data nil))
   ([data algo]
    (str (some-> (gen-digest data algo) Base64/toBase64String))))
 
@@ -964,10 +964,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn fingerprint<>
+(defn fingerprint
   "Data's fingerprint" {:tag String}
 
-  ([data] (fingerprint<> data nil))
+  ([data] (fingerprint data nil))
   ([data algo]
    (str (some-> (gen-digest data algo) Hex/toHexString))))
 
