@@ -72,9 +72,6 @@
 ;;
 (deftest czlabtesttwisty-test
 
-(println
-    "related to: checking content-type")
-
   (testing
     "related to: checking content-type"
     (is (t/isSigned? "application/x-pkcs7-mime; signed-data"))
@@ -97,9 +94,6 @@
 
   (is (not= (t/alias<>)(t/alias<>)))
   (is (string? (t/alias<>)))
-
-(println
-    "related to: crypto stores")
 
   (testing
     "related to: crypto stores"
@@ -139,9 +133,6 @@
 
   (is (some? (t/easyPolicy<>)))
 
-(println
-    "related to: mac & hash")
-
   (testing
     "related to: mac & hash"
     (is (= (t/genMac b-key "hello world")
@@ -156,29 +147,17 @@
     (is (not= (t/genDigest "hello maria")
               (t/genDigest "hello world"))))
 
-(println
-    "related to: keypairs")
-
   (testing
     "related to: keypairs"
     (is (let [kp (t/asymKeyPair<> "RSA" 512)
-              _ (println "kp = " kp)
               b (t/exportPEM kp secret)
-              _ (println "b = " b)
               pub (.getPublic kp)
-              _ (println "pub = " pub)
               prv (.getPrivate kp)
-              _ (println "prv = " prv)
               b1 (t/exportPrivateKey prv secret)
-              _ (println "b1 = " b1)
               b2 (t/exportPublicKey pub)]
-_ (println "b2 = " b2)
           (and (s/hgl? (c/strit b))
                (s/hgl? (c/strit b1))
                (s/hgl? (c/strit b2))))))
-
-(println
-    "related to: cert service request")
 
   (testing
     "related to: cert service request"
@@ -204,9 +183,6 @@ _ (println "b2 = " b2)
 
   (is (some? (t/getCharset "text/plain; charset=utf-16")))
 
-(println
-    "related to: msg digest")
-
   (testing
     "related to: msg digest"
     (is (not= (t/fingerprint (c/bytesit "hello world") :sha-1)
@@ -225,9 +201,6 @@ _ (println "b2 = " b2)
         (and c g ok?)))
 
   (is (some? (ss/simpleTrustMgr<>)))
-
-(println
-    "related to: caesar crypto")
 
   (testing
     "related to: caesar crypto"
@@ -253,9 +226,6 @@ _ (println "b2 = " b2)
                        13
                        (.encrypt c
                                  13 "heeloo, how are you?"))))))
-(println
-    "related to: jasypt crypto")
-
   (testing
     "related to: jasypt crypto"
     (is (= "heeloo"
@@ -270,8 +240,6 @@ _ (println "b2 = " b2)
              (.decrypt c
                        pkey
                        (.encrypt c pkey "heeloo"))))))
-(println
-    "related to: java crypto")
 
   (testing
     "related to: java crypto"
@@ -286,9 +254,6 @@ _ (println "b2 = " b2)
                  pkey (c/bytesit (String. test-pwd))]
              (c/strit (.decrypt c
                                 pkey (.encrypt c pkey "heeloo")))))))
-
-(println
-    "related to: bouncycastle crypto")
 
   (testing
     "related to: bouncycastle crypto"
@@ -312,8 +277,6 @@ _ (println "b2 = " b2)
                                 pv
                                 (.encrypt cc
                                           pu (c/bytesit "heeloo"))))))))
-(println
-    "related to: passwords")
 
   (testing
     "related to: passwords"
@@ -328,9 +291,6 @@ _ (println "b2 = " b2)
     (is (= "hello joe!"
            (cc/stringify (cc/pwd<> (cc/p-encoded (cc/pwd<> "hello joe!")))))))
 
-(println
-    "related to: keystores")
-
   (testing
     "related to: keystores"
 
@@ -343,7 +303,8 @@ _ (println "b2 = " b2)
           (i/deleteQ f)
           (and ok? (> len 0))))
 
-    (is (let [ks (t/ssv1JKS<> "C=AU,ST=WA,L=X,O=Z" secret {:end end-date})
+    (is (let [ks (t/ssv1JKS<> "C=AU,ST=WA,L=X,O=Z"
+                              secret {:keylen 512 :end end-date})
               fout (i/tempFile "xxxx" ".jks")
               ok? (c/ist? KeyStore ks)
               f (t/spitKeyStore ks fout help-me)
@@ -355,7 +316,7 @@ _ (println "b2 = " b2)
               fout (i/tempFile "xxxx" ".p12")
               ks (t/ssv3PKCS12<> r
                                  "C=AU,ST=WA,L=Z,O=X"
-                                 secret {:end end-date})
+                                 secret {:keylen 512 :end end-date})
               ok? (c/ist? KeyStore ks)
               f (t/spitKeyStore ks fout help-me)
               len (.length f)]
@@ -366,7 +327,7 @@ _ (println "b2 = " b2)
               fout (i/tempFile "xxxx" ".jks")
               ks (t/ssv3JKS<> r
                               "C=AU,ST=WA,L=Z,O=X"
-                              secret {:end end-date})
+                              secret {:keylen 512 :end end-date})
               ok? (c/ist? KeyStore ks)
               f (t/spitKeyStore ks fout help-me)
               len (.length f)]
