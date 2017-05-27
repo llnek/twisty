@@ -162,11 +162,17 @@
   (testing
     "related to: keypairs"
     (is (let [kp (t/asymKeyPair<> "RSA" 1024)
+              _ (println "kp = " kp)
               b (t/exportPEM kp secret)
+              _ (println "b = " b)
               pub (.getPublic kp)
+              _ (println "pub = " pub)
               prv (.getPrivate kp)
+              _ (println "prv = " prv)
               b1 (t/exportPrivateKey prv secret)
+              _ (println "b1 = " b1)
               b2 (t/exportPublicKey pub)]
+_ (println "b2 = " b2)
           (and (s/hgl? (c/strit b))
                (s/hgl? (c/strit b1))
                (s/hgl? (c/strit b2))))))
