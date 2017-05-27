@@ -161,7 +161,7 @@
 
   (testing
     "related to: keypairs"
-    (is (let [kp (t/asymKeyPair<> "RSA" 1024)
+    (is (let [kp (t/asymKeyPair<> "RSA" 512)
               _ (println "kp = " kp)
               b (t/exportPEM kp secret)
               _ (println "b = " b)
@@ -183,11 +183,11 @@ _ (println "b2 = " b2)
   (testing
     "related to: cert service request"
     (is (let [[a b]
-              (t/csreq<> "C=AU,O=Org,OU=OUnit,CN=joe" 1024)]
+              (t/csreq<> "C=AU,O=Org,OU=OUnit,CN=joe" 512)]
           (and (m/instBytes? a)
                (m/instBytes? b))))
     (is (let [v (t/csreq<>
-                  "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 1024 secret)]
+                  "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 512 secret)]
           (and (= (count v) 2)
                (> (alength ^bytes (first v)) 0)
                (> (alength ^bytes (nth v 1)) 0)))))
@@ -304,7 +304,7 @@ _ (println "b2 = " b2)
              (c/strit (.decrypt c pkey (.encrypt c pkey "heeloo"))))))
 
     (is (= "heeloo"
-           (let [kp (t/asymKeyPair<> "RSA" 1024)
+           (let [kp (t/asymKeyPair<> "RSA" 512)
                  pu (.getEncoded (.getPublic kp))
                  pv (.getEncoded (.getPrivate kp))
                  cc (cc/asym<>)]
@@ -335,7 +335,7 @@ _ (println "b2 = " b2)
     "related to: keystores"
 
     (is (let [ks (t/ssv1PKCS12<> "C=AU,ST=NSW,L=Sydney,O=Google"
-                                 secret {:end end-date :keylen 1024 })
+                                 secret {:end end-date :keylen 512 })
               fout (i/tempFile "Joe Blogg" ".p12")
               ok? (c/ist? KeyStore ks)
               f (t/spitKeyStore ks fout help-me)
