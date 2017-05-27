@@ -26,6 +26,8 @@
                         [[org.clojure/clojure "1.8.0" :scope "provided"]]}
              :uberjar {:aot :all}}
 
+  :test-selectors {:all :travis}
+
   :global-vars {*warn-on-reflection* true}
   :target-path "out/%s"
   :aot :all
