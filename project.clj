@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defproject io.czlab/twisty "1.0.0"
+(defproject io.czlab/twisty "1.1.0"
 
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -8,25 +8,26 @@
   :description "Useful s/mime, crypto functions"
   :url "https://github.com/llnek/twisty"
 
-  :dependencies [[org.bouncycastle/bcprov-jdk15on "1.57"]
-                 [org.bouncycastle/bcmail-jdk15on "1.57"]
-                 [org.bouncycastle/bcpkix-jdk15on "1.57"]
-                 [org.apache.commons/commons-email "1.4"]
-                 [commons-codec/commons-codec "1.10"]
-                 [com.sun.mail/javax.mail "1.5.6"]
-                 [org.jasypt/jasypt "1.9.2"]
+  :dependencies [[org.bouncycastle/bcprov-jdk15on "1.62"]
+                 [org.bouncycastle/bcmail-jdk15on "1.62"]
+                 [org.bouncycastle/bcpkix-jdk15on "1.62"]
+                 [org.apache.commons/commons-email "1.5"]
+                 [commons-codec/commons-codec "1.12"]
+                 [com.sun.mail/javax.mail "1.6.2"]
+                 [org.jasypt/jasypt "1.9.3"]
                  [org.mindrot/jbcrypt "0.4"]
-                 [io.czlab/basal "1.0.3"]]
+                 [io.czlab/basal "1.1.0"]]
 
-  :plugins [[cider/cider-nrepl "0.14.0"]
-            [lein-codox "0.10.3"]
-            [lein-cprint "1.2.0"]]
+  :plugins [[cider/cider-nrepl "0.21.1"]
+            [lein-codox "0.10.7"]
+            [lein-cprint "1.3.1"]]
 
   :profiles {:provided {:dependencies
-                        [[org.clojure/clojure "1.8.0" :scope "provided"]]}
+                        [[org.clojure/clojure "1.10.1" :scope "provided"]]}
              :uberjar {:aot :all}}
 
-  :test-selectors {:all :travis}
+  :test-selectors {:core :test-core
+                   :mime :test-mime}
 
   :global-vars {*warn-on-reflection* true}
   :target-path "out/%s"

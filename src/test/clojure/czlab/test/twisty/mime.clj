@@ -1,4 +1,4 @@
-;; Copyright (c) 2013-2017, Kenneth Leung. All rights reserved.
+;; Copyright ©  2013-2019, Kenneth Leung. All rights reserved.
 ;; The use and distribution terms for this software are covered by the
 ;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;; which can be found in the file epl-v10.html at the root of this distribution.
@@ -6,17 +6,21 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns czlab.test.twisty.mime
+(ns ^{:doc ""
+      :author "Kenneth Leung"}
 
-  (:require [czlab.twisty.store :as st]
-            [czlab.twisty.codec :as cc]
-            [czlab.twisty.smime :as sm]
+  czlab.test.twisty.mime
+
+  (:require [czlab.twisty.smime :as sm]
+            [czlab.twisty.store :as st]
+            [clojure.java.io :as io]
+            [czlab.twisty.ssl :as ss]
             [czlab.twisty.core :as t]
-            [czlab.basal.core :as c]
+            [clojure.test :as ct]
             [czlab.basal.io :as i]
-            [czlab.basal.meta :as m])
-
-  (:use [clojure.test])
+            [czlab.basal.str :as s]
+            [czlab.basal.core
+             :refer [ensure?? ensure-thrown??] :as c])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
            [java.io File InputStream ByteArrayOutputStream]
@@ -27,205 +31,225 @@
             KeyStore$TrustedCertificateEntry SecureRandom]
            [javax.activation DataHandler DataSource]
            [java.util Date GregorianCalendar]
-           [javax.mail Multipart BodyPart]
-           [czlab.jasal XData SDataSource]))
+           [javax.mail Multipart BodyPart]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(def ^:private root-pfx (c/resBytes "czlab/test/twisty/test.pfx"))
-(def ^:private help-me (c/charsit "helpme"))
+(def ^:private root-pfx (i/res->bytes "czlab/test/twisty/test.pfx"))
+(def ^:private help-me (i/x->chars "helpme"))
 (def ^:private des-ede3-cbc CMSAlgorithm/DES_EDE3_CBC)
 (def ^:private
   root-cs
-  (st/cryptoStore<> (t/pkcs12<> root-pfx help-me) help-me))
+  (st/crypto-store<> (t/pkcs12<> root-pfx help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(deftest czlabtesttwisty-mime
+(c/deftest test-mime
 
-  (testing
-    "related to: smime"
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [msg (t/mimeMsg<> nil nil inp)
-                ^Multipart mp (.getContent msg)]
-            (and (>= (.indexOf
-                       (.getContentType msg)
-                       "multipart/mixed") 0)
-                 (== (.getCount mp) 2)
-                 (not (t/isDataSigned? mp))
-                 (not (t/isDataCompressed? mp))
-                 (not (t/isDataEncrypted? mp))))))
+  (ensure?? "mime-msg<>"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [msg (t/mime-msg<> nil nil inp)
+                    ^Multipart mp (.getContent msg)]
+                (and (>= (.indexOf (.getContentType msg)
+                                   "multipart/mixed") 0)
+                     (= (.getCount mp) 2)
+                     (not (t/is-data-signed? mp))
+                     (not (t/is-data-compressed? mp))
+                     (not (t/is-data-encrypted? mp))))))
 
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [g (st/key-entity root-cs help-me)
-                msg (t/mimeMsg<> nil nil inp)
-                rc (sm/smimeDigSig (:pkey g)
-                                   msg
-                                   t/sha-512-rsa
-                                   (into [] (:chain g)))]
-            (t/isDataSigned? rc))))
+  (ensure?? "smime-digsig"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [g (st/key-entity root-cs help-me)
+                    msg (t/mime-msg<> nil nil inp)
+                    rc (sm/smime-digsig (:pkey g)
+                                        msg
+                                        t/sha-512-rsa
+                                        (c/vec-> (:chain g)))]
+                (t/is-data-signed? rc))))
 
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [g (st/key-entity root-cs help-me)
-                msg (t/mimeMsg<> nil nil inp)
-                rc (sm/smimeDigSig (:pkey g)
-                                   (.getContent msg)
-                                   t/sha-512-rsa
-                                   (into [] (:chain g)))]
-            (t/isDataSigned? rc))))
+  (ensure?? "smime-digsig"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [g (st/key-entity root-cs help-me)
+                    msg (t/mime-msg<> nil nil inp)
+                    rc (sm/smime-digsig (:pkey g)
+                                        (.getContent msg)
+                                        t/sha-512-rsa
+                                        (c/vec-> (:chain g)))]
+                (t/is-data-signed? rc))))
 
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [g (st/key-entity root-cs help-me)
-                msg (t/mimeMsg<> nil nil inp)
-                bp (-> ^Multipart
-                       (.getContent msg)
-                       (.getBodyPart 1))
-                rc (sm/smimeDigSig (:pkey g)
-                                bp
-                                t/sha-512-rsa
-                                (into [] (:chain g)))]
-            (t/isDataSigned? rc))))
+  (ensure?? "smime-digsig"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [g (st/key-entity root-cs help-me)
+                    msg (t/mime-msg<> nil nil inp)
+                    bp (-> ^Multipart
+                           (.getContent msg)
+                           (.getBodyPart 1))
+                    rc (sm/smime-digsig (:pkey g)
+                                        bp
+                                        t/sha-512-rsa
+                                        (c/vec-> (:chain g)))]
+                (t/is-data-signed? rc))))
 
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [g (st/key-entity root-cs help-me)
-                mp (sm/smimeDigSig (:pkey g)
-                                   (t/mimeMsg<> nil nil inp)
-                                   t/sha-512-rsa
-                                   (into [] (:chain g)))
-                baos (i/baos<>)
-                _ (doto (t/mimeMsg<> nil nil)
-                    (.setContent (c/cast? Multipart mp))
-                    .saveChanges
-                    (.writeTo baos))
-                msg3 (t/mimeMsg<> nil nil
-                                  (i/streamit baos))
-                mp3 (.getContent msg3)
-                rc (sm/peekSmimeSignedContent mp3)]
-            (c/ist? Multipart rc))))
+  (ensure?? "peek-smime-signed-content"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [g (st/key-entity root-cs help-me)
+                    mp (sm/smime-digsig (:pkey g)
+                                        (t/mime-msg<> nil nil inp)
+                                        t/sha-512-rsa
+                                        (c/vec-> (:chain g)))
+                    baos (i/baos<>)
+                    _ (doto (t/mime-msg<> nil nil)
+                        (.setContent (c/cast? Multipart mp))
+                        .saveChanges
+                        (.writeTo baos))
+                    [del? inp] (i/input-stream?? baos)
+                    msg3 (t/mime-msg<> nil nil inp)
+                    mp3 (.getContent msg3)
+                    rc (sm/peek-smime-signed-content mp3)]
+                (if del? (i/klose inp))
+                (c/is? Multipart rc))))
 
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [g (st/key-entity root-cs help-me)
-                cs (into [] (:chain g))
-                mp (sm/smimeDigSig (:pkey g)
-                                   (t/mimeMsg<> nil nil inp)
-                                   t/sha-512-rsa
-                                   cs)
-                baos (i/baos<>)
-                _ (doto (t/mimeMsg<> nil nil)
-                    (.setContent (c/cast? Multipart mp))
-                    .saveChanges
-                    (.writeTo baos))
-                msg3 (t/mimeMsg<> nil nil
-                                  (i/streamit baos))
-                mp3 (.getContent msg3)
-                rc (sm/testSmimeDigSig mp3 cs)]
-            (and (map? rc)
-                 (== (count rc) 2)
-                 (c/ist? Multipart (:content rc))
-                 (m/instBytes? (:digest rc))))))
+  (ensure?? "test-smime-digsig"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [g (st/key-entity root-cs help-me)
+                    cs (c/vec-> (:chain g))
+                    mp (sm/smime-digsig (:pkey g)
+                                        (t/mime-msg<> nil nil inp)
+                                        t/sha-512-rsa
+                                        cs)
+                    baos (i/baos<>)
+                    _ (doto (t/mime-msg<> nil nil)
+                        (.setContent (c/cast? Multipart mp))
+                        .saveChanges
+                        (.writeTo baos))
+                    [del? inp] (i/input-stream?? baos)
+                    msg3 (t/mime-msg<> nil nil inp)
+                    mp3 (.getContent msg3)
+                    rc (sm/test-smime-digsig mp3 cs)]
+                (if del? (i/klose inp))
+                (and (map? rc)
+                     (= (count rc) 2)
+                     (c/is? Multipart (:content rc))
+                     (bytes? (:digest rc))))))
 
-    (is (let [s (SDataSource. (c/bytesit "yoyo-jojo") "text/plain")
-              g (st/key-entity root-cs help-me)
-              cs (into [] (:chain g))
-              bp (doto (MimeBodyPart.)
-                   (.setDataHandler (DataHandler. s)))
-              ^BodyPart
-              bp2 (sm/smimeEncrypt (first cs)
-                                   des-ede3-cbc bp)
-              baos (i/baos<>)
-              _ (doto (t/mimeMsg<>)
-                  (.setContent
-                    (.getContent bp2)
-                    (.getContentType bp2))
-                  .saveChanges
-                  (.writeTo baos))
-              msg2 (t/mimeMsg<> (i/streamit baos))
-              enc (t/isEncrypted? (.getContentType msg2))
-              rc (sm/smimeDecrypt msg2 [(:pkey g)])]
-          (and (m/instBytes? rc)
-               (> (.indexOf
-                    (c/strit rc) "yoyo-jojo") 0))))
+  (ensure?? "smime-decrypt"
+            (let [s (sm/data-source<> "text/plain"
+                                      (i/x->bytes "yoyo-jojo"))
+                  g (st/key-entity root-cs help-me)
+                  cs (c/vec-> (:chain g))
+                  bp (doto (MimeBodyPart.)
+                       (.setDataHandler (DataHandler. s)))
+                  ^BodyPart
+                  bp2 (sm/smime-encrypt (c/_1 cs) des-ede3-cbc bp)
+                  baos (i/baos<>)
+                  _ (doto (t/mime-msg<>)
+                      (.setContent
+                        (.getContent bp2)
+                        (.getContentType bp2))
+                      .saveChanges
+                      (.writeTo baos))
+                  [del? inp] (i/input-stream?? baos)
+                  msg2 (t/mime-msg<> inp)
+                  enc (t/is-encrypted? (.getContentType msg2))
+                  rc (sm/smime-decrypt msg2 [(:pkey g)])]
+              (if del? (i/klose inp))
+              (and (bytes? rc)
+                   (pos? (.indexOf (i/x->str rc) "yoyo-jojo")))))
 
-    (is (let [g (st/key-entity root-cs help-me)
-              s2 (SDataSource.
-                   (c/bytesit "what's up dawg") "text/plain")
-              s1 (SDataSource.
-                   (c/bytesit "hello world") "text/plain")
-              cs (into [] (:chain g))
-              bp2 (doto (MimeBodyPart.)
-                    (.setDataHandler (DataHandler. s2)))
-              bp1 (doto (MimeBodyPart.)
-                    (.setDataHandler (DataHandler. s1)))
-              mp (doto (MimeMultipart.)
-                   (.addBodyPart bp1)
-                   (.addBodyPart bp2))
-              msg (doto (t/mimeMsg<>) (.setContent mp))
-              ^BodyPart
-              bp3 (sm/smimeEncrypt (first cs) des-ede3-cbc msg)
-              baos (i/baos<>)
-              _ (doto (t/mimeMsg<>)
-                  (.setContent
-                    (.getContent bp3)
-                    (.getContentType bp3))
-                  .saveChanges
-                  (.writeTo baos))
-              msg3 (t/mimeMsg<> (i/streamit baos))
-              enc (t/isEncrypted? (.getContentType msg3))
-              rc (sm/smimeDecrypt msg3 [(:pkey g)])]
-          (and (m/instBytes? rc)
-               (> (.indexOf (c/strit rc) "what's up dawg") 0)
-               (> (.indexOf (c/strit rc) "hello world") 0))))
+  (ensure?? "smime-decrypt"
+            (let [g (st/key-entity root-cs help-me)
+                  s2 (sm/data-source<> "text/plain"
+                                       (i/x->bytes "what's up dawg"))
+                  s1 (sm/data-source<> "text/plain"
+                                       (i/x->bytes "hello world"))
+                  cs (c/vec-> (:chain g))
+                  bp2 (doto (MimeBodyPart.)
+                        (.setDataHandler (DataHandler. s2)))
+                  bp1 (doto (MimeBodyPart.)
+                        (.setDataHandler (DataHandler. s1)))
+                  mp (doto (MimeMultipart.)
+                       (.addBodyPart bp1)
+                       (.addBodyPart bp2))
+                  msg (doto (t/mime-msg<>) (.setContent mp))
+                  ^BodyPart
+                  bp3 (sm/smime-encrypt (c/_1 cs) des-ede3-cbc msg)
+                  baos (i/baos<>)
+                  _ (doto (t/mime-msg<>)
+                      (.setContent
+                        (.getContent bp3)
+                        (.getContentType bp3))
+                      .saveChanges
+                      (.writeTo baos))
+                  [del? inp] (i/input-stream?? baos)
+                  msg3 (t/mime-msg<> inp)
+                  enc (t/is-encrypted? (.getContentType msg3))
+                  rc (sm/smime-decrypt msg3 [(:pkey g)])]
+              (if del? (i/klose inp))
+              (and (bytes? rc)
+                   (pos? (.indexOf (i/x->str rc) "what's up dawg"))
+                   (pos? (.indexOf (i/x->str rc) "hello world")))))
 
-    (is (let [data (i/xdata<> "heeloo world")
-              g (st/key-entity root-cs help-me)
-              cs (into [] (:chain g))
-              sig (sm/pkcsDigSig (:pkey g) cs t/sha-512-rsa data)
-              dg (sm/testPkcsDigSig (first cs) data sig)]
-          (and dg (m/instBytes? dg))))
+  (ensure?? "pkcs-digsig"
+            (let [data (i/x->bytes "heeloo world")
+                  g (st/key-entity root-cs help-me)
+                  cs (c/vec-> (:chain g))
+                  sig (sm/pkcs-digsig (:pkey g) cs t/sha-512-rsa data)
+                  dg (sm/test-pkcs-digsig (c/_1 cs) data sig)]
+              (bytes? dg)))
 
-    (is (with-open [inp (c/resStream "czlab/test/twisty/mime.eml")]
-          (let [msg (t/mimeMsg<> "" (char-array 0) inp)
-                bp (sm/smimeDeflate msg)
-                ^XData x (sm/smimeInflate bp)]
-            (and x (> (alength (.getBytes x)) 0)))))
+  (ensure?? "smime-inflate,smime-deflate"
+            (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
+              (let [msg (t/mime-msg<> "" (char-array 0) inp)
+                    bp (sm/smime-deflate msg)
+                    ^bytes x (sm/smime-inflate bp)]
+                (and x (pos? (alength x))))))
 
-    (is (let [bp (sm/smimeDeflate "text/plain"
-                                  (i/xdata<> "heeloo world"))
-              baos (i/baos<>)
-              ^XData x (sm/smimeInflate bp)]
-          (and x (> (alength (.getBytes x)) 0))))
+  (ensure?? "smime-inflate"
+            (let [bp (sm/smime-deflate "text/plain"
+                                       (i/x->bytes "heeloo world"))
+                  baos (i/baos<>)
+                  ^bytes x (sm/smime-inflate bp)]
+              (and x (pos? (alength x)))))
 
-    (is (let [bp (sm/smimeDeflate "text/plain"
-                                  (i/xdata<> "heeloo world")
-                                  "blah-blah"
-                                  "some-id")
-              baos (i/baos<>)
-              ^XData x (sm/smimeInflate bp)]
-          (and x (> (alength (.getBytes x)) 0)))))
+  (ensure?? "smime-inflate"
+            (let [bp (sm/smime-deflate "text/plain"
+                                       (i/x->bytes "heeloo world")
+                                       "blah-blah"
+                                       "some-id")
+                  baos (i/baos<>)
+                  ^bytes
+                  x (sm/smime-inflate bp)]
+              (and x (pos? (alength x)))))
 
-  (testing
-    "related to: digest"
-    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :sha-1)]
-          (and f (> (.length f) 0))))
+  (ensure?? "fingerprint"
+            (let [f (t/fingerprint (i/x->bytes "heeloo world") :sha-1)]
+              (and f (pos? (.length f)))))
 
-    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :md5)]
-          (and f (> (.length f) 0))))
+  (ensure?? "fingerprint"
+            (let [f (t/fingerprint (i/x->bytes "heeloo world") :md5)]
+              (and f (pos? (.length f)))))
 
-    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :sha-1)
-              g (t/fingerprint (c/bytesit "heeloo world") :md5)]
-          (if (= f g) false true)))
+  (ensure?? "fingerprint"
+            (let [f (t/fingerprint (i/x->bytes "heeloo world") :sha-1)
+                  g (t/fingerprint (i/x->bytes "heeloo world") :md5)]
+              (if (= f g) false true)))
 
-    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :sha-1)
-              g (t/fingerprint (c/bytesit "heeloo world") :sha-1)]
-          (= f g)))
+  (ensure?? "fingerprint"
+            (let [f (t/fingerprint (i/x->bytes "heeloo world") :sha-1)
+                  g (t/fingerprint (i/x->bytes "heeloo world") :sha-1)]
+              (= f g)))
 
-    (is (let [f (t/fingerprint (c/bytesit "heeloo world") :md5)
-              g (t/fingerprint (c/bytesit "heeloo world") :md5)]
-          (= f g))))
+  (ensure?? "fingerprint"
+            (let [f (t/fingerprint (i/x->bytes "heeloo world") :md5)
+                  g (t/fingerprint (i/x->bytes "heeloo world") :md5)]
+              (= f g)))
 
-  (is (string? "That's all folks!")))
+  (ensure?? "test-end" (= 1 1)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(ct/deftest ^:test-mime twisty-test-mime
+  (ct/is (let [[ok? r]
+               (c/runtest test-mime "test-mime")] (println r) ok?)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
 
 

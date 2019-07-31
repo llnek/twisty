@@ -7,7 +7,7 @@ General crypto utilities.
 
 Add the following dependency to your `project.clj` file:
 
-    [io.czlab/twisty "1.0.0"]
+    [io.czlab/twisty "1.1.0"]
 
 ## Documentation
 
@@ -26,7 +26,7 @@ Please use the project's [GitHub issues page] for all questions, ideas, etc. **P
 
 ## License
 
-Copyright © 2013-2017 Kenneth Leung
+Copyright © 2013-2019 Kenneth Leung
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.

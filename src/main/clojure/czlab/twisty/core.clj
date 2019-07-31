@@ -1,4 +1,4 @@
-;; Copyright (c) 2013-2017, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2019, Kenneth Leung. All rights reserved.
 ;; The use and distribution terms for this software are covered by the
 ;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;; which can be found in the file epl-v10.html at the root of this distribution.
@@ -11,14 +11,14 @@
 
   czlab.twisty.core
 
-  (:require [czlab.basal.meta :as m :refer [bytesClass]]
-            [czlab.basal.dates :as d :refer [addMonths]]
-            [czlab.basal.log :as log]
+  (:require [czlab.basal.core :as c]
+            [czlab.basal.util :as u]
             [clojure.java.io :as io]
             [clojure.string :as cs]
-            [czlab.basal.core :as c]
+            [czlab.basal.log :as l]
             [czlab.basal.io :as i]
-            [czlab.basal.str :as s])
+            [czlab.basal.str :as s]
+            [czlab.basal.dates :as d])
 
   (:import [javax.activation DataHandler CommandMap MailcapCommandMap]
            [javax.mail BodyPart MessagingException Multipart Session]
@@ -132,15 +132,11 @@
             MimeMessage
             MimeMultipart
             MimeUtility]
-           [czlab.basal Stateful]
-           [czlab.jasal XData]
            [java.lang Math]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* true)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (def ^:private ^String def-algo "SHA1WithRSAEncryption")
 (def ^:private ^String def-mac "HmacSHA512")
 ;;(def ^:private EXPLICIT_SIGNING :EXPLICIT)
@@ -165,39 +161,32 @@
 (def pem-form ::pem)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn isSigned?
-  "Does content-type indicate signed?" [cType]
-
+(defn is-signed?
+  "Content-type indicates signed?" [cType]
   (let [ct (s/lcase cType)]
     (or (s/embeds? ct "multipart/signed")
-        (and (s/embeds? ct "application/x-pkcs7-mime")
-             (s/embeds? ct "signed-data")))))
+        (and (s/embeds? ct "signed-data")
+             (s/embeds? ct "application/x-pkcs7-mime")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn isEncrypted?
-  "Does content-type indicate encrypted?" [cType]
-
+(defn is-encrypted?
+  "Content-type indicates encrypted?" [cType]
   (let [ct (s/lcase cType)]
-    (and (s/embeds? ct "application/x-pkcs7-mime")
-         (s/embeds? ct "enveloped-data"))))
+    (and (s/embeds? ct "enveloped-data")
+         (s/embeds? ct "application/x-pkcs7-mime"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn isCompressed?
+(defn is-compressed?
   "Does content-type indicate compressed?" [cType]
-
   (let [ct (s/lcase cType)]
-    (and (s/embeds? ct "application/pkcs7-mime")
-         (s/embeds? ct "compressed-data"))))
+    (and (s/embeds? ct "compressed-data")
+         (s/embeds? ct "application/pkcs7-mime"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn assertJce
+(defn assert-jce
   "This function should fail if the non-restricted (unlimited-strength)
-   jce files are **not** placed in jre-home" []
-
+   jce files are **not** placed in jre-home.  Not needed after jdk10+"
+  []
   (let
     [kgen (doto
             (KeyGenerator/getInstance blow-fish)
@@ -208,16 +197,14 @@
                  (SecretKeySpec. (.. kgen
                                      generateKey
                                      getEncoded) blow-fish)))
-        (.doFinal (c/bytesit "yo")))))
+        (.doFinal (i/x->bytes "yo")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (def ^:dynamic ^Provider *-bc-* (BouncyCastleProvider.))
 (Security/addProvider *-bc-*)
-(assertJce)
+(assert-jce)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (doto
   ^MailcapCommandMap
   (CommandMap/getDefaultCommandMap)
@@ -238,340 +225,306 @@
                     "org.bouncycastle.mail.smime.handlers.multipart_signed")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmacro withBC1
+(defmacro with-BC1
   "BC as provider - part of ctor(arg)"
-
-  ([cz p1] `(withBC1 ~cz ~p1 nil))
+  ([cz p1] `(with-BC1 ~cz ~p1 nil))
   ([cz p1 pv]
    `(-> (new ~cz ~p1)
-        (.setProvider (or ~pv *-bc-*)))))
+        (.setProvider (or ~pv ~'czlab.twisty.core/*-bc-*)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmacro withBC
+(defmacro with-BC
   "BC as provider - part of ctor"
-
-  ([cz] `(withBC ~cz nil))
+  ([cz] `(with-BC ~cz nil))
   ([cz pv]
    `(-> (new ~cz)
-        (.setProvider (or ~pv *-bc-*)))))
+        (.setProvider (or ~pv ~'czlab.twisty.core/*-bc-*)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- toXCert
-  "" ^X509Certificate [^X509CertificateHolder h]
-  (-> JcaX509CertificateConverter withBC (.getCertificate h)))
+(defn- to-xcert
+  ^X509Certificate [^X509CertificateHolder h]
+  (-> JcaX509CertificateConverter with-BC (.getCertificate h)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn- pemencr<>
-  "" ^PEMEncryptor [^chars pwd]
-
+  ^PEMEncryptor [^chars pwd]
   (if-not (empty? pwd)
     (-> (->> (rand-nth (vec enc-algos))
-             (withBC1 JcePEMEncryptorBuilder ))
-        (.setSecureRandom (c/rand<>)) (.build pwd))))
+             (with-BC1 JcePEMEncryptorBuilder ))
+        (.setSecureRandom (u/rand<>)) (.build pwd))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn jksFile?
+(defn is-jksfile?
   "Is url pointing to a JKS key file?" [keyUrl]
   (some-> keyUrl io/as-url .getFile s/lcase (.endsWith ".jks")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn msgDigest
+(defn msg-digest
   "Get a message digest instance:
   MD5
   SHA-1, SHA-256, SHA-384, SHA-512"
   ^MessageDigest
   [algo]
-  (-> (s/ucase (s/strKW algo))
+  (-> (s/ucase (s/kw->str algo))
       (s/stror "SHA-512")
-      (MessageDigest/getInstance  *-bc-*)))
+      (MessageDigest/getInstance *-bc-*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn nextSerial
+(defn next-serial
   "A random Big Integer" ^BigInteger []
-  (BigInteger/valueOf (Math/abs (-> (Random. (c/now<>)) .nextLong))))
+  (BigInteger/valueOf (Math/abs (-> (Random. (u/system-time)) .nextLong))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn dbgProvider
+(defn dbg-provider
   "List all BC algos"
-  {:no-doc true} [^PrintStream os] (c/trye!! nil (.list *-bc-* os)))
+  {:no-doc true} [^PrintStream os] (c/try! (.list *-bc-* os)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn alias<>
   "A new random name" ^String []
-  (format "%s#%04d" (-> (c/jid<>) (.substring 0 4)) (c/seqint)))
+  (format "%s#%04d" (-> (u/jid<>) (.substring 0 4)) (u/seqint)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(c/decl-object PKeyGist)
+(defrecord PKeyGist [chain cert pkey])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmulti pkeyGist<> "" {:tag Stateful} (fn [a _ _] (class a)))
+(defmulti pkey-gist<> (fn [a _ _] (class a)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmethod pkeyGist<> PrivateKey
-  [^PrivateKey pkey
-   ^Certificate cert listOfCerts]
-  (c/object<> PKeyGist
-              {:chain (into [] listOfCerts)
-               :cert cert
-               :pkey pkey}))
+(defmethod pkey-gist<> PrivateKey
+  [pkey cert listOfCerts]
+  (PKeyGist. (c/vec-> listOfCerts) ^Certificate cert pkey))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defmethod pkeyGist<> KeyStore
+(defmethod pkey-gist<> KeyStore
   [^KeyStore store ^String alias pwd]
   {:pre [(s/hgl? alias)]}
-
-  (if-some [e (->> (KeyStore$PasswordProtection. (c/charsit pwd))
+  (if-some [e (->> (KeyStore$PasswordProtection. (i/x->chars pwd))
                    (.getEntry store alias)
                    (c/cast? KeyStore$PrivateKeyEntry))]
-    (pkeyGist<> (.getPrivateKey e)
-                (.getCertificate e)
-                (.getCertificateChain e))))
+    (pkey-gist<> (.getPrivateKey e)
+                 (.getCertificate e)
+                 (.getCertificateChain e))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn tcert<>
   "Get cert from store"
-  ^Certificate [^KeyStore store ^String alias] {:pre [(some? store)]}
-
-  (if-some [e (->> (.getEntry store alias nil)
+  ^Certificate [store alias]
+  {:pre [(some? store)]}
+  (if-some [e (->> (.getEntry ^KeyStore store ^String alias nil)
                    (c/cast? KeyStore$TrustedCertificateEntry))]
     (.getTrustedCertificate e)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn filterEntries
+(defn filter-entries
   "Enumerate entries in the key-store"
-  ^APersistentVector
   [^KeyStore store entryType]
-  {:pre [(some? store)(keyword? entryType)]}
-
-  (loop [en (.aliases store)
-         rc (transient [])]
+  {:pre [(some? store)
+         (keyword? entryType)]}
+  (loop [en (.aliases store) rc (c/tvec*)]
     (if-not (.hasMoreElements en)
-      (c/pcoll! rc)
+      (c/ps! rc)
       (let [n (.nextElement en)]
-        (if
-          (cond
-            (= :certs entryType)
-            (.isCertificateEntry store n)
-            (= :keys entryType)
-            (.isKeyEntry store n))
-          (recur en (conj! rc n))
-          (recur en rc))))))
+        (if (cond
+              (= :certs entryType)
+              (.isCertificateEntry store n)
+              (= :keys entryType)
+              (.isKeyEntry store n))
+          (recur en (conj! rc n)) (recur en rc))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn initStore!
-  "Initialize the key-store"
-  ^KeyStore [store arg pwd2] {:pre [(some? store)]}
-
-  (let [[del? inp] (i/inputStream?? arg)]
-    (try
-      (doto ^KeyStore
-        store
-        (.load ^InputStream inp (c/charsit pwd2)))
-      (finally (if del? (i/closeQ inp))))))
+(defn init-store
+  "Initialize the key-store."
+  ^KeyStore [^KeyStore store arg pwd2]
+  {:pre [(some? store)]}
+  (let [[del? inp]
+        (i/input-stream?? arg)]
+    (try (.load store
+                ^InputStream inp
+                (i/x->chars pwd2))
+         store
+      (finally (if del? (i/klose inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn pkcs12<>
-  "Create a PKCS12 key-store" {:tag KeyStore}
-
+  "Create a PKCS12 key-store."
+  {:tag KeyStore}
   ([arg] (pkcs12<> arg nil))
   ([] (pkcs12<> nil nil))
   ([arg pwd2]
    (-> (KeyStore/getInstance "PKCS12" *-bc-*)
-       (initStore! arg pwd2))))
+       (init-store arg pwd2))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn jks<>
-  "Create a JKS key-store" {:tag KeyStore}
-
+  "Create a JKS key-store."
+  {:tag KeyStore}
   ([arg] (jks<> arg nil))
   ([] (jks<> nil nil))
   ([arg pwd2]
    (-> (->> (Security/getProvider "SUN")
             (KeyStore/getInstance "JKS"))
-       (initStore! arg pwd2))))
+       (init-store arg pwd2))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn convCerts
-  "To a set of Certs (p7b)" ^APersistentVector [arg]
-
-  (let [[del? inp] (i/inputStream?? arg)]
+(defn x->certs
+  "To a set of Certs (p7b)" [arg]
+  (let [[del? inp]
+        (i/input-stream?? arg)]
     (try (-> (CertificateFactory/getInstance "X.509")
              (.generateCertificates ^InputStream inp))
-         (finally (if del? (i/closeQ inp))))))
+         (finally (if del? (i/klose inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn convCert "To a Certificate" ^Certificate [arg]
-
-  (let [[del? inp] (i/inputStream?? arg)]
+(defn x->cert
+  "To a Certificate" ^Certificate [arg]
+  (let [[del? inp]
+        (i/input-stream?? arg)]
     (try (-> (CertificateFactory/getInstance "X.509")
              (.generateCertificate ^InputStream inp))
-     (finally (if del? (i/closeQ inp))))))
+         (finally (if del? (i/klose inp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn convPKey "To a Private Key"
-
-  ([arg pwd] (convPKey arg pwd nil))
-  ([arg ^chars pwd ^chars pwdStore]
+(defn x->pkey "To a Private Key"
+  ([arg pwd] (x->pkey arg pwd nil))
+  ([arg pwd pwdStore]
    (let
-     [ks (initStore! (pkcs12<>) arg pwdStore)
-      n (first (filterEntries ks :keys))]
+     [ks (init-store (pkcs12<>) arg pwdStore)
+      n (c/_1 (filter-entries ks :keys))]
      (if (s/hgl? n)
-       (pkeyGist<> ks n pwd)))))
+       (pkey-gist<> ks n pwd)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn easyPolicy<>
+(defn easy-policy<>
   "Enables all permissions" ^Policy []
   (proxy [Policy] []
     (getPermissions [cs]
       (doto (Permissions.) (.add (AllPermission.))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn genMac
-  "Create Message Auth Code" {:tag String}
-
-  ([skey data] (genMac skey data nil))
+(defn gen-mac
+  "Create Message Auth Code"
+  {:tag String}
+  ([skey data] (gen-mac skey data nil))
   ([skey data algo]
    {:pre [(some? skey) (some? data)]}
    (let
-     [algo (-> (s/strKW algo) s/ucase (s/stror def-mac))
-      mac (Mac/getInstance algo *-bc-*)
-      flag (c/decl-long-var 0)
-      _ (->> (SecretKeySpec.
-               (i/bytes?? skey) algo) (.init mac))]
-     (i/chunkReadStream data
-                        (fn [buf offset len end?]
-                          (if (> len 0)
-                            (do
+     [algo (-> (s/kw->str algo)
+               s/ucase
+               (s/stror def-mac))
+      flag (c/long-var)
+      mac (Mac/getInstance algo *-bc-*)]
+     (->> (SecretKeySpec.
+            (i/x->bytes skey) algo) (.init mac))
+     (i/chunk-read-stream data
+                          (fn [buf offset len end?]
+                            (when (pos? len)
                               (c/long-var flag + len)
-                              (.update mac buf offset len)))))
+                              (.update mac buf offset len))))
      (str (some->
-            (if (c/spos? (c/long-var flag)) (.doFinal mac))
-            Hex/toHexString)))))
+            (if (c/spos?
+                  (c/long-var flag)) (.doFinal mac)) Hex/toHexString)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- gen-digest "" [data algo]
-   (let [d (msgDigest algo)
-         flag (c/decl-long-var 0)]
-     (i/chunkReadStream data
-                        (fn [buf offset len end?]
-                          (if (> len 0)
-                            (do
-                              (c/long-var flag + len)
-                              (.update d buf offset len)))))
-     (if (c/spos? (c/long-var flag)) (.digest d))))
+(defn- gen-digest* [data algo]
+  (let [flag (c/long-var)
+        d (msg-digest algo)]
+    (i/chunk-read-stream data
+                         (fn [buf offset len end?]
+                           (when (pos? len)
+                             (c/long-var flag + len)
+                             (.update d buf offset len))))
+    (if (c/spos? (c/long-var flag)) (.digest d))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn genDigest
-  "Create Message Digest" {:tag String}
-
-  ([data] (genDigest data nil))
+(defn gen-digest
+  "Create Message Digest"
+  {:tag String}
+  ([data] (gen-digest data nil))
   ([data algo]
-   (str (some-> (gen-digest data algo) Base64/toBase64String))))
+   (if-some [x (gen-digest* data algo)] (Base64/toBase64String x) "")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn asymKeyPair<>
-  "Create a Asymmetric key-pair" {:tag KeyPair}
-
-  ([algo] (asymKeyPair<> algo nil))
+(defn asym-key-pair<>
+  "Create a Asymmetric key-pair"
+  {:tag KeyPair}
+  ([algo] (asym-key-pair<> algo nil))
   ([^String algo keylen]
    (let [len (or keylen 1024)]
-     (log/debug "gen keypair for algo %s, len %d" algo len)
+     (l/debug "gen keypair for algo %s, len %d" algo len)
      (-> (doto (KeyPairGenerator/getInstance algo *-bc-*)
-               (.initialize (int len) (c/rand<> true)))
+               (.initialize (int len) (u/rand<> true)))
          .generateKeyPair ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn exportPEM
-  "" ^bytes [obj & [pwd]] {:pre [(some? obj)]}
-
-  (if obj
-    (let [ec (pemencr<> ^chars pwd)
-          sw (StringWriter.)
-          pw (PEMWriter. sw)]
-      (->> (if ec
-             (JcaMiscPEMGenerator. obj ec)
-             (JcaMiscPEMGenerator. obj))
-           (.writeObject pw ))
-      (.flush pw)
-      (c/bytesit (str sw)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn exportPrivateKey
-  "" ^bytes [pkey & [pwd fmt]] {:pre [(some? pkey)]}
-
-  (if (= (or fmt pem-form) pem-form)
-    (exportPEM pkey pwd)
-    (.getEncoded ^PrivateKey pkey)))
+(defn export-pem ""
+  {:tag "[B"}
+  ([obj] (export-pem obj nil))
+  ([obj pwd]
+   {:pre [(some? obj)]}
+   (let [ec (pemencr<> ^chars pwd)
+         sw (StringWriter.)
+         pw (PEMWriter. sw)]
+     (->> (if ec
+            (JcaMiscPEMGenerator. obj ec)
+            (JcaMiscPEMGenerator. obj))
+          (.writeObject pw ))
+     (.flush pw)
+     (i/x->bytes (str sw)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn exportPublicKey
-  "" ^bytes [pkey & [fmt]] {:pre [(some? pkey)]}
-
-  (if (= (or fmt pem-form) pem-form)
-    (exportPEM pkey)
-    (.getEncoded ^PublicKey pkey)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn exportCert
-  "" ^bytes [^X509Certificate cert & [fmt]] {:pre [(some? cert)]}
-
-  (if (= (or fmt pem-form) pem-form) (exportPEM cert) (.getEncoded cert)))
+(defn export-private-key
+  {:tag "[B"}
+  ([pkey pwd] (export-private-key pkey pwd nil))
+  ([pkey] (export-private-key nil))
+  ([pkey pwd fmt]
+   {:pre [(some? pkey)]}
+   (if (= (or fmt pem-form) pem-form)
+     (export-pem pkey pwd)
+     (.getEncoded ^PrivateKey pkey))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
+(defn export-public-key
+  {:tag "[B"}
+  ([pkey] (export-public-key pkey nil))
+  ([pkey fmt]
+   {:pre [(some? pkey)]}
+   (if (= (or fmt pem-form) pem-form)
+     (export-pem pkey)
+     (.getEncoded ^PublicKey pkey))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn export-cert
+  {:tag "[B"}
+  ([cert] (export-cert cert nil))
+  ([cert fmt]
+   {:pre [(some? cert)]}
+   (if (= (or fmt pem-form) pem-form)
+     (export-pem cert)
+     (.getEncoded ^X509Certificate cert))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn csreq<>
-  "A PKCS10 (csr-request)" {:tag APersistentVector}
-
+  "A PKCS10 (csr-request)."
   ([dnStr keylen] (csreq<> dnStr keylen nil))
   ([dnStr] (csreq<> dnStr 1024 nil))
-  ([^String dnStr keylen pwd]
+  ([dnStr keylen pwd]
    {:pre [(s/hgl? dnStr)]}
    (let
-     [csb (withBC1 JcaContentSignerBuilder def-algo)
-      len (or keylen 1024)
-      kp (asymKeyPair<> "RSA" len)
+     [csb (with-BC1 JcaContentSignerBuilder def-algo)
+      len (c/num?? keylen 1024)
+      kp (asym-key-pair<> "RSA" len)
       rbr (JcaPKCS10CertificationRequestBuilder.
-            (X500Principal. dnStr) (.getPublic kp))
+            (X500Principal. ^String dnStr) (.getPublic kp))
       k (.getPrivate kp)
       rc (->> (.build csb k) (.build rbr))]
-     (log/debug "csr: dnStr= %s, key-len= %d" dnStr len)
-     [(exportPEM rc)
-      (exportPrivateKey k pwd)])))
+     (l/debug "csr: dnStr= %s, key-len= %d" dnStr len)
+     [(export-pem rc)
+      (export-private-key k pwd)])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn- pemparse2
-  "" [^JcaPEMKeyConverter pc obj]
+  [^JcaPEMKeyConverter pc obj]
   (let []
     (condp = (class obj)
 
@@ -588,18 +541,18 @@
       obj
 
       X509AttributeCertificateHolder
-      (toXCert obj)
+      (to-xcert obj)
 
       X509TrustedCertificateBlock
       (-> ^X509TrustedCertificateBlock obj
           .getCertificateHolder
-          toXCert)
+          to-xcert)
 
       SubjectPublicKeyInfo
       (.getPublicKey pc ^SubjectPublicKeyInfo obj)
 
       X509CertificateHolder
-      (toXCert obj)
+      (to-xcert obj)
 
       X509CRLHolder
       obj
@@ -610,7 +563,6 @@
       obj)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn- pemparse
   "PEM encoded streams may contain
   X509 certificates,
@@ -631,7 +583,7 @@
               (.build pwd))
        dc (-> (JcePEMDecryptorProviderBuilder.)
               (.build pwd))
-       pc (withBC JcaPEMKeyConverter)
+       pc (with-BC JcaPEMKeyConverter)
        obj (-> (PEMParser. rdr) .readObject)]
       (->>
         (condp = (class obj)
@@ -649,60 +601,48 @@
         pemparse2))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn spitKeyStore
+(defn spit-key-store
   "Write store to file"
-  ^File [store fout pwd2] {:pre [(some? store)
-                                 (some? fout)]}
-  (let [f (io/file fout)
-        out (i/baos<>)]
-    (. ^KeyStore store store out (c/charsit pwd2))
-    (doto f (i/writeFile (.toByteArray out)))))
+  ^File [store fout pwd2]
+  {:pre [(some? store)
+         (some? fout)]}
+  (let [out (i/baos<>)]
+    (. ^KeyStore store store out (i/x->chars pwd2))
+    (i/x->file (i/x->bytes out) (io/file fout))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- setKeyEntry "" ^KeyStore [store pk pwd certs]
-  (doto ^KeyStore store
-    (.setKeyEntry (alias<>)
-                  ^PrivateKey pk (c/charsit pwd) (c/vargs Certificate certs))))
+(defn- set-key-entry
+  ^KeyStore [^KeyStore store pk pwd certs]
+  (.setKeyEntry store
+                (alias<>)
+                ^PrivateKey pk
+                (i/x->chars pwd)
+                (c/vargs Certificate certs)) store)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- setCertEntry "" ^KeyStore [store cert]
-  (doto ^KeyStore store
-    (.setCertificateEntry (alias<>) ^Certificate cert)))
+(defn- set-cert-entry ^KeyStore [^KeyStore store cert]
+  (.setCertificateEntry store
+                        (alias<>) ^Certificate cert) store)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn intoJks<>
+(defn x->jks<>
   "Create jks store"
   ^KeyStore
-  [^X509Certificate cert ^PrivateKey pk pwd certs]
+  [cert pk pwd certs]
   {:pre [(some? cert)(some? pk)]}
-
-  (doto (jks<>)
-     (setKeyEntry pk
-                  pwd
-                  (cons cert (or certs [])))))
+  (set-key-entry (jks<>) pk pwd (cons cert (or certs []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn intoPkcs12<>
+(defn x->pkcs12<>
   "Create pkcs12 store"
   ^KeyStore
-  [^X509Certificate cert ^PrivateKey pk pwd certs]
+  [cert pk pwd certs]
   {:pre [(some? cert)(some? pk)]}
-
-  (doto (pkcs12<>)
-     (setKeyEntry pk
-                  pwd
-                  (cons cert (or certs [])))))
+  (set-key-entry (pkcs12<>) pk pwd (cons cert (or certs []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn ssv1Cert
+(defn ssv1-cert
   "Create self-signed cert, issuer is self"
-  ^APersistentVector
   [{:keys [^String dnStr
            ^String algo
            ^Date start
@@ -711,55 +651,47 @@
            keylen
            style] :as args}]
   (let
-    [kp (asymKeyPair<> style (or keylen 1024))
-     start (or start (c/date<>))
-     end (->> (or validFor 12)
-              addMonths
-              .getTime
-              (or end ))
+    [kp (asym-key-pair<> style (c/num?? keylen 1024))
+     start (or start (u/date<>))
+     end (or end (.getTime
+                   (d/add-months (c/num?? validFor 12))))
      prv (.getPrivate kp)
      pub (.getPublic kp)
      bdr (JcaX509v1CertificateBuilder.
            (X500Principal. dnStr)
-           (nextSerial)
+           (next-serial)
            start end
            (X500Principal. dnStr) pub)
      cs (-> JcaContentSignerBuilder
-            (withBC1 algo *-bc-*) (.build prv))
-     cert (toXCert (.build bdr cs))]
-    (.checkValidity cert (c/date<>))
+            (with-BC1 algo *-bc-*) (.build prv))
+     cert (to-xcert (.build bdr cs))]
+    (.checkValidity cert (u/date<>))
     (.verify cert pub)
-    (log/debug (str "mkssv1cert: dn= %s "
-                    ",algo= %s,start= %s"
-                    ",end=%s") dnStr algo start end)
+    (l/debug (str "mkssv1cert: dn= %s "
+                  ",algo= %s,start= %s" ",end=%s") dnStr algo start end)
     [prv cert]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn ssv1PKCS12<>
-  "(root level) store" ^KeyStore [dnStr pwd args]
-
-  (let [[pkey cert] (ssv1Cert (merge {:algo def-algo
-                                      :dnStr dnStr
-                                      :style "RSA"} args))]
-    (intoPkcs12<> cert pkey pwd [])))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn ssv1JKS<>
-  "(root level) store" ^KeyStore [dnStr pwd args]
-
-  (let [[pkey cert] (ssv1Cert (merge {:algo "SHA1withDSA"
-                                      :dnStr dnStr
-                                      :style "DSA"} args))]
-    (intoJks<> cert pkey pwd [])))
+(defn ssv1-pkcs12<>
+  "(root level) store"
+  ^KeyStore [dnStr pwd args]
+  (let [[pkey cert] (ssv1-cert (merge {:algo def-algo
+                                       :dnStr dnStr
+                                       :style "RSA"} args))]
+    (x->pkcs12<> cert pkey pwd [])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn ssv3Cert "SSV3 server key"
-  ^APersistentVector
-  [^czlab.twisty.core.PKeyGist
-   issuer
+(defn ssv1-jks<>
+  "(root level) store"
+  ^KeyStore [dnStr pwd args]
+  (let [[pkey cert] (ssv1-cert (merge {:algo "SHA1withDSA"
+                                       :dnStr dnStr
+                                       :style "DSA"} args))]
+    (x->jks<> cert pkey pwd [])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn ssv3-cert "SSV3 server key"
+  [issuer
    {:keys [^String dnStr
            ^String algo
            ^Date start
@@ -769,24 +701,21 @@
     [^X509Certificate rootc (:cert issuer)
      subject (X500Principal. dnStr)
      exu (JcaX509ExtensionUtils.)
-     end (->> (or validFor 12)
-              addMonths
-              .getTime
-              (or end ))
-     start (or start (c/date<>))
-     len (or keylen 1024)
+     end (or end (-> (or validFor 12) d/add-months .getTime))
+     start (or start (u/date<>))
+     len (c/num?? keylen 1024)
      kp (-> ^PrivateKey
             (:pkey issuer)
             .getAlgorithm
-            (asymKeyPair<> len))
+            (asym-key-pair<> len))
      bdr (JcaX509v3CertificateBuilder.
            rootc
-           (nextSerial)
+           (next-serial)
            start
            end
            subject
            (.getPublic kp))
-     cs (-> (withBC1 JcaContentSignerBuilder algo *-bc-*)
+     cs (-> (with-BC1 JcaContentSignerBuilder algo *-bc-*)
             (.build (:pkey issuer)))]
     (doto bdr
       (.addExtension
@@ -797,54 +726,50 @@
         X509Extension/subjectKeyIdentifier
         false
         (.createSubjectKeyIdentifier exu (.getPublic kp))))
-    (let [ct (toXCert (.build bdr cs))]
-      (.checkValidity ct (c/date<>))
+    (let [ct (to-xcert (.build bdr cs))]
+      (.checkValidity ct (u/date<>))
       (.verify ct (.getPublicKey rootc))
       [(.getPrivate kp) ct])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- makeSSV3
-  "" [issuer ^String dnStr pwd args]
-
-  (let [[pkey cert] (ssv3Cert issuer
-                              (assoc args :dnStr dnStr))]
-    [pkey cert (into [] (:chain issuer))]))
+(defn- make-ssv3
+  [issuer ^String dnStr pwd args]
+  (let [[pkey cert] (ssv3-cert issuer
+                               (assoc args :dnStr dnStr))]
+    [pkey cert (c/vec-> (:chain issuer))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn ssv3PKCS12<>
-  "SSV3 type pkcs12" ^KeyStore [issuer dnStr pwd args]
-
-  (let [[pkey cert certs] (makeSSV3 issuer
-                                    dnStr
-                                    pwd
-                                    (merge args {:algo def-algo}))]
-    (intoPkcs12<> cert pkey pwd certs)))
+(defn ssv3-pkcs12<>
+  "SSV3 type pkcs12"
+  ^KeyStore [issuer dnStr pwd args]
+  (let [[pkey cert certs] (make-ssv3 issuer
+                                     dnStr
+                                     pwd
+                                     (merge args {:algo def-algo}))]
+    (x->pkcs12<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JKS uses SUN and hence needs to use DSA
-(defn ssv3JKS<>
-  "SSV3 type jks" ^KeyStore [issuer dnStr pwd args]
-
-  (let [[pkey cert certs] (makeSSV3 issuer
-                                    dnStr
-                                    pwd
-                                    (merge args {:algo "SHA1withDSA"}))]
-    (intoJks<> cert pkey pwd certs)))
+(defn ssv3-jks<>
+  "SSV3 type jks"
+  ^KeyStore [issuer dnStr pwd args]
+  (let [[pkey cert certs] (make-ssv3 issuer
+                                     dnStr
+                                     pwd
+                                     (merge args {:algo "SHA1withDSA"}))]
+    (x->jks<> cert pkey pwd certs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn exportPkcs7 "" ^bytes [pkey]
+(defn export-pkcs7 "" ^bytes [pkey]
   (let
-    [xxx (CMSProcessableByteArray. (c/bytesit "?"))
+    [xxx (CMSProcessableByteArray. (i/x->bytes "?"))
      gen (CMSSignedDataGenerator.)
      cl (:chain pkey)
-     bdr (->> (-> (withBC JcaDigestCalculatorProviderBuilder)
+     bdr (->> (-> (with-BC JcaDigestCalculatorProviderBuilder)
                   .build)
               JcaSignerInfoGeneratorBuilder.)
      ;;    "SHA1withRSA"
-     cs (-> (withBC1 JcaContentSignerBuilder sha-512-rsa)
+     cs (-> (with-BC1 JcaContentSignerBuilder sha-512-rsa)
             (.build (:pkey pkey)))
      ^X509Certificate x509 (:cert pkey)]
     (->> (.build bdr cs x509)
@@ -854,105 +779,102 @@
     (-> (.generate gen xxx) .getEncoded)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn exportPkcs7File
-  "" ^File [pkey fout] (doto (io/file fout) (i/writeFile (exportPkcs7 pkey))))
+(defn export-pkcs7-file
+  ^File [pkey fout]
+  (i/x->file (export-pkcs7 pkey) (io/file fout)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn session<>
-  "Create a new java-mail session" {:tag Session}
-
+  "Create a new java-mail session"
+  {:tag Session}
   ([user] (session<> user nil))
   ([] (session<> nil nil))
-  ([^String user pwd]
+  ([user pwd]
    (Session/getInstance
      (System/getProperties)
      (if (s/hgl? user)
-       (->> (if pwd (c/strit pwd))
-            (DefaultAuthenticator. user))))))
+       (->> (if pwd (i/x->str pwd))
+            (DefaultAuthenticator. ^String user))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn mimeMsg<>
-  "Create a new MIME Message" {:tag MimeMessage}
-
+(defn mime-msg<>
+  "Create a new MIME Message"
+  {:tag MimeMessage}
   ([^String user pwd ^InputStream inp]
    (let [s (session<> user pwd)]
      (if (nil? inp)
        (MimeMessage. s)
        (MimeMessage. s inp))))
-  ([user pwd] (mimeMsg<> user pwd nil))
-  ([inp] (mimeMsg<> "" nil inp))
-  ([] (mimeMsg<> "" nil nil)))
+  ([user pwd] (mime-msg<> user pwd nil))
+  ([inp] (mime-msg<> "" nil inp))
+  ([] (mime-msg<> "" nil nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn isDataSigned?
+(defn is-data-signed?
   "Is object/message-part signed?" [obj]
-
-  (if-some [x (i/inputStream?? obj)]
-    (c/let-try [[del? inp] x]
-      (->> (mimeMsg<> "" nil inp)
-           .getContentType
-           isSigned? )
-      (finally
-        (if del? (i/closeQ inp)
-          (i/resetStream! inp))))
+  (if-some [x (i/input-stream?? obj)]
+    (let [[del? inp] x]
+      (try (->> (mime-msg<> "" nil inp)
+                .getContentType
+                is-signed? )
+           (finally
+             (if del?
+               (i/klose inp)
+               (i/reset-stream! inp)))))
+    ;else
     (if-some [mp (c/cast? Multipart obj)]
-      (->> (.getContentType mp) isSigned? )
-      (c/throwIOE "Invalid content: %s" (c/getClassname obj)))))
+      (->> (.getContentType mp) is-signed? )
+      (u/throw-IOE "Invalid content: %s" (u/gczn obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn isDataCompressed?
+(defn is-data-compressed?
   "Is object/message-part compressed?" [obj]
-
-  (if-some [x (i/inputStream?? obj)]
-    (c/let-try [[del? inp] x]
-      (->> (mimeMsg<> "" nil inp)
-           .getContentType
-           isCompressed? )
-      (finally
-        (if del? (i/closeQ inp)
-          (i/resetStream! inp))))
+  (if-some [x (i/input-stream?? obj)]
+    (let [[del? inp] x]
+      (try (->> (mime-msg<> "" nil inp)
+                .getContentType
+                is-compressed? )
+           (finally
+             (if del?
+               (i/klose inp)
+               (i/reset-stream! inp)))))
+    ;else
     (condp instance? obj
       Multipart (->> (c/cast? Multipart obj)
                      .getContentType
-                     isCompressed? )
+                     is-compressed? )
       BodyPart (->> (c/cast? BodyPart obj)
                     .getContentType
-                    isCompressed? )
-      (c/throwIOE "Invalid content: %s" (c/getClassname obj)))))
+                    is-compressed? )
+      (u/throw-IOE "Invalid content: %s" (u/gczn obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn isDataEncrypted?
+(defn is-data-encrypted?
   "Is object/message-part encrypted?" [obj]
-
-  (if-some [x (i/inputStream?? obj)]
-    (c/let-try [[del? inp] x]
-      (->> (mimeMsg<> "" nil inp)
-           .getContentType
-           isEncrypted? )
-      (finally
-        (if del? (i/closeQ inp)
-          (i/resetStream! inp))))
+  (if-some [x (i/input-stream?? obj)]
+    (let [[del? inp] x]
+      (try (->> (mime-msg<> "" nil inp)
+                .getContentType
+                is-encrypted? )
+           (finally
+             (if del?
+               (i/klose inp)
+               (i/reset-stream! inp)))))
+    ;else
     (condp instance? obj
       Multipart (->> (c/cast? Multipart obj)
                      .getContentType
-                     isEncrypted? )
+                     is-encrypted? )
       BodyPart (->> (c/cast? BodyPart obj)
                     .getContentType
-                    isEncrypted? )
-      (c/throwIOE "Invalid content: %s" (c/getClassname obj)))))
+                    is-encrypted? )
+      (u/throw-IOE "Invalid content: %s" (u/gczn obj)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn getCharset
-  "Charset from content-type" {:tag String}
-
-  ([cType] (getCharset cType nil))
+(defn charset??
+  "Charset from content-type"
+  {:tag String}
+  ([cType] (charset?? cType nil))
   ([^String cType ^String dft]
    (s/stror
      (if (s/hgl? cType)
@@ -963,34 +885,30 @@
        (MimeUtility/javaCharset dft)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (defn fingerprint
-  "Data's fingerprint" {:tag String}
-
+  "Data's fingerprint"
+  {:tag String}
   ([data] (fingerprint data nil))
   ([data algo]
-   (str (some-> (gen-digest data algo) Hex/toHexString))))
+   (str (some-> (gen-digest* data algo) Hex/toHexString))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(c/decl-object CertGist)
+(defrecord CertGist [issuer subj notBefore notAfter])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn certGist<> "Basic info from cert"
+(defn cert-gist<> "Basic info from cert"
   [^X509Certificate x509]
   (if x509
-    (c/object<> CertGist
-                {:issuer (.getIssuerX500Principal x509)
-                 :subj (.getSubjectX500Principal x509)
-                 :notBefore (.getNotBefore x509)
-                 :notAfter (.getNotAfter x509)})))
+    (CertGist. (.getIssuerX500Principal x509)
+               (.getSubjectX500Principal x509)
+               (.getNotBefore x509)
+               (.getNotAfter x509))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn validCert?
-  "" [^X509Certificate x509]
-  (c/try!! false (c/do->true (.checkValidity x509 (c/date<>)) )))
+(defn is-valid-cert?
+  [^X509Certificate x509]
+  (c/trye! false
+           (c/do#true (.checkValidity x509 (u/date<>)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
