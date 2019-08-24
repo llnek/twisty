@@ -12,6 +12,7 @@
   czlab.twisty.codec
 
   (:require [czlab.basal.core :as c]
+            [clojure.string :as cs]
             [czlab.basal.log :as l]
             [czlab.basal.io :as i]
             [czlab.basal.str :as s]
@@ -77,59 +78,56 @@
 (def ^:private ^String c-algo t3-des)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol Cryptor
-  (algo [_] "Encryption algorithm used")
-  (decrypt [_ pkey data] "Decrypt some data")
-  (encrypt [_ pkey data] "Encrypt some data"))
+(defprotocol Cryptor ""
+  (cr-algo [_] "Encryption algorithm used")
+  (cr-decrypt [_ pkey data] "Decrypt some data")
+  (cr-encrypt [_ pkey data] "Encrypt some data"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- ensure-key-size
   "Key has enough bits?"
-  ^bytes [kee algo]
-  {:pre [(c/is? u/BSCZ kee)]}
-  (let [bits (* 8 (alength ^bytes kee))]
-    (cond
+  ^bytes [^bytes kee algo]
+  (let [bits (* 8 (alength kee))]
+    (if
       (and (< bits 192)
            (= t3-des algo)) ;; 8x 3 = 24 bytes
-      (u/throw-BadArg "TripleDES key length must be 192")
+      (u/throw-BadArg "TripleDES key length must be 192."))
+    (if
       (and (< bits 128)
            (= "AES" algo))
-      (u/throw-BadArg "AES key length must be 128 or 256")
-      :else kee)))
+      (u/throw-BadArg "AES key length must be 128 or 256."))
+    ;ok
+    kee))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- key->bits
   "Sanitize the key, maybe chop length"
-  ^bytes [pwd algo]
-  (let [blen (alength ^bytes pwd)
+  ^bytes [^bytes pwd algo]
+  (let [blen (alength pwd)
         bits (* 8 blen)]
-    (cond
-      (= "AES" algo)
-      (cond
-        (> bits 256) ;; 32 bytes
-        (c/vargs Byte/TYPE (take 32 pwd))
-        ;; 128 => 16 bytes
-        (and (> bits 128) (< bits 256))
-        (c/vargs Byte/TYPE (take 16 pwd))
-        :else pwd)
-      (= algo t3-des)
-      (if (> blen 24)
-        ;; 24 bytes
-        (c/vargs Byte/TYPE (take 24 pwd))
-        pwd)
-      :else pwd)))
+    (cond (= "AES" algo)
+          (cond (> bits 256) ;; 32 bytes
+                (c/vargs Byte/TYPE (take 32 pwd))
+                ;; 128 => 16 bytes
+                (and (> bits 128) (< bits 256))
+                (c/vargs Byte/TYPE (take 16 pwd))
+                :else pwd)
+          (= algo t3-des)
+          (if (> blen 24) ;; 24 bytes
+            (c/vargs Byte/TYPE (take 24 pwd)) pwd)
+          :else pwd)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; caesar cipher
 (defmacro ^:private ident-ch
-  "Get a character" [pos] `(aget VISCHS (int ~pos)))
+  "Get a character." [pos] `(aget VISCHS (int ~pos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- locate-ch
-  "Locate a character" ^Integer [^Character ch]
-  (-> (some #(if (= ch
+  "Locate a character." ^Integer [ch]
+  (or (some #(if (= ^Character ch
                     (aget VISCHS %1))
-               %1) (range VISCHS-LEN)) (or -1)))
+               %1) (range VISCHS-LEN)) -1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- slide-forward [delta cpos]
@@ -158,43 +156,35 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn caesar<>
-  "Encrypt by character rotation" []
+  "Encrypt by character rotation." []
+  (let [F (fn [shiftpos text func']
+            (if (or (s/nichts? text)
+                    (c/szero? shiftpos))
+              text
+              (let [delta (mod (Math/abs (int shiftpos)) VISCHS-LEN)
+                    pf (partial func' shiftpos delta)
+                    ca (i/x->chars text)]
+                (i/x->str (amap ca pos ret
+                                (caesar-amap-expr ca pos pf))))))]
   (reify Cryptor
-    (algo [_] "caesar")
-    (encrypt [_ shiftpos text]
-      (if (or (s/nichts? text)
-              (c/szero? shiftpos))
-        text
-        (let [delta (mod (Math/abs (int shiftpos)) VISCHS-LEN)
-              pf (partial shiftenc shiftpos delta)
-              ca (i/x->chars text)
-              out (amap ca pos ret
-                        (caesar-amap-expr ca pos pf))]
-          (i/x->str out))))
-    (decrypt [_ shiftpos text]
-      (if (or (s/nichts? text)
-              (c/szero? shiftpos))
-        text
-        (let [delta (mod (Math/abs (int shiftpos)) VISCHS-LEN)
-              pf (partial shiftdec shiftpos delta)
-              ca (i/x->chars text)
-              out (amap ca pos ret
-                        (caesar-amap-expr ca pos pf))]
-          (i/x->str out))))))
+    (cr-encrypt [_ shiftpos text]
+      (F shiftpos text shiftenc))
+    (cr-algo [_] "caesar")
+    (cr-decrypt [_ shiftpos text]
+      (F shiftpos text shiftdec)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn jasypt<>
   "jasypt cryptor" []
+  (let [F #(doto
+             (StrongTextEncryptor.)
+             (.setPasswordCharArray (i/x->chars %1)))]
   (reify Cryptor
-    (algo [_] "PBEWithMD5AndTripleDES")
-    (decrypt [_ pkey data]
-      (let [e (StrongTextEncryptor.)]
-        (.setPasswordCharArray e (i/x->chars pkey))
-        (.decrypt e (i/x->str data))))
-    (encrypt [_ pkey data]
-      (let [e (StrongTextEncryptor.)]
-        (.setPasswordCharArray e (i/x->chars pkey))
-        (.encrypt e (i/x->str data))))))
+    (cr-algo [_] "PBEWithMD5AndTripleDES")
+    (cr-decrypt [_ pkey data]
+      (.decrypt ^StrongTextEncryptor (F pkey) (i/x->str data)))
+    (cr-encrypt [_ pkey data]
+      (.encrypt ^StrongTextEncryptor (F pkey) (i/x->str data))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; java cryptor
@@ -226,7 +216,7 @@
 (defmacro ^:private
   jcryptor-impl [pkey data algo mode]
   `(when ~data
-     (c/test-cond "pkey != bytes" (c/is? u/BSCZ ~pkey))
+     (c/test-cond "pkey != bytes" (bytes? ~pkey))
      (ensure-key-size ~pkey ~algo)
      (java-codec ~pkey ~data (get-cipher ~pkey ~mode ~algo))))
 
@@ -234,37 +224,39 @@
 (defn jcrypt<> "" []
   (reify Cryptor
     ;;PBEWithMD5AndDES
-    (algo [_] t3-des)
-    (decrypt [me pkey cipher]
-      (jcryptor-impl pkey cipher (.algo me) Cipher/DECRYPT_MODE))
-    (encrypt [me pkey clear]
-      (jcryptor-impl pkey clear (.algo me) Cipher/ENCRYPT_MODE))))
+    (cr-decrypt [me pkey cipher]
+      (jcryptor-impl pkey cipher (cr-algo me) Cipher/DECRYPT_MODE))
+    (cr-algo [_] t3-des)
+    (cr-encrypt [me pkey clear]
+      (jcryptor-impl pkey clear (cr-algo me) Cipher/ENCRYPT_MODE))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 1024 - 2048 bits RSA
 (defn asym<> "" []
   (reify Cryptor
-    (algo [_] "RSA/ECB/PKCS1Padding")
-    (encrypt [me pubKey data]
+    (cr-algo [_] "RSA/ECB/PKCS1Padding")
+    (cr-encrypt [me pubKey data]
       (when data
         (let [k (i/x->bytes pubKey)
               pk (-> (KeyFactory/getInstance "RSA")
                      (.generatePublic (X509EncodedKeySpec. k)))
-              cipher (doto (Cipher/getInstance (.algo me))
+              cipher (doto
+                       (Cipher/getInstance (cr-algo me))
                        (.init Cipher/ENCRYPT_MODE ^Key pk))]
           (.doFinal cipher (i/x->bytes data)))))
-    (decrypt [me prvKey data]
+    (cr-decrypt [me prvKey data]
       (when data
         (let [k (i/x->bytes prvKey)
               pk (-> (KeyFactory/getInstance "RSA")
                      (.generatePrivate (PKCS8EncodedKeySpec. k)))
-              cipher (doto (Cipher/getInstance (.algo me))
+              cipher (doto
+                       (Cipher/getInstance (cr-algo me))
                        (.init Cipher/DECRYPT_MODE ^Key pk))]
           (.doFinal cipher (i/x->bytes data)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BC cryptor
-(defn- bcXXX
+(defn- bc-xxx
   ^bytes [pkey data algo mode]
   (when data
     (ensure-key-size pkey algo)
@@ -289,11 +281,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn bcastle<> "" []
   (reify Cryptor
-    (algo [_] t3-des)
-    (encrypt [me pkey clear]
-      (bcXXX pkey clear (.algo me) true))
-    (decrypt [me pkey cipher]
-      (bcXXX pkey cipher (.algo me) false))))
+    (cr-encrypt [me pkey clear]
+      (bc-xxx pkey clear (cr-algo me) true))
+    (cr-algo [_] t3-des)
+    (cr-decrypt [me pkey cipher]
+      (bc-xxx pkey cipher (cr-algo me) false))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; passwords
@@ -311,54 +303,52 @@
                                 (mod (.nextInt r b) alen)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol Password
-  (valid-hash? [_ targetHashed] "Check to match")
-  (strongly-hashed [_] "Get (string) hash value")
-  (stringify [_] "Get as string")
-  (hashed [_] "Get hash value")
-  (p-encoded [_] "Get encoded value")
-  (p-text [_] "Get clear text value"))
+(defprotocol Password ""
+  (pw-hash-valid? [_ targetHashed] "Check to match")
+  (pw-strongly-hashed [_] "Get (string) hash value")
+  (pw-stringify [_] "Get as string")
+  (pw-hashed [_] "Get hash value")
+  (pw-encoded [_] "Get encoded value")
+  (pw-text [_] "Get clear text value"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- mkpwd [pwd pkey]
   (let [_pwd (i/x->chars pwd)
         _pkey (i/x->chars pkey)]
   (reify Password
-    (strongly-hashed [me]
-      (if (and _pwd
-               (not-empty _pwd))
+    (pw-strongly-hashed [me]
+      (if-not (empty? _pwd)
         (->> (BCrypt/gensalt 12)
-             (BCrypt/hashpw (.stringify me))) ""))
-    (hashed [me]
-      (if (and _pwd
-               (not-empty _pwd))
+             (BCrypt/hashpw (pw-stringify me))) ""))
+    (pw-hashed [me]
+      (if-not (empty? _pwd)
         (->> (BCrypt/gensalt 10)
-             (BCrypt/hashpw (.stringify me))) ""))
-    (valid-hash? [me pwdHashed]
-      (BCrypt/checkpw (.stringify me) pwdHashed))
-    (stringify [me] (i/x->str (.p-text me)))
-    (p-text [_] _pwd)
-    (p-encoded [me]
+             (BCrypt/hashpw (pw-stringify me))) ""))
+    (pw-hash-valid? [me pwdHashed]
+      (BCrypt/checkpw (pw-stringify me) pwdHashed))
+    (pw-stringify [me] (i/x->str (pw-text me)))
+    (pw-text [_] _pwd)
+    (pw-encoded [me]
       (cond (nil? _pwd) nil
             (empty? _pwd) CZERO
             :else
             (i/x->chars (str pwd-pfx
-                             (encrypt (jasypt<>)
-                                      _pkey
-                                      (.stringify me)))))))))
+                             (cr-encrypt (jasypt<>)
+                                         _pkey
+                                         (pw-stringify me)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn pwd<>
-  "Create a password object"
+  "Create a password object."
   ([pwd] (pwd<> pwd nil))
   ([pwd pkey]
    (let [s (i/x->str pwd)
          pk (i/x->chars (or pkey CKEY))]
-     (if-not (some-> s (.startsWith pwd-pfx))
+     (if-not (some-> s (cs/starts-with? pwd-pfx))
        (mkpwd pwd pk)
-       (mkpwd (decrypt (jasypt<>)
-                       pk
-                       (.substring s pwd-pfxlen)) pk)))))
+       (mkpwd (cr-decrypt (jasypt<>)
+                          pk
+                          (subs s pwd-pfxlen)) pk)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn random-str

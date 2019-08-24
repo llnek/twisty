@@ -16,6 +16,7 @@
             [clojure.java.io :as io]
             [czlab.twisty.ssl :as ss]
             [czlab.twisty.core :as t]
+            [clojure.string :as cs]
             [clojure.test :as ct]
             [czlab.basal.io :as i]
             [czlab.basal.str :as s]
@@ -87,12 +88,12 @@
             (and (t/is-compressed? "application/pkcs7-mime; compressed-data")
                  (not (t/is-compressed? "text/plain"))))
 
-  (ensure?? "is-jksfile?"
-            (and (not (t/is-jksfile? (i/res->url "czlab/test/twisty/test.p12")))
-                 (t/is-jksfile? (i/res->url "czlab/test/twisty/test.jks"))))
+  (ensure?? "is-jks?"
+            (and (not (t/is-jks? (i/res->url "czlab/test/twisty/test.p12")))
+                 (t/is-jks? (i/res->url "czlab/test/twisty/test.jks"))))
 
-  (ensure?? "msg-digest" (= "SHA-512" (.getAlgorithm (t/msg-digest "SHA-512"))))
-  (ensure?? "msg-digest" (= "MD5" (.getAlgorithm (t/msg-digest "MD5"))))
+  (ensure?? "msg-digest<>" (= "SHA-512" (.getAlgorithm (t/msg-digest<> "SHA-512"))))
+  (ensure?? "msg-digest<>" (= "MD5" (.getAlgorithm (t/msg-digest<> "MD5"))))
 
   (ensure?? "next-serial" (c/is? BigInteger (t/next-serial)))
 
@@ -106,32 +107,32 @@
   (ensure?? "crypto-store<>"
             (let [x (i/x->chars "a")
                   out (i/baos<>)
-                  _ (st/write-out root-cs out x)
+                  _ (st/cs-write-out root-cs out x)
                   [del? inp] (i/input-stream?? out)
                   s (st/crypto-store<> (t/pkcs12<> inp x) x)]
               (if del? (i/klose inp))
-              (c/is? KeyStore (st/keystore s))))
+              (c/is? KeyStore (st/cs-keystore s))))
 
   (ensure?? "key-entity,key-aliases"
-            (let [a (st/key-aliases root-cs)
+            (let [a (st/cs-key-aliases root-cs)
                   c (count a)
                   n (first a)
-                  e (st/key-entity root-cs n help-me)]
+                  e (st/cs-key-entity root-cs n help-me)]
               (and (= 1 c) (string? n))))
 
   (ensure?? "cert-aliases"
-            (let [a (st/cert-aliases root-cs) c (count a)] (zero? c)))
+            (let [a (st/cs-cert-aliases root-cs) c (count a)] (zero? c)))
 
   (ensure?? "x->pkey"
             (let [g (t/x->pkey (i/res->url
                                  "czlab/test/twisty/test.p12")
                                help-me help-me)
-                  t (t/export-pkcs7-file g (i/temp-file))
+                  t (i/x->file (t/spit-pkcs7 g) (i/temp-file))
                   z (i/fsize t)
-                  b (t/export-cert (:cert g))]
+                  b (t/spit-pem (:cert g))]
               (i/fdelete t)
               (and (> z 10)
-                   (> (alength b) 10))))
+                   (> (count b) 10))))
 
   (ensure?? "easy-policy<>" (some? (t/easy-policy<>)))
 
@@ -149,27 +150,27 @@
 
   (ensure?? "asym-key-pair<>"
             (let [kp (t/asym-key-pair<> "RSA" 512)
-                  b (t/export-pem kp secret)
+                  b (t/spit-pem kp secret)
                   pub (.getPublic kp)
                   prv (.getPrivate kp)
-                  b1 (t/export-private-key prv secret)
-                  b2 (t/export-public-key pub)]
-              (and (s/hgl? (i/x->str b))
-                   (s/hgl? (i/x->str b1))
-                   (s/hgl? (i/x->str b2)))))
+                  b1 (t/spit-pem prv secret)
+                  b2 (t/spit-pem pub)]
+              (and (s/hgl? b)
+                   (s/hgl? b1)
+                   (s/hgl? b2))))
 
   (ensure?? "csreq<>"
             (let [[a b]
                   (t/csreq<> "C=AU,O=Org,OU=OUnit,CN=joe" 512)]
-              (and (bytes? a) (bytes? b))))
+              (and (string? a) (string? b))))
 
   (ensure?? "csreq<>"
             (let [[v1 v2 :as v]
                   (t/csreq<>
                     "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 512 secret)]
               (and (= (count v) 2)
-                   (pos? (alength ^bytes v1))
-                   (pos? (alength ^bytes v2)))))
+                   (pos? (count v1))
+                   (pos? (count v2)))))
 
   (ensure?? "session<>"
             (let [s (t/session<> "joe" secret)
@@ -188,92 +189,92 @@
             (some? (t/charset?? "text/plain; charset=utf-16")))
 
   (ensure?? "fingerprint"
-            (not= (t/fingerprint (i/x->bytes "hello world") :sha-1)
-                  (t/fingerprint (i/x->bytes "hello world") :md5)))
+            (not= (t/gen-digest (i/x->bytes "hello world") {:fmt :hex :algo :sha-1})
+                  (t/gen-digest (i/x->bytes "hello world") {:fmt :hex :algo :md5})))
 
   (ensure?? "fingerprint"
-            (= (t/fingerprint (i/x->bytes "hello world") :sha-1)
-               (t/fingerprint (i/x->bytes "hello world") :sha-1)))
+            (= (t/gen-digest (i/x->bytes "hello world") {:fmt :hex :algo :sha-1})
+               (t/gen-digest (i/x->bytes "hello world") {:fmt :hex :algo :sha-1})))
 
   (ensure?? "fingerprint"
-            (= (t/fingerprint (i/x->bytes "hello world") :md5)
-               (t/fingerprint (i/x->bytes "hello world") :md5)))
+            (= (t/gen-digest (i/x->bytes "hello world") {:fmt :hex :algo :md5})
+               (t/gen-digest (i/x->bytes "hello world") {:fmt :hex :algo :md5})))
 
-  (ensure?? "is-valid-cert?"
+  (ensure?? "is-cert-valid?"
             (let [b (i/res->bytes "czlab/test/twisty/cert.crt")
                   c (t/x->cert b)
                   g (t/cert-gist<> c)]
-              (and c g (t/is-valid-cert? c))))
+              (and c g (t/is-cert-valid? c))))
 
   (ensure?? "simple-trust-mgr<>" (some? (ss/simple-trust-mgr<>)))
 
   (ensure?? "caesar<>"
             (let [c (cc/caesar<>)]
               (not= "heeloo, how are you?"
-                    (cc/decrypt c
-                                666
-                                (cc/encrypt c
-                                            709394
-                                            "heeloo, how are you?")))))
+                    (cc/cr-decrypt c
+                                   666
+                                   (cc/cr-encrypt c
+                                                  709394
+                                                  "heeloo, how are you?")))))
 
   (ensure?? "caesar<>"
             (let [c (cc/caesar<>)]
               (= "heeloo, how are you?"
-                 (cc/decrypt c
-                             709394
-                             (cc/encrypt c
-                                         709394
-                                         "heeloo, how are you?")))))
+                 (cc/cr-decrypt c
+                                709394
+                                (cc/cr-encrypt c
+                                               709394
+                                               "heeloo, how are you?")))))
 
   (ensure?? "caesar<>"
             (let [c (cc/caesar<>)]
               (= "heeloo, how are you?"
-                 (cc/decrypt c
-                             13
-                             (cc/encrypt c
-                                         13 "heeloo, how are you?")))))
+                 (cc/cr-decrypt c
+                                13
+                                (cc/cr-encrypt c
+                                               13 "heeloo, how are you?")))))
 
   (ensure?? "jasypt<>"
             (= "heeloo"
                (let [c (cc/jasypt<>)]
-                 (cc/decrypt c
-                             c-key
-                             (cc/encrypt c c-key "heeloo")))))
+                 (cc/cr-decrypt c
+                                c-key
+                                (cc/cr-encrypt c c-key "heeloo")))))
 
   (ensure?? "jasypt<>"
             (= "heeloo"
                (let [c (cc/jasypt<>)
                      pkey secret]
-                 (cc/decrypt c
-                             pkey
-                             (cc/encrypt c pkey "heeloo")))))
+                 (cc/cr-decrypt c
+                                pkey
+                                (cc/cr-encrypt c pkey "heeloo")))))
 
   (ensure?? "jcrypt<>"
             (= "heeloo"
                (let [c (cc/jcrypt<>)]
-                 (i/x->str (cc/decrypt c
-                                       b-key
-                                       (cc/encrypt c b-key "heeloo"))))))
+                 (i/x->str (cc/cr-decrypt c
+                                          b-key
+                                          (cc/cr-encrypt c b-key "heeloo"))))))
 
   (ensure?? "jcrypt<>"
             (= "heeloo"
                (let [c (cc/jcrypt<>)
                      pkey (i/x->bytes (i/x->str test-pwd))]
-                 (i/x->str (cc/decrypt c
-                                       pkey (cc/encrypt c pkey "heeloo"))))))
+                 (i/x->str (cc/cr-decrypt c
+                                          pkey (cc/cr-encrypt c pkey "heeloo"))))))
 
   (ensure?? "bcastle<>"
             (= "heeloo"
                (let [c (cc/bcastle<>)]
-                 (i/x->str (cc/decrypt c
-                                       b-key
-                                       (cc/encrypt c b-key "heeloo"))))))
+                 (i/x->str (cc/cr-decrypt c
+                                          b-key
+                                          (cc/cr-encrypt c b-key "heeloo"))))))
 
   (ensure?? "bcastle<>"
             (= "heeloo"
                (let [c (cc/bcastle<>)
                      pkey (i/x->bytes (i/x->str test-pwd))]
-                 (i/x->str (cc/decrypt c pkey (cc/encrypt c pkey "heeloo"))))))
+                 (i/x->str (cc/cr-decrypt c pkey (cc/cr-encrypt c pkey "heeloo"))))))
 
   (ensure?? "asym-key-pair<>"
             (= "heeloo"
@@ -281,13 +282,13 @@
                      pu (.getEncoded (.getPublic kp))
                      pv (.getEncoded (.getPrivate kp))
                      cc (cc/asym<>)]
-                 (i/x->str (cc/decrypt cc
-                                       pv
-                                       (cc/encrypt cc
-                                                   pu (i/x->bytes "heeloo")))))))
+                 (i/x->str (cc/cr-decrypt cc
+                                          pv
+                                          (cc/cr-encrypt cc
+                                                         pu (i/x->bytes "heeloo")))))))
 
   (ensure?? "strong-pwd<>"
-            (= (alength ^chars (cc/p-text (cc/strong-pwd<> 16))) 16))
+            (= (alength ^chars (cc/pw-text (cc/strong-pwd<> 16))) 16))
 
   (ensure?? "random-str" (= (.length (cc/random-str 64)) 64))
 
@@ -295,62 +296,62 @@
             (satisfies? czlab.twisty.codec/Password (cc/pwd<> "secret-text")))
 
   (ensure?? "pwd<>"
-            (.startsWith
-              (i/x->str (cc/p-encoded (cc/pwd<> "secret-text"))) "crypt:"))
+            (cs/starts-with?
+              (i/x->str (cc/pw-encoded (cc/pwd<> "secret-text"))) "crypt:"))
 
   (ensure?? "pwd<>"
             (= "hello joe!"
-               (cc/stringify (cc/pwd<> (cc/p-encoded (cc/pwd<> "hello joe!"))))))
+               (cc/pw-stringify (cc/pwd<> (cc/pw-encoded (cc/pwd<> "hello joe!"))))))
 
   (ensure?? "ssv1-pkcs12<>"
-            (let [ks (t/ssv1-pkcs12<> "C=AU,ST=NSW,L=Sydney,O=Google"
-                                      secret {:end end-date :keylen 512 })
+            (let [ks (t/gen-cert "C=AU,ST=NSW,L=Sydney,O=Google"
+                                 secret {:end end-date :keylen 512 })
                   fout (i/temp-file "Joe Blogg" ".p12")
                   ok? (c/is? KeyStore ks)
-                  f (t/spit-key-store ks fout help-me)
+                  f (t/spit-keystore ks fout help-me)
                   len (i/fsize f)]
               (i/fdelete f)
               (and ok? (pos? len))))
 
   (ensure?? "ssv1-jks<>"
-            (let [ks (t/ssv1-jks<> "C=AU,ST=WA,L=X,O=Z"
-                                   secret {:keylen 512 :end end-date})
+            (let [ks (t/gen-cert "C=AU,ST=WA,L=X,O=Z"
+                                 secret {:ktype :jks :keylen 512 :end end-date})
                   fout (i/temp-file "xxxx" ".jks")
                   ok? (c/is? KeyStore ks)
-                  f (t/spit-key-store ks fout help-me)
+                  f (t/spit-keystore ks fout help-me)
                   len (i/fsize f)]
               (i/fdelete f)
               (and ok? (pos? len))))
 
   (ensure?? "ssv3-pkcs12<>"
-            (let [r (st/key-entity root-cs help-me)
+            (let [r (st/cs-key-entity root-cs help-me)
                   fout (i/temp-file "xxxx" ".p12")
-                  ks (t/ssv3-pkcs12<> r
-                                      "C=AU,ST=WA,L=Z,O=X"
-                                      secret {:keylen 512 :end end-date})
+                  ks (t/gen-cert r
+                                 "C=AU,ST=WA,L=Z,O=X"
+                                 secret {:keylen 512 :end end-date})
                   ok? (c/is? KeyStore ks)
-                  f (t/spit-key-store ks fout help-me)
+                  f (t/spit-keystore ks fout help-me)
                   len (i/fsize f)]
               (i/fdelete f)
               (and ok? (pos? len))))
 
   (ensure?? "ssv3-jks<>"
-            (let [r (st/key-entity root-ks help-me)
+            (let [r (st/cs-key-entity root-ks help-me)
                   fout (i/temp-file "xxxx" ".jks")
-                  ks (t/ssv3-jks<> r
-                                   "C=AU,ST=WA,L=Z,O=X"
-                                   secret {:keylen 512 :end end-date})
+                  ks (t/gen-cert r
+                                 "C=AU,ST=WA,L=Z,O=X"
+                                 secret {:ktype :jks :keylen 512 :end end-date})
                   ok? (c/is? KeyStore ks)
-                  f (t/spit-key-store ks fout help-me)
+                  f (t/spit-keystore ks fout help-me)
                   len (i/fsize f)]
               (i/fdelete f)
               (and ok? (pos? len))))
 
-  (ensure?? "export-pkcs7,export-pkcs7-file"
-            (let [r (st/key-entity root-cs help-me)
+  (ensure?? "spit-pkcs7"
+            (let [r (st/cs-key-entity root-cs help-me)
                   fout (i/temp-file "xxxx" ".p7b")
-                  b (t/export-pkcs7 r)
-                  f (t/export-pkcs7-file r fout)
+                  b (t/spit-pkcs7 r)
+                  f (i/x->file b fout)
                   len (i/fsize f)]
               (and (bytes? b) (pos? len))))
 

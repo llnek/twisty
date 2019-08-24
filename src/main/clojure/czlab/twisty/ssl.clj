@@ -37,17 +37,17 @@
   x-tmgr
   (reify X509TrustManager
     (checkClientTrusted [_ chain authType]
-      (l/warn "skipcheck: client certificate: %s"
+      (l/warn "skipcheck: client certificate: %s."
               (some-> ^X509Certificate
                       (first chain) .getSubjectDN)))
     (checkServerTrusted [_ chain authType]
-      (l/warn "skipcheck: server certificate: %s"
+      (l/warn "skipcheck: server certificate: %s."
               (some-> ^X509Certificate
                       (first chain) .getSubjectDN)))
     (getAcceptedIssuers [_] (c/vargs X509Certificate []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn simple-trust-mgr<> "Checks nothing" ^X509TrustManager [] x-tmgr)
+(defn simple-trust-mgr<> "Checks nothing." ^X509TrustManager [] x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- simple-trust-managers
@@ -62,18 +62,19 @@
 (defn ssl-context<>
   "Create a server-side ssl-context"
   {:tag SSLContext}
-  ([pkey pwd] (ssl-context<> pkey pwd nil))
+  ([pkey pwd]
+   (ssl-context<> pkey pwd nil))
   ([pkey pwd flavor]
    (c/do-with
      [ctx (SSLContext/getInstance
             (s/stror flavor "TLS"))]
      (let [cs (st/crypto-store<>)]
-       (st/add-key-entity cs pkey pwd)
+       (st/cs-add-key-entity cs pkey pwd)
        (.init ctx
               (.getKeyManagers ^KeyManagerFactory
-                               (st/key-manager-factory cs))
+                               (st/cs-key-manager-factory cs))
               (.getTrustManagers ^TrustManagerFactory
-                                 (st/trust-manager-factory cs))
+                                 (st/cs-trust-manager-factory cs))
               (u/rand<> true))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

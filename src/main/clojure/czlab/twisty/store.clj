@@ -36,71 +36,74 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol CryptoStore
-  (key-entity [_ pwd] [_ alias pwd] )
-  (cert-entity [_ alias] )
-  (trusted-certs [_] )
-  (add-key-entity [_ gist pwd])
-  (trust-manager-factory [_] )
-  (key-manager-factory [_] )
-  (cert-aliases [_])
-  (key-aliases [_] )
-  (add-cert-entity [_ cert] )
-  (add-pkcs7 [_ arg] )
-  (remove-entity [_ alias] )
-  (keystore [_])
-  (password [_] )
-  (write-out [_ out] [_ out pwd] ))
+(defprotocol CryptoStore ""
+  (cs-key-entity [_ pwd] [_ alias pwd] "")
+  (cs-cert-entity [_ alias] "")
+  (cs-trusted-certs [_] "")
+  (cs-add-key-entity [_ gist pwd] "")
+  (cs-trust-manager-factory [_] "")
+  (cs-key-manager-factory [_] "")
+  (cs-cert-aliases [_] "")
+  (cs-key-aliases [_]  "")
+  (cs-add-cert-entity [_ cert]  "")
+  (cs-add-pkcs7 [_ arg] "")
+  (cs-remove-entity [_ alias] "")
+  (cs-keystore [_] "")
+  (cs-password [_] "")
+  (cs-write-out [_ out] [_ out pwd] ""))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- mkstore [^KeyStore _store _passwd]
   (reify CryptoStore
-    (add-key-entity [_ gist pwd]
+    (cs-add-key-entity [_ gist pwd]
       (c/let#nil [{:keys [pkey chain]} gist]
         (.setKeyEntry _store
                       (t/alias<>) pkey (i/x->chars pwd) chain)))
-    (add-cert-entity [_ cert]
+    (cs-add-cert-entity [_ cert]
       (c/do#nil
         (.setCertificateEntry _store (t/alias<>) cert)))
-    (trust-manager-factory [_]
+    (cs-trust-manager-factory [_]
       (doto (TrustManagerFactory/getInstance
-            (TrustManagerFactory/getDefaultAlgorithm))
+              (TrustManagerFactory/getDefaultAlgorithm))
         (.init _store)))
-    (key-manager-factory [_]
+    (cs-key-manager-factory [_]
       (doto (KeyManagerFactory/getInstance
               (KeyManagerFactory/getDefaultAlgorithm))
         (.init _store _passwd)))
-    (cert-aliases [_]
+    (cs-cert-aliases [_]
       (t/filter-entries _store :certs))
-    (key-aliases [_]
+    (cs-key-aliases [_]
       (t/filter-entries _store :keys))
-    (key-entity [_ nm pwd]
+    (cs-key-entity [_ nm pwd]
       (t/pkey-gist<> _store nm (i/x->chars pwd)))
-    (key-entity [me pwd]
-      (let [[f & more] (.key-aliases me)]
+    (cs-key-entity [me pwd]
+      (let [[f & more] (cs-key-aliases me)]
         (if (and f (empty? more))
-          (.key-entity me (str f) pwd)
-          (u/throw-BadArg "Store has many keys"))))
-    (cert-entity [_ nm] (t/tcert<> _store nm))
-    (remove-entity [_ nm]
+          (cs-key-entity me (str f) pwd)
+          (u/throw-BadArg "Store has many keys."))))
+    (cs-cert-entity [_ nm] (t/tcert<> _store nm))
+    (cs-remove-entity [_ nm]
       (let [a (str nm)]
         (if (.containsAlias _store a)
           (.deleteEntry _store a))))
-    (password [_] _passwd)
-    (keystore [_] _store)
-    (write-out [_ out pwd]
+    (cs-password [_] _passwd)
+    (cs-keystore [_] _store)
+    (cs-write-out [_ out pwd]
       (.store _store out (i/x->chars pwd)))
-    (write-out [me out] (.write-out me out _passwd))
-    (trusted-certs [me]
-      (mapv #(.cert-entity me (str %)) (.cert-aliases me)))
-    (add-pkcs7 [me arg]
+    (cs-write-out [me out]
+      (cs-write-out me out _passwd))
+    (cs-trusted-certs [me]
+      (mapv #(cs-cert-entity me (str %)) (cs-cert-aliases me)))
+    (cs-add-pkcs7 [me arg]
       (doseq [c (t/x->certs arg)]
         (.setCertificateEntry _store
                               (t/alias<>)
                               ^Certificate c)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn crypto-store<> ""
+(defn crypto-store<>
+  ""
   ([pwd] (crypto-store<> nil pwd))
   ([] (crypto-store<> nil))
   ([ks pwd]

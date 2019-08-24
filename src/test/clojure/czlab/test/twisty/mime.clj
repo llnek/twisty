@@ -57,7 +57,7 @@
 
   (ensure?? "smime-digsig"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/key-entity root-cs help-me)
+              (let [g (st/cs-key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
                     rc (sm/smime-digsig (:pkey g)
                                         msg
@@ -67,7 +67,7 @@
 
   (ensure?? "smime-digsig"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/key-entity root-cs help-me)
+              (let [g (st/cs-key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
                     rc (sm/smime-digsig (:pkey g)
                                         (.getContent msg)
@@ -77,7 +77,7 @@
 
   (ensure?? "smime-digsig"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/key-entity root-cs help-me)
+              (let [g (st/cs-key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
                     bp (-> ^Multipart
                            (.getContent msg)
@@ -88,9 +88,9 @@
                                         (c/vec-> (:chain g)))]
                 (t/is-data-signed? rc))))
 
-  (ensure?? "peek-smime-signed-content"
+  (ensure?? "peek-signed-content"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/key-entity root-cs help-me)
+              (let [g (st/cs-key-entity root-cs help-me)
                     mp (sm/smime-digsig (:pkey g)
                                         (t/mime-msg<> nil nil inp)
                                         t/sha-512-rsa
@@ -103,13 +103,13 @@
                     [del? inp] (i/input-stream?? baos)
                     msg3 (t/mime-msg<> nil nil inp)
                     mp3 (.getContent msg3)
-                    rc (sm/peek-smime-signed-content mp3)]
+                    rc (sm/peek-signed-content mp3)]
                 (if del? (i/klose inp))
                 (c/is? Multipart rc))))
 
-  (ensure?? "test-smime-digsig"
+  (ensure?? "smime-digsig??"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/key-entity root-cs help-me)
+              (let [g (st/cs-key-entity root-cs help-me)
                     cs (c/vec-> (:chain g))
                     mp (sm/smime-digsig (:pkey g)
                                         (t/mime-msg<> nil nil inp)
@@ -123,7 +123,7 @@
                     [del? inp] (i/input-stream?? baos)
                     msg3 (t/mime-msg<> nil nil inp)
                     mp3 (.getContent msg3)
-                    rc (sm/test-smime-digsig mp3 cs)]
+                    rc (sm/smime-digsig?? mp3 cs)]
                 (if del? (i/klose inp))
                 (and (map? rc)
                      (= (count rc) 2)
@@ -133,7 +133,7 @@
   (ensure?? "smime-decrypt"
             (let [s (sm/data-source<> "text/plain"
                                       (i/x->bytes "yoyo-jojo"))
-                  g (st/key-entity root-cs help-me)
+                  g (st/cs-key-entity root-cs help-me)
                   cs (c/vec-> (:chain g))
                   bp (doto (MimeBodyPart.)
                        (.setDataHandler (DataHandler. s)))
@@ -155,7 +155,7 @@
                    (pos? (.indexOf (i/x->str rc) "yoyo-jojo")))))
 
   (ensure?? "smime-decrypt"
-            (let [g (st/key-entity root-cs help-me)
+            (let [g (st/cs-key-entity root-cs help-me)
                   s2 (sm/data-source<> "text/plain"
                                        (i/x->bytes "what's up dawg"))
                   s1 (sm/data-source<> "text/plain"
@@ -189,10 +189,10 @@
 
   (ensure?? "pkcs-digsig"
             (let [data (i/x->bytes "heeloo world")
-                  g (st/key-entity root-cs help-me)
+                  g (st/cs-key-entity root-cs help-me)
                   cs (c/vec-> (:chain g))
                   sig (sm/pkcs-digsig (:pkey g) cs t/sha-512-rsa data)
-                  dg (sm/test-pkcs-digsig (c/_1 cs) data sig)]
+                  dg (sm/pkcs-digsig?? (c/_1 cs) data sig)]
               (bytes? dg)))
 
   (ensure?? "smime-inflate,smime-deflate"
@@ -218,29 +218,6 @@
                   ^bytes
                   x (sm/smime-inflate bp)]
               (and x (pos? (alength x)))))
-
-  (ensure?? "fingerprint"
-            (let [f (t/fingerprint (i/x->bytes "heeloo world") :sha-1)]
-              (and f (pos? (.length f)))))
-
-  (ensure?? "fingerprint"
-            (let [f (t/fingerprint (i/x->bytes "heeloo world") :md5)]
-              (and f (pos? (.length f)))))
-
-  (ensure?? "fingerprint"
-            (let [f (t/fingerprint (i/x->bytes "heeloo world") :sha-1)
-                  g (t/fingerprint (i/x->bytes "heeloo world") :md5)]
-              (if (= f g) false true)))
-
-  (ensure?? "fingerprint"
-            (let [f (t/fingerprint (i/x->bytes "heeloo world") :sha-1)
-                  g (t/fingerprint (i/x->bytes "heeloo world") :sha-1)]
-              (= f g)))
-
-  (ensure?? "fingerprint"
-            (let [f (t/fingerprint (i/x->bytes "heeloo world") :md5)
-                  g (t/fingerprint (i/x->bytes "heeloo world") :md5)]
-              (= f g)))
 
   (ensure?? "test-end" (= 1 1)))
 
