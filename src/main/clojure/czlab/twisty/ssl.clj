@@ -47,7 +47,8 @@
     (getAcceptedIssuers [_] (c/vargs X509Certificate []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn simple-trust-mgr<> "Checks nothing." ^X509TrustManager [] x-tmgr)
+(defn simple-trust-mgr<>
+  "Checks nothing." ^X509TrustManager [] x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- simple-trust-managers

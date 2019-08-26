@@ -222,9 +222,9 @@
   (ensure?? "test-end" (= 1 1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(ct/deftest ^:test-mime twisty-test-mime
-  (ct/is (let [[ok? r]
-               (c/runtest test-mime "test-mime")] (println r) ok?)))
+(ct/deftest
+  ^:test-mime twisty-test-mime
+  (ct/is (c/clj-test?? test-mime)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

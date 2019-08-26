@@ -221,7 +221,8 @@
      (java-codec ~pkey ~data (get-cipher ~pkey ~mode ~algo))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn jcrypt<> "" []
+(defn jcrypt<>
+  "" []
   (reify Cryptor
     ;;PBEWithMD5AndDES
     (cr-decrypt [me pkey cipher]
@@ -231,8 +232,9 @@
       (jcryptor-impl pkey clear (cr-algo me) Cipher/ENCRYPT_MODE))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 1024 - 2048 bits RSA
-(defn asym<> "" []
+(defn asym<>
+  "1024 - 2048 bits RSA"
+  []
   (reify Cryptor
     (cr-algo [_] "RSA/ECB/PKCS1Padding")
     (cr-encrypt [me pubKey data]
@@ -279,7 +281,8 @@
       (i/x->bytes baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn bcastle<> "" []
+(defn bcastle<>
+  "" []
   (reify Cryptor
     (cr-encrypt [me pkey clear]
       (bc-xxx pkey clear (cr-algo me) true))
