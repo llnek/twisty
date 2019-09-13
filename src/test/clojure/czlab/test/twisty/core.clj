@@ -19,7 +19,6 @@
             [clojure.string :as cs]
             [clojure.test :as ct]
             [czlab.basal.io :as i]
-            [czlab.basal.str :as s]
             [czlab.basal.core
              :refer [ensure?? ensure-thrown??] :as c])
 
@@ -36,41 +35,41 @@
             KeyStore$TrustedCertificateEntry]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def ^:private end-date (.getTime (GregorianCalendar. 2050 1 1)))
+(c/def- end-date (.getTime (GregorianCalendar. 2050 1 1)))
 
-(def
-  ^{:private true :tag "[C"}
+(c/def-
+  ^{:tag "[C"}
   c-key (i/x->chars "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
-(def
-  ^{:private true :tag "[B"}
+(c/def-
+  ^{:tag "[B"}
   b-key (i/x->bytes "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
-(def
-  ^{:private true :tag "[C"}
+(c/def-
+  ^{:tag "[C"}
   test-pwd (i/x->chars "secretsecretsecretsecretsecret"))
 
-(def
-  ^{:private true :tag "[B"}
+(c/def-
+  ^{:tag "[B"}
   root-pfx (i/res->bytes "czlab/test/twisty/test.pfx"))
 
-(def
-  ^{:private true :tag "[B"}
+(c/def-
+  ^{:tag "[B"}
   root-jks (i/res->bytes "czlab/test/twisty/test.jks"))
 
-(def
-  ^{:private true :tag "[C"}
+(c/def-
+  ^{:tag "[C"}
   help-me (i/x->chars "helpme"))
 
-(def
-  ^{:private true :tag "[C"}
+(c/def-
+  ^{:tag "[C"}
   secret (i/x->chars "secret"))
 
-(def ^:private
-  root-cs (st/crypto-store<> (t/pkcs12<> root-pfx help-me) help-me))
+(c/def-
+  root-cs (st/crypto-store<> (t/pkcs12* root-pfx help-me) help-me))
 
-(def ^:private
-  root-ks (st/crypto-store<> (t/jks<> root-jks help-me) help-me))
+(c/def-
+  root-ks (st/crypto-store<> (t/jks* root-jks help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (c/deftest test-core
@@ -109,7 +108,7 @@
                   out (i/baos<>)
                   _ (st/cs-write-out root-cs out x)
                   [del? inp] (i/input-stream?? out)
-                  s (st/crypto-store<> (t/pkcs12<> inp x) x)]
+                  s (st/crypto-store<> (t/pkcs12* inp x) x)]
               (if del? (i/klose inp))
               (c/is? KeyStore (st/cs-keystore s))))
 
@@ -149,15 +148,14 @@
                                (t/gen-digest "hello world")))
 
   (ensure?? "asym-key-pair<>"
-            (let [kp (t/asym-key-pair<> "RSA" 512)
-                  b (t/spit-pem kp secret)
-                  pub (.getPublic kp)
-                  prv (.getPrivate kp)
+            (let [[pub prv] (t/asym-key-pair<> "RSA" 512)
+                  pair (t/asym-key-pair* "RSA" 512)
+                  b (t/spit-pem pair secret)
                   b1 (t/spit-pem prv secret)
                   b2 (t/spit-pem pub)]
-              (and (s/hgl? b)
-                   (s/hgl? b1)
-                   (s/hgl? b2))))
+              (and (c/hgl? b)
+                   (c/hgl? b1)
+                   (c/hgl? b2))))
 
   (ensure?? "csreq<>"
             (let [[a b]
@@ -278,7 +276,7 @@
 
   (ensure?? "asym-key-pair<>"
             (= "heeloo"
-               (let [kp (t/asym-key-pair<> "RSA" 512)
+               (let [^KeyPair kp (t/asym-key-pair* "RSA" 512)
                      pu (.getEncoded (.getPublic kp))
                      pv (.getEncoded (.getPrivate kp))
                      cc (cc/asym<>)]
@@ -326,8 +324,8 @@
   (ensure?? "ssv3-pkcs12<>"
             (let [r (st/cs-key-entity root-cs help-me)
                   fout (i/temp-file "xxxx" ".p12")
-                  ks (t/gen-cert r
-                                 "C=AU,ST=WA,L=Z,O=X"
+                  ks (t/gen-cert "C=AU,ST=WA,L=Z,O=X"
+                                 r
                                  secret {:keylen 512 :end end-date})
                   ok? (c/is? KeyStore ks)
                   f (t/spit-keystore ks fout help-me)
@@ -338,8 +336,8 @@
   (ensure?? "ssv3-jks<>"
             (let [r (st/cs-key-entity root-ks help-me)
                   fout (i/temp-file "xxxx" ".jks")
-                  ks (t/gen-cert r
-                                 "C=AU,ST=WA,L=Z,O=X"
+                  ks (t/gen-cert "C=AU,ST=WA,L=Z,O=X"
+                                 r
                                  secret {:ktype :jks :keylen 512 :end end-date})
                   ok? (c/is? KeyStore ks)
                   f (t/spit-keystore ks fout help-me)
@@ -354,7 +352,6 @@
                   f (i/x->file b fout)
                   len (i/fsize f)]
               (and (bytes? b) (pos? len))))
-
 
   (ensure?? "test-end" (= 1 1)))
 

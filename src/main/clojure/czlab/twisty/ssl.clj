@@ -14,7 +14,6 @@
   (:require [czlab.twisty.store :as st]
             [czlab.basal.log :as l]
             [czlab.twisty.core :as t]
-            [czlab.basal.str :as s]
             [czlab.basal.util :as u]
             [czlab.basal.core :as c])
 
@@ -33,8 +32,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;(set! *warn-on-reflection* false)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def ^:private
-  x-tmgr
+(c/def- x-tmgr
   (reify X509TrustManager
     (checkClientTrusted [_ chain authType]
       (l/warn "skipcheck: client certificate: %s."
@@ -55,9 +53,9 @@
   [] (c/vargs TrustManager [(simple-trust-mgr<>)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn ssl-trust-mgr-factory<> []
-  (proxy [SSLTrustMgrFactory][]
-    (engineGetTrustManagers [] (simple-trust-managers))))
+(defn ssl-trust-mgr-factory<>
+  [] (proxy [SSLTrustMgrFactory][]
+       (engineGetTrustManagers [] (simple-trust-managers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-context<>
@@ -68,7 +66,7 @@
   ([pkey pwd flavor]
    (c/do-with
      [ctx (SSLContext/getInstance
-            (s/stror flavor "TLS"))]
+            (c/stror flavor "TLS"))]
      (let [cs (st/crypto-store<>)]
        (st/cs-add-key-entity cs pkey pwd)
        (.init ctx

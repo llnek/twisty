@@ -15,7 +15,6 @@
             [clojure.string :as cs]
             [czlab.basal.log :as l]
             [czlab.basal.io :as i]
-            [czlab.basal.str :as s]
             [czlab.basal.util :as u])
 
   (:import [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
@@ -49,36 +48,38 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; DO NOT change this string as it is used by the caesar.js.  Make sure
 ;; you change both the front-end and back-end version of this string!
-(def ^{:private true :tag "[C"}
-  VISCHS
+(c/def-
+  ^{:tag "[C"} VISCHS
   (i/x->chars (str " @N/\\Ri2}aP`(xeT4F3mt;8~%r0v:L5$+Z{'V)\"CKIc>z.*"
                    "fJEwSU7juYg<klO&1?[h9=n,yoQGsW]BMHpXb6A|D#q^_d!-")))
 
-(def ^{:private true :tag "[C"}
+(c/def-
+  ^{:tag "[C"}
   CKEY (i/x->chars "ed8xwl2XukYfdgR2aAddrg0lqzQjFhbs"))
 
-(def ^:private VISCHS-LEN (alength VISCHS))
+(c/def- VISCHS-LEN (alength VISCHS))
 
-(def ^:private s-ascii-chars
+(c/def- s-ascii-chars
   (-> (str "abcdefghijklmnopqrstuvqxyz1234567890"
-           "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ") s/shuffle i/x->chars))
+           "-_ABCDEFGHIJKLMNOPQRSTUVWXYZ") u/shuffle i/x->chars))
 
-(def ^:private s-pwd-chars
+(c/def- s-pwd-chars
   (-> (str "abcdefghijklmnopqrstuvqxyz"
            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-           "`1234567890-_~!@#$%^&*()") s/shuffle i/x->chars))
+           "`1234567890-_~!@#$%^&*()") u/shuffle i/x->chars))
 
-(def ^:private ^String pwd-pfx "crypt:")
-(def ^:private pwd-pfxlen 6)
-(def ^:private CZERO (char-array 0))
+(c/def- ^String pwd-pfx "crypt:")
+(c/def- pwd-pfxlen 6)
+(c/def- CZERO (char-array 0))
 
 ;; default javax supports this
 ;; TripleDES
-(def ^:private ^String t3-des "DESede")
-(def ^:private ^String c-algo t3-des)
+(c/def- ^String t3-des "DESede")
+(c/def- ^String c-algo t3-des)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol Cryptor ""
+(defprotocol Cryptor
+  ""
   (cr-algo [_] "Encryption algorithm used")
   (cr-decrypt [_ pkey data] "Decrypt some data")
   (cr-encrypt [_ pkey data] "Encrypt some data"))
@@ -119,7 +120,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; caesar cipher
-(defmacro ^:private ident-ch
+(c/defmacro- ident-ch
   "Get a character." [pos] `(aget VISCHS (int ~pos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -130,21 +131,25 @@
                %1) (range VISCHS-LEN)) -1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- slide-forward [delta cpos]
+(defn- slide-forward
+  [delta cpos]
   (let [ptr (+ cpos delta)]
     (-> (if (>= ptr VISCHS-LEN) (- ptr VISCHS-LEN) ptr) ident-ch)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- slide-back [delta cpos]
+(defn- slide-back
+  [delta cpos]
   (let [ptr (- cpos delta)]
     (-> (if (< ptr 0) (+ VISCHS-LEN ptr) ptr) ident-ch)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- shiftenc [shift delta cpos]
+(defn- shiftenc
+  [shift delta cpos]
   (if (< shift 0) (slide-forward delta cpos) (slide-back delta cpos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- shiftdec [shift delta cpos]
+(defn- shiftdec
+  [shift delta cpos]
   (if (< shift 0) (slide-back delta cpos) (slide-forward delta cpos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -158,7 +163,7 @@
 (defn caesar<>
   "Encrypt by character rotation." []
   (let [F (fn [shiftpos text func']
-            (if (or (s/nichts? text)
+            (if (or (c/nichts? text)
                     (c/szero? shiftpos))
               text
               (let [delta (mod (Math/abs (int shiftpos)) VISCHS-LEN)
@@ -213,8 +218,8 @@
       (i/x->bytes baos))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defmacro ^:private
-  jcryptor-impl [pkey data algo mode]
+(c/defmacro- jcryptor-impl
+  [pkey data algo mode]
   `(when ~data
      (c/test-cond "pkey != bytes" (bytes? ~pkey))
      (ensure-key-size ~pkey ~algo)
@@ -306,16 +311,18 @@
                                 (mod (.nextInt r b) alen)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol Password ""
-  (pw-hash-valid? [_ targetHashed] "Check to match")
+(defprotocol Password
+  ""
   (pw-strongly-hashed [_] "Get (string) hash value")
+  (pw-hash-valid? [_ targetHashed] "Check to match")
   (pw-stringify [_] "Get as string")
   (pw-hashed [_] "Get hash value")
   (pw-encoded [_] "Get encoded value")
   (pw-text [_] "Get clear text value"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- mkpwd [pwd pkey]
+(defn- mkpwd
+  [pwd pkey]
   (let [_pwd (i/x->chars pwd)
         _pkey (i/x->chars pkey)]
   (reify Password

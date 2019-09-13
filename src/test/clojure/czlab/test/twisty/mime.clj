@@ -18,7 +18,6 @@
             [czlab.twisty.core :as t]
             [clojure.test :as ct]
             [czlab.basal.io :as i]
-            [czlab.basal.str :as s]
             [czlab.basal.core
              :refer [ensure?? ensure-thrown??] :as c])
 
@@ -34,12 +33,12 @@
            [javax.mail Multipart BodyPart]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def ^:private root-pfx (i/res->bytes "czlab/test/twisty/test.pfx"))
-(def ^:private help-me (i/x->chars "helpme"))
-(def ^:private des-ede3-cbc CMSAlgorithm/DES_EDE3_CBC)
-(def ^:private
+(c/def- root-pfx (i/res->bytes "czlab/test/twisty/test.pfx"))
+(c/def- help-me (i/x->chars "helpme"))
+(c/def- des-ede3-cbc CMSAlgorithm/DES_EDE3_CBC)
+(c/def-
   root-cs
-  (st/crypto-store<> (t/pkcs12<> root-pfx help-me) help-me))
+  (st/crypto-store<> (t/pkcs12* root-pfx help-me) help-me))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (c/deftest test-mime
@@ -59,8 +58,8 @@
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
               (let [g (st/cs-key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
-                    rc (sm/smime-digsig (:pkey g)
-                                        msg
+                    rc (sm/smime-digsig msg
+                                        (:pkey g)
                                         t/sha-512-rsa
                                         (c/vec-> (:chain g)))]
                 (t/is-data-signed? rc))))
@@ -69,8 +68,8 @@
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
               (let [g (st/cs-key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
-                    rc (sm/smime-digsig (:pkey g)
-                                        (.getContent msg)
+                    rc (sm/smime-digsig (.getContent msg)
+                                        (:pkey g)
                                         t/sha-512-rsa
                                         (c/vec-> (:chain g)))]
                 (t/is-data-signed? rc))))
@@ -82,8 +81,8 @@
                     bp (-> ^Multipart
                            (.getContent msg)
                            (.getBodyPart 1))
-                    rc (sm/smime-digsig (:pkey g)
-                                        bp
+                    rc (sm/smime-digsig bp
+                                        (:pkey g)
                                         t/sha-512-rsa
                                         (c/vec-> (:chain g)))]
                 (t/is-data-signed? rc))))
@@ -91,8 +90,8 @@
   (ensure?? "peek-signed-content"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
               (let [g (st/cs-key-entity root-cs help-me)
-                    mp (sm/smime-digsig (:pkey g)
-                                        (t/mime-msg<> nil nil inp)
+                    mp (sm/smime-digsig (t/mime-msg<> nil nil inp)
+                                        (:pkey g)
                                         t/sha-512-rsa
                                         (c/vec-> (:chain g)))
                     baos (i/baos<>)
@@ -111,8 +110,8 @@
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
               (let [g (st/cs-key-entity root-cs help-me)
                     cs (c/vec-> (:chain g))
-                    mp (sm/smime-digsig (:pkey g)
-                                        (t/mime-msg<> nil nil inp)
+                    mp (sm/smime-digsig (t/mime-msg<> nil nil inp)
+                                        (:pkey g)
                                         t/sha-512-rsa
                                         cs)
                     baos (i/baos<>)
@@ -138,7 +137,7 @@
                   bp (doto (MimeBodyPart.)
                        (.setDataHandler (DataHandler. s)))
                   ^BodyPart
-                  bp2 (sm/smime-encrypt (c/_1 cs) des-ede3-cbc bp)
+                  bp2 (sm/smime-encrypt bp des-ede3-cbc (c/_1 cs))
                   baos (i/baos<>)
                   _ (doto (t/mime-msg<>)
                       (.setContent
@@ -170,7 +169,7 @@
                        (.addBodyPart bp2))
                   msg (doto (t/mime-msg<>) (.setContent mp))
                   ^BodyPart
-                  bp3 (sm/smime-encrypt (c/_1 cs) des-ede3-cbc msg)
+                  bp3 (sm/smime-encrypt msg des-ede3-cbc (c/_1 cs))
                   baos (i/baos<>)
                   _ (doto (t/mime-msg<>)
                       (.setContent
@@ -191,14 +190,14 @@
             (let [data (i/x->bytes "heeloo world")
                   g (st/cs-key-entity root-cs help-me)
                   cs (c/vec-> (:chain g))
-                  sig (sm/pkcs-digsig (:pkey g) cs t/sha-512-rsa data)
+                  sig (sm/pkcs-digsig data (:pkey g) t/sha-512-rsa cs)
                   dg (sm/pkcs-digsig?? (c/_1 cs) data sig)]
               (bytes? dg)))
 
   (ensure?? "smime-inflate,smime-deflate"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
               (let [msg (t/mime-msg<> "" (char-array 0) inp)
-                    bp (sm/smime-deflate msg)
+                    bp (sm/smime-deflate* msg)
                     ^bytes x (sm/smime-inflate bp)]
                 (and x (pos? (alength x))))))
 

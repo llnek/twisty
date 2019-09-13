@@ -8,17 +8,17 @@
   :description "Useful s/mime, crypto functions"
   :url "https://github.com/llnek/twisty"
 
-  :dependencies [[org.bouncycastle/bcprov-jdk15on "1.62"]
-                 [org.bouncycastle/bcmail-jdk15on "1.62"]
-                 [org.bouncycastle/bcpkix-jdk15on "1.62"]
+  :dependencies [[org.bouncycastle/bcprov-jdk15on "1.63"]
+                 [org.bouncycastle/bcmail-jdk15on "1.63"]
+                 [org.bouncycastle/bcpkix-jdk15on "1.63"]
                  [org.apache.commons/commons-email "1.5"]
-                 [commons-codec/commons-codec "1.12"]
+                 [commons-codec/commons-codec "1.13"]
                  [com.sun.mail/javax.mail "1.6.2"]
                  [org.jasypt/jasypt "1.9.3"]
                  [org.mindrot/jbcrypt "0.4"]
                  [io.czlab/basal "1.1.0"]]
 
-  :plugins [[cider/cider-nrepl "0.21.1"]
+  :plugins [[cider/cider-nrepl "0.22.2"]
             [lein-codox "0.10.7"]
             [lein-cprint "1.3.1"]]
 
