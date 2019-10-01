@@ -6,18 +6,20 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Crypto functions."
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc "Crypto functions."
+    :author "Kenneth Leung"}
 
   czlab.twisty.core
 
-  (:require [czlab.basal.core :as c]
-            [czlab.basal.util :as u]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.string :as cs]
-            [czlab.basal.log :as l]
-            [czlab.basal.io :as i]
-            [czlab.basal.dates :as d])
+            [czlab.basal
+             [log :as l]
+             [io :as i]
+             [util :as u]
+             [core :as c]
+             [dates :as d]])
 
   (:import [javax.activation DataHandler CommandMap MailcapCommandMap]
            [javax.mail BodyPart MessagingException Multipart Session]

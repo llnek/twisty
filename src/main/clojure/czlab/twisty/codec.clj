@@ -6,16 +6,18 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Password Encoders & Decoders."
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc "Password Encoders & Decoders."
+    :author "Kenneth Leung"}
 
   czlab.twisty.codec
 
-  (:require [czlab.basal.core :as c]
-            [clojure.string :as cs]
-            [czlab.basal.log :as l]
-            [czlab.basal.io :as i]
-            [czlab.basal.util :as u])
+  (:require [clojure.string :as cs]
+            [czlab.basal
+             [log :as l]
+             [io :as i]
+             [util :as u]
+             [core :as c]])
 
   (:import [org.bouncycastle.crypto.params DESedeParameters KeyParameter]
            [org.bouncycastle.crypto.paddings PaddedBufferedBlockCipher]

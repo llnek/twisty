@@ -6,18 +6,20 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "S/MIME helpers."
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc "S/MIME helpers."
+    :author "Kenneth Leung"}
 
   czlab.twisty.smime
 
-  (:require [czlab.twisty.core :as t]
-            [czlab.basal.log :as l]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.string :as cs]
-            [czlab.basal.io :as i]
-            [czlab.basal.core :as c]
-            [czlab.basal.util :as u])
+            [czlab.basal
+             [log :as l]
+             [io :as i]
+             [core :as c]
+             [util :as u]]
+            [czlab.twisty.core :as t])
 
   (:import [javax.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.operator.bc BcDigestCalculatorProvider]

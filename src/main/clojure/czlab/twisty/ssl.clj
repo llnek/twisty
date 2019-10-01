@@ -6,16 +6,19 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "SSL helpers."
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc "SSL helpers."
+    :author "Kenneth Leung"}
 
   czlab.twisty.ssl
 
-  (:require [czlab.twisty.store :as st]
-            [czlab.basal.log :as l]
-            [czlab.twisty.core :as t]
-            [czlab.basal.util :as u]
-            [czlab.basal.core :as c])
+  (:require [czlab.twisty
+             [core :as t]
+             [store :as st]]
+            [czlab.basal
+             [log :as l]
+             [util :as u]
+             [core :as c]])
 
   (:import [java.security.cert X509Certificate]
            [czlab.twisty SSLTrustMgrFactory]

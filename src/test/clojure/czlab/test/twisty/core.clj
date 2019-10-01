@@ -6,21 +6,25 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc ""
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc ""
+    :author "Kenneth Leung"}
 
   czlab.test.twisty.core
 
-  (:require [czlab.twisty.codec :as cc]
-            [czlab.twisty.store :as st]
-            [clojure.java.io :as io]
-            [czlab.twisty.ssl :as ss]
-            [czlab.twisty.core :as t]
-            [clojure.string :as cs]
-            [clojure.test :as ct]
-            [czlab.basal.io :as i]
-            [czlab.basal.core
-             :refer [ensure?? ensure-thrown??] :as c])
+  (:require [clojure.java.io :as io]
+            [czlab.twisty
+             [codec :as cc]
+             [ssl :as ss]
+             [core :as t]
+             [store :as st]]
+            [clojure
+             [test :as ct]
+             [string :as cs]]
+            [czlab.basal
+             [io :as i]
+             [core
+              :refer [ensure?? ensure-thrown??] :as c]])
 
   (:import [java.util Date GregorianCalendar]
            [java.io File]

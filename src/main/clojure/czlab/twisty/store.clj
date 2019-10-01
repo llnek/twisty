@@ -6,15 +6,17 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "A Crypto store."
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc "A Crypto store."
+    :author "Kenneth Leung"}
 
   czlab.twisty.store
 
-  (:require [czlab.basal.core :as c]
-            [czlab.basal.log :as l]
-            [czlab.basal.io :as i]
-            [czlab.basal.util :as u]
+  (:require [czlab.basal
+             [core :as c]
+             [log :as l]
+             [io :as i]
+             [util :as u]]
             [czlab.twisty.core :as t])
 
   (:import [java.io File FileInputStream IOException InputStream]

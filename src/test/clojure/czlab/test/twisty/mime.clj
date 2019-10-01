@@ -6,20 +6,23 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc ""
-      :author "Kenneth Leung"}
+(ns
+  ^{:doc ""
+    :author "Kenneth Leung"}
 
   czlab.test.twisty.mime
 
-  (:require [czlab.twisty.smime :as sm]
-            [czlab.twisty.store :as st]
-            [clojure.java.io :as io]
-            [czlab.twisty.ssl :as ss]
-            [czlab.twisty.core :as t]
+  (:require [clojure.java.io :as io]
             [clojure.test :as ct]
-            [czlab.basal.io :as i]
-            [czlab.basal.core
-             :refer [ensure?? ensure-thrown??] :as c])
+            [czlab.twisty
+             [smime :as sm]
+             [ssl :as ss]
+             [core :as t]
+             [store :as st]]
+            [czlab.basal
+             [io :as i]
+             [core
+              :refer [ensure?? ensure-thrown??] :as c]])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
            [java.io File InputStream ByteArrayOutputStream]
