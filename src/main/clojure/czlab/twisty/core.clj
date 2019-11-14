@@ -481,30 +481,30 @@
    {:pre [(some? skey) (some? data)]}
    (let
      [algo (-> algo c/kw->str c/ucase (c/stror def-mac))
-      flag (c/long-var)
+      flag (c/mu-long)
       mac (Mac/getInstance algo *-bc-*)]
      (->> (SecretKeySpec.
             (i/x->bytes skey) algo) (.init mac))
      (i/chunk-read-stream data
                           (fn [buf offset len end?]
                             (when (pos? len)
-                              (c/long-var flag + len)
+                              (c/mu-long flag + len)
                               (.update mac buf offset len))))
      (str (some->
             (if (c/spos?
-                  (c/long-var flag)) (.doFinal mac)) Hex/toHexString)))))
+                  (c/mu-long flag)) (.doFinal mac)) Hex/toHexString)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- gen-digest*
   [data algo]
-  (let [flag (c/long-var)
+  (let [flag (c/mu-long)
         d (msg-digest<> algo)]
     (i/chunk-read-stream data
                          (fn [buf offset len end?]
                            (when (pos? len)
-                             (c/long-var flag + len)
+                             (c/mu-long flag + len)
                              (.update d buf offset len))))
-    (if (c/spos? (c/long-var flag)) (.digest d))))
+    (if (c/spos? (c/mu-long flag)) (.digest d))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn gen-digest
