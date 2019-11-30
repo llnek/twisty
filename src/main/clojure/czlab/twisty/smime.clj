@@ -6,19 +6,16 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns
-  ^{:doc "S/MIME helpers."
-    :author "Kenneth Leung"}
+(ns czlab.twisty.smime
 
-  czlab.twisty.smime
+  "S/MIME helpers."
 
   (:require [clojure.java.io :as io]
             [clojure.string :as cs]
-            [czlab.basal
-             [log :as l]
-             [io :as i]
-             [core :as c]
-             [util :as u]]
+            [czlab.basal.log :as l]
+            [czlab.basal.io :as i]
+            [czlab.basal.core :as c]
+            [czlab.basal.util :as u]
             [czlab.twisty.core :as t])
 
   (:import [javax.mail BodyPart MessagingException Multipart Session]
@@ -104,7 +101,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn data-source<>
-  ^DataSource [ctype _content]
+
+  ^DataSource
+  [ctype _content]
+
   (let [_ctype (c/stror ctype "")]
     (reify DataSource
       (getContentType [_] _ctype)
@@ -115,7 +115,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn s->signing-algo
-  "BC's internal value." ^String [algo]
+
+  "BC's internal value."
+  ^String [algo]
+
   (case algo
     "SHA-512" SMIMESignedGenerator/DIGEST_SHA512
     "SHA-256" SMIMESignedGenerator/DIGEST_SHA256
@@ -126,9 +129,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- signer-gentor<>
+
   ^SMIMESignedGenerator
   [^PrivateKey pkey algo certs]
   {:pre [(not-empty certs)]}
+
   (let
     [caps (doto
             (SMIMECapabilityVector.)
@@ -165,7 +170,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol SmimeDigSigAPI
-  ""
   (smime-digsig [_ pkey algo certs] "Sign a mime-msg/multipart."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -186,6 +190,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- to-cms
+
   ^CMSProcessable [xs]
   (if (c/is? File xs)
     (CMSProcessableFile. ^File xs)
@@ -193,14 +198,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol PkcsDigSigAPI
-  ""
   (pkcs-digsig [_ pkey algo certs] "Sign some data."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (extend-protocol PkcsDigSigAPI
   Object
   (pkcs-digsig [xs pkey algo certs]
-    {:pre [(not-empty certs)]}
     (let [bdr (new JcaSignerInfoGeneratorBuilder
                    (.build (t/with-BC JcaDigestCalculatorProviderBuilder)))
           gen (CMSSignedDataGenerator.)
@@ -216,9 +219,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- smime-dec
+
   "Smime decryption."
   ^CMSTypedStream
   [^PrivateKey pkey ^SMIMEEnveloped env]
+
   (loop
     [rec (t/with-BC1 JceKeyTransEnvelopedRecipient pkey)
      i (.. env getRecipientInfos getRecipients iterator)
@@ -231,7 +236,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- smime-loop-dec
-  ^bytes [^SMIMEEnveloped ev pkeys]
+
+  ^bytes
+  [^SMIMEEnveloped ev pkeys]
+
   (or (some #(if-some
                [cms (smime-dec %1 ev)]
                (i/x->bytes (.getContentStream cms))) pkeys)
@@ -239,7 +247,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol DecryptAPI
-  ""
   (smime-decrypt [_ pkeys] "Decrypt this object."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -253,7 +260,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- si-tester
+
   [^JcaCertStore cs ^SignerInformation si]
+
   (loop [c (.getMatches cs (.getSID si))
          it (some-> c .iterator) digest nil stop? false]
     (if (or stop?
@@ -270,7 +279,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol PkcsDigSigVerifier
-  ""
   (pkcs-digsig?? [_ xs sig] "Verify the signed object with the signature."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -287,7 +295,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol EncryptAPI
-  ""
   (smime-encrypt [_ algo cert] "Encrypt and returns BodyPart."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -314,7 +321,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol InflaterAPI
-  ""
   (smime-inflate [_] "Decompress content."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -332,7 +338,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol SMimeDigSigVerifier
-  ""
   (peek-signed-content [_] "Get the content ignoring the signing stuff.")
   (smime-digsig?? [_ certs]
                   [_ certs cte] "Verify the signature and return content if ok."))
@@ -351,10 +356,10 @@
        (if (nil? rc)
          (c/trap! GeneralSecurityException
                   "Verify signature: no matching cert.")
-       (hash-map :digest rc
-                 :content (some-> (.getContentAsMimeMessage
-                                    sc
-                                    (t/session<>)) .getContent))))))
+       (array-map :digest rc
+                  :content (some-> (.getContentAsMimeMessage
+                                     sc
+                                     (t/session<>)) .getContent))))))
   (peek-signed-content [mp]
     (some-> (SMIMESignedParser.
               (BcDigestCalculatorProvider.)
@@ -363,8 +368,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol DeflateObjectAPI
-  ""
-  ;{:tag MimeBodyPart}
   (smime-deflate* [obj] ""))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -376,8 +379,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol DeflateContentAPI
-  ""
-  ;{:tag MimeBodyPart}
   (smime-deflate [cType arg]
                  [cType arg cloc cid] "Compress content."))
 
@@ -391,7 +392,6 @@
                                 (.setDataHandler (DataHandler. ds)))
                               (ZlibCompressor.))))
     ([cType arg ^String cloc ^String cid]
-     {:pre [(c/hgl? cloc) (c/hgl? cid)]}
      (let [ds (data-source<> cType arg)
            bp (doto
                 (MimeBodyPart.)
@@ -412,5 +412,4 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
-
 

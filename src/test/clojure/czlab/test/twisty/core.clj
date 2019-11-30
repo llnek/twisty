@@ -6,25 +6,18 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns
-  ^{:doc ""
-    :author "Kenneth Leung"}
-
-  czlab.test.twisty.core
+(ns czlab.test.twisty.core
 
   (:require [clojure.java.io :as io]
-            [czlab.twisty
-             [codec :as cc]
-             [ssl :as ss]
-             [core :as t]
-             [store :as st]]
-            [clojure
-             [test :as ct]
-             [string :as cs]]
-            [czlab.basal
-             [io :as i]
-             [core
-              :refer [ensure?? ensure-thrown??] :as c]])
+            [czlab.twisty.codec :as cc]
+            [czlab.twisty.ssl :as ss]
+            [czlab.twisty.core :as t]
+            [czlab.twisty.store :as st]
+            [clojure.test :as ct]
+            [clojure.string :as cs]
+            [czlab.basal.io :as i]
+            [czlab.basal.core
+              :refer [ensure?? ensure-thrown??] :as c])
 
   (:import [java.util Date GregorianCalendar]
            [java.io File]
@@ -103,28 +96,28 @@
   (ensure?? "alias" (and (string? (t/alias<>))
                          (not= (t/alias<>) (t/alias<>))))
 
-  (ensure?? "pkcs12<>" (= "PKCS12" (.getType (t/pkcs12<>))))
+  (ensure?? "pkcs12<>" (.equals "PKCS12" (.getType (t/pkcs12<>))))
 
-  (ensure?? "jks<>" (= "JKS" (.getType (t/jks<>))))
+  (ensure?? "jks<>" (.equals "JKS" (.getType (t/jks<>))))
 
   (ensure?? "crypto-store<>"
             (let [x (i/x->chars "a")
                   out (i/baos<>)
-                  _ (st/cs-write-out root-cs out x)
+                  _ (st/write-out root-cs out x)
                   [del? inp] (i/input-stream?? out)
                   s (st/crypto-store<> (t/pkcs12* inp x) x)]
               (if del? (i/klose inp))
-              (c/is? KeyStore (st/cs-keystore s))))
+              (c/is? KeyStore (st/keystore s))))
 
   (ensure?? "key-entity,key-aliases"
-            (let [a (st/cs-key-aliases root-cs)
+            (let [a (st/key-aliases root-cs)
                   c (count a)
                   n (first a)
-                  e (st/cs-key-entity root-cs n help-me)]
-              (and (= 1 c) (string? n))))
+                  e (st/key-entity root-cs n help-me)]
+              (and (== 1 c) (string? n))))
 
   (ensure?? "cert-aliases"
-            (let [a (st/cs-cert-aliases root-cs) c (count a)] (zero? c)))
+            (let [a (st/cert-aliases root-cs) c (count a)] (zero? c)))
 
   (ensure?? "x->pkey"
             (let [g (t/x->pkey (i/res->url
@@ -170,7 +163,7 @@
             (let [[v1 v2 :as v]
                   (t/csreq<>
                     "C=US,ST=CA,L=X,O=Z,OU=HQ,CN=joe" 512 secret)]
-              (and (= (count v) 2)
+              (and (== 2 (count v))
                    (pos? (count v1))
                    (pos? (count v2)))))
 
@@ -213,70 +206,70 @@
   (ensure?? "caesar<>"
             (let [c (cc/caesar<>)]
               (not= "heeloo, how are you?"
-                    (cc/cr-decrypt c
-                                   666
-                                   (cc/cr-encrypt c
-                                                  709394
-                                                  "heeloo, how are you?")))))
+                    (cc/decrypt c
+                                666
+                                (cc/encrypt c
+                                            709394
+                                            "heeloo, how are you?")))))
 
   (ensure?? "caesar<>"
             (let [c (cc/caesar<>)]
               (= "heeloo, how are you?"
-                 (cc/cr-decrypt c
-                                709394
-                                (cc/cr-encrypt c
-                                               709394
-                                               "heeloo, how are you?")))))
+                 (cc/decrypt c
+                             709394
+                             (cc/encrypt c
+                                         709394
+                                         "heeloo, how are you?")))))
 
   (ensure?? "caesar<>"
             (let [c (cc/caesar<>)]
               (= "heeloo, how are you?"
-                 (cc/cr-decrypt c
-                                13
-                                (cc/cr-encrypt c
-                                               13 "heeloo, how are you?")))))
+                 (cc/decrypt c
+                             13
+                             (cc/encrypt c
+                                         13 "heeloo, how are you?")))))
 
   (ensure?? "jasypt<>"
             (= "heeloo"
                (let [c (cc/jasypt<>)]
-                 (cc/cr-decrypt c
-                                c-key
-                                (cc/cr-encrypt c c-key "heeloo")))))
+                 (cc/decrypt c
+                             c-key
+                             (cc/encrypt c c-key "heeloo")))))
 
   (ensure?? "jasypt<>"
             (= "heeloo"
                (let [c (cc/jasypt<>)
                      pkey secret]
-                 (cc/cr-decrypt c
-                                pkey
-                                (cc/cr-encrypt c pkey "heeloo")))))
+                 (cc/decrypt c
+                             pkey
+                             (cc/encrypt c pkey "heeloo")))))
 
   (ensure?? "jcrypt<>"
             (= "heeloo"
                (let [c (cc/jcrypt<>)]
-                 (i/x->str (cc/cr-decrypt c
-                                          b-key
-                                          (cc/cr-encrypt c b-key "heeloo"))))))
+                 (i/x->str (cc/decrypt c
+                                       b-key
+                                       (cc/encrypt c b-key "heeloo"))))))
 
   (ensure?? "jcrypt<>"
             (= "heeloo"
                (let [c (cc/jcrypt<>)
                      pkey (i/x->bytes (i/x->str test-pwd))]
-                 (i/x->str (cc/cr-decrypt c
-                                          pkey (cc/cr-encrypt c pkey "heeloo"))))))
+                 (i/x->str (cc/decrypt c
+                                       pkey (cc/encrypt c pkey "heeloo"))))))
 
   (ensure?? "bcastle<>"
             (= "heeloo"
                (let [c (cc/bcastle<>)]
-                 (i/x->str (cc/cr-decrypt c
-                                          b-key
-                                          (cc/cr-encrypt c b-key "heeloo"))))))
+                 (i/x->str (cc/decrypt c
+                                       b-key
+                                       (cc/encrypt c b-key "heeloo"))))))
 
   (ensure?? "bcastle<>"
             (= "heeloo"
                (let [c (cc/bcastle<>)
                      pkey (i/x->bytes (i/x->str test-pwd))]
-                 (i/x->str (cc/cr-decrypt c pkey (cc/cr-encrypt c pkey "heeloo"))))))
+                 (i/x->str (cc/decrypt c pkey (cc/encrypt c pkey "heeloo"))))))
 
   (ensure?? "asym-key-pair<>"
             (= "heeloo"
@@ -284,10 +277,10 @@
                      pu (.getEncoded (.getPublic kp))
                      pv (.getEncoded (.getPrivate kp))
                      cc (cc/asym<>)]
-                 (i/x->str (cc/cr-decrypt cc
-                                          pv
-                                          (cc/cr-encrypt cc
-                                                         pu (i/x->bytes "heeloo")))))))
+                 (i/x->str (cc/decrypt cc
+                                       pv
+                                       (cc/encrypt cc
+                                                   pu (i/x->bytes "heeloo")))))))
 
   (ensure?? "strong-pwd<>"
             (= (alength ^chars (cc/pw-text (cc/strong-pwd<> 16))) 16))
@@ -303,7 +296,7 @@
 
   (ensure?? "pwd<>"
             (= "hello joe!"
-               (cc/pw-stringify (cc/pwd<> (cc/pw-encoded (cc/pwd<> "hello joe!"))))))
+               (cc/stringify (cc/pwd<> (cc/pw-encoded (cc/pwd<> "hello joe!"))))))
 
   (ensure?? "ssv1-pkcs12<>"
             (let [ks (t/gen-cert "C=AU,ST=NSW,L=Sydney,O=Google"
@@ -326,7 +319,7 @@
               (and ok? (pos? len))))
 
   (ensure?? "ssv3-pkcs12<>"
-            (let [r (st/cs-key-entity root-cs help-me)
+            (let [r (st/key-entity root-cs help-me)
                   fout (i/temp-file "xxxx" ".p12")
                   ks (t/gen-cert "C=AU,ST=WA,L=Z,O=X"
                                  r
@@ -338,7 +331,7 @@
               (and ok? (pos? len))))
 
   (ensure?? "ssv3-jks<>"
-            (let [r (st/cs-key-entity root-ks help-me)
+            (let [r (st/key-entity root-ks help-me)
                   fout (i/temp-file "xxxx" ".jks")
                   ks (t/gen-cert "C=AU,ST=WA,L=Z,O=X"
                                  r
@@ -350,14 +343,14 @@
               (and ok? (pos? len))))
 
   (ensure?? "spit-pkcs7"
-            (let [r (st/cs-key-entity root-cs help-me)
+            (let [r (st/key-entity root-cs help-me)
                   fout (i/temp-file "xxxx" ".p7b")
                   b (t/spit-pkcs7 r)
                   f (i/x->file b fout)
                   len (i/fsize f)]
               (and (bytes? b) (pos? len))))
 
-  (ensure?? "test-end" (= 1 1)))
+  (ensure?? "test-end" (== 1 1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (ct/deftest

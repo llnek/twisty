@@ -17,8 +17,6 @@ import java.security.KeyStore;
 /**
  * A simple trust manager.
  *
- * @author Kenneth Leung
- *
  */
 @SuppressWarnings("unused")
 public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
@@ -30,5 +28,4 @@ public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
   public void engineInit(KeyStore ks) {}
 
 }
-
 

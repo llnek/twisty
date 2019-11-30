@@ -6,23 +6,17 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns
-  ^{:doc ""
-    :author "Kenneth Leung"}
-
-  czlab.test.twisty.mime
+(ns czlab.test.twisty.mime
 
   (:require [clojure.java.io :as io]
             [clojure.test :as ct]
-            [czlab.twisty
-             [smime :as sm]
-             [ssl :as ss]
-             [core :as t]
-             [store :as st]]
-            [czlab.basal
-             [io :as i]
-             [core
-              :refer [ensure?? ensure-thrown??] :as c]])
+            [czlab.twisty.smime :as sm]
+            [czlab.twisty.ssl :as ss]
+            [czlab.twisty.core :as t]
+            [czlab.twisty.store :as st]
+            [czlab.basal.io :as i]
+            [czlab.basal.core
+              :refer [ensure?? ensure-thrown??] :as c])
 
   (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
            [java.io File InputStream ByteArrayOutputStream]
@@ -52,14 +46,14 @@
                     ^Multipart mp (.getContent msg)]
                 (and (>= (.indexOf (.getContentType msg)
                                    "multipart/mixed") 0)
-                     (= (.getCount mp) 2)
+                     (== 2 (.getCount mp))
                      (not (t/is-data-signed? mp))
                      (not (t/is-data-compressed? mp))
                      (not (t/is-data-encrypted? mp))))))
 
   (ensure?? "smime-digsig"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/cs-key-entity root-cs help-me)
+              (let [g (st/key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
                     rc (sm/smime-digsig msg
                                         (:pkey g)
@@ -69,7 +63,7 @@
 
   (ensure?? "smime-digsig"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/cs-key-entity root-cs help-me)
+              (let [g (st/key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
                     rc (sm/smime-digsig (.getContent msg)
                                         (:pkey g)
@@ -79,7 +73,7 @@
 
   (ensure?? "smime-digsig"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/cs-key-entity root-cs help-me)
+              (let [g (st/key-entity root-cs help-me)
                     msg (t/mime-msg<> nil nil inp)
                     bp (-> ^Multipart
                            (.getContent msg)
@@ -92,7 +86,7 @@
 
   (ensure?? "peek-signed-content"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/cs-key-entity root-cs help-me)
+              (let [g (st/key-entity root-cs help-me)
                     mp (sm/smime-digsig (t/mime-msg<> nil nil inp)
                                         (:pkey g)
                                         t/sha-512-rsa
@@ -111,7 +105,7 @@
 
   (ensure?? "smime-digsig??"
             (c/wo* [inp (i/res->stream "czlab/test/twisty/mime.eml")]
-              (let [g (st/cs-key-entity root-cs help-me)
+              (let [g (st/key-entity root-cs help-me)
                     cs (c/vec-> (:chain g))
                     mp (sm/smime-digsig (t/mime-msg<> nil nil inp)
                                         (:pkey g)
@@ -128,14 +122,14 @@
                     rc (sm/smime-digsig?? mp3 cs)]
                 (if del? (i/klose inp))
                 (and (map? rc)
-                     (= (count rc) 2)
+                     (== 2 (count rc))
                      (c/is? Multipart (:content rc))
                      (bytes? (:digest rc))))))
 
   (ensure?? "smime-decrypt"
             (let [s (sm/data-source<> "text/plain"
                                       (i/x->bytes "yoyo-jojo"))
-                  g (st/cs-key-entity root-cs help-me)
+                  g (st/key-entity root-cs help-me)
                   cs (c/vec-> (:chain g))
                   bp (doto (MimeBodyPart.)
                        (.setDataHandler (DataHandler. s)))
@@ -157,7 +151,7 @@
                    (pos? (.indexOf (i/x->str rc) "yoyo-jojo")))))
 
   (ensure?? "smime-decrypt"
-            (let [g (st/cs-key-entity root-cs help-me)
+            (let [g (st/key-entity root-cs help-me)
                   s2 (sm/data-source<> "text/plain"
                                        (i/x->bytes "what's up dawg"))
                   s1 (sm/data-source<> "text/plain"
@@ -191,7 +185,7 @@
 
   (ensure?? "pkcs-digsig"
             (let [data (i/x->bytes "heeloo world")
-                  g (st/cs-key-entity root-cs help-me)
+                  g (st/key-entity root-cs help-me)
                   cs (c/vec-> (:chain g))
                   sig (sm/pkcs-digsig data (:pkey g) t/sha-512-rsa cs)
                   dg (sm/pkcs-digsig?? (c/_1 cs) data sig)]
@@ -221,7 +215,7 @@
                   x (sm/smime-inflate bp)]
               (and x (pos? (alength x)))))
 
-  (ensure?? "test-end" (= 1 1)))
+  (ensure?? "test-end" (== 1 1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (ct/deftest

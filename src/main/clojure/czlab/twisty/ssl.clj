@@ -6,19 +6,15 @@
 ;; the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns
-  ^{:doc "SSL helpers."
-    :author "Kenneth Leung"}
+(ns czlab.twisty.ssl
 
-  czlab.twisty.ssl
+  "SSL helpers."
 
-  (:require [czlab.twisty
-             [core :as t]
-             [store :as st]]
-            [czlab.basal
-             [log :as l]
-             [util :as u]
-             [core :as c]])
+  (:require [czlab.twisty.core :as t]
+            [czlab.twisty.store :as st]
+            [czlab.basal.log :as l]
+            [czlab.basal.util :as u]
+            [czlab.basal.core :as c])
 
   (:import [java.security.cert X509Certificate]
            [czlab.twisty SSLTrustMgrFactory]
@@ -49,41 +45,49 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn simple-trust-mgr<>
+
   "Checks nothing." ^X509TrustManager [] x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- simple-trust-managers
+
   [] (c/vargs TrustManager [(simple-trust-mgr<>)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-trust-mgr-factory<>
+
   [] (proxy [SSLTrustMgrFactory][]
        (engineGetTrustManagers [] (simple-trust-managers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-context<>
-  "Create a server-side ssl-context"
+
+  "Create a server-side ssl-context."
   {:tag SSLContext}
+
   ([pkey pwd]
    (ssl-context<> pkey pwd nil))
+
   ([pkey pwd flavor]
    (c/do-with
      [ctx (SSLContext/getInstance
             (c/stror flavor "TLS"))]
      (let [cs (st/crypto-store<>)]
-       (st/cs-add-key-entity cs pkey pwd)
+       (st/add-key-entity cs pkey pwd)
        (.init ctx
               (.getKeyManagers ^KeyManagerFactory
-                               (st/cs-key-manager-factory cs))
+                               (st/key-manager-factory cs))
               (.getTrustManagers ^TrustManagerFactory
-                                 (st/cs-trust-manager-factory cs))
+                                 (st/trust-manager-factory cs))
               (u/rand<> true))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-client-ctx<>
-  "A client-side SSLContext"
+
+  "A client-side SSLContext."
   ^SSLContext
   [ssl?]
+
   (if ssl?
     (doto (SSLContext/getInstance "TLS")
           (.init nil (simple-trust-managers) (u/rand<>)))))
