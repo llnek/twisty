@@ -12,7 +12,6 @@
 
   (:require [czlab.twisty.core :as t]
             [czlab.twisty.store :as st]
-            [czlab.basal.log :as l]
             [czlab.basal.util :as u]
             [czlab.basal.core :as c])
 
@@ -34,11 +33,11 @@
 (c/def- x-tmgr
   (reify X509TrustManager
     (checkClientTrusted [_ chain authType]
-      (l/warn "skipcheck: client certificate: %s."
+      (c/warn "skipcheck: client certificate: %s."
               (some-> ^X509Certificate
                       (first chain) .getSubjectDN)))
     (checkServerTrusted [_ chain authType]
-      (l/warn "skipcheck: server certificate: %s."
+      (c/warn "skipcheck: server certificate: %s."
               (some-> ^X509Certificate
                       (first chain) .getSubjectDN)))
     (getAcceptedIssuers [_] (c/vargs X509Certificate []))))

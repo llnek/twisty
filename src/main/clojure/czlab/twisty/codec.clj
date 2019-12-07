@@ -11,7 +11,6 @@
   "Password Encoders & Decoders."
 
   (:require [clojure.string :as cs]
-            [czlab.basal.log :as l]
             [czlab.basal.io :as i]
             [czlab.basal.util :as u]
             [czlab.basal.core :as c])

@@ -12,7 +12,6 @@
 
   (:require [clojure.java.io :as io]
             [clojure.string :as cs]
-            [czlab.basal.log :as l]
             [czlab.basal.io :as i]
             [czlab.basal.util :as u]
             [czlab.basal.core :as c]
@@ -597,7 +596,7 @@
              (.checkValidity (u/date<>))
              (.verify (if issuer (.getPublicKey rootc) pub)))]
           (finally
-            (l/debug (str "signed-cert: dn= %s "
+            (c/debug (str "signed-cert: dn= %s "
                           ",algo= %s,start= %s" ",end=%s") dn algo start end))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -642,7 +641,7 @@
            rbr (JcaPKCS10CertificationRequestBuilder.
                  (X500Principal. dnStr) ^PublicKey pu)
            rc (->> (.build csb pv) (.build rbr))]
-       (l/debug "csr: dnStr= %s, key-len= %d" dnStr len)
+       (c/debug "csr: dnStr= %s, key-len= %d" dnStr len)
        [(spit-pem rc)
         (spit-pem pv pwd)]))))
 

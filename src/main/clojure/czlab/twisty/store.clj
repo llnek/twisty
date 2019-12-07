@@ -11,7 +11,6 @@
   "A Crypto store."
 
   (:require [czlab.basal.core :as c]
-            [czlab.basal.log :as l]
             [czlab.basal.io :as i]
             [czlab.basal.util :as u]
             [czlab.twisty.core :as t])
