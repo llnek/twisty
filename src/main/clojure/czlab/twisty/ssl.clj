@@ -1,4 +1,4 @@
-;; Copyright © 2013-2019, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2020, Kenneth Leung. All rights reserved.
 ;; The use and distribution terms for this software are covered by the
 ;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;; which can be found in the file epl-v10.html at the root of this distribution.
@@ -45,7 +45,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn simple-trust-mgr<>
 
-  "Checks nothing." ^X509TrustManager [] x-tmgr)
+  "Checks nothing, a pass through."
+  {:arglists '([])
+   :tag X509TrustManager}
+  []
+
+  x-tmgr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- simple-trust-managers
@@ -55,14 +60,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-trust-mgr-factory<>
 
-  [] (proxy [SSLTrustMgrFactory][]
-       (engineGetTrustManagers [] (simple-trust-managers))))
+  "Create a SSL Trust Manager Factory."
+  {:arglists '([])}
+  []
+
+  (proxy [SSLTrustMgrFactory][]
+    (engineGetTrustManagers [] (simple-trust-managers))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-context<>
 
   "Create a server-side ssl-context."
-  {:tag SSLContext}
+  {:tag SSLContext
+   :arglists '([pkey pwd]
+               [pkey pwd flavor])}
 
   ([pkey pwd]
    (ssl-context<> pkey pwd nil))
@@ -83,8 +94,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn ssl-client-ctx<>
 
-  "A client-side SSLContext."
-  ^SSLContext
+  "Create a client-side SSLContext."
+  {:tag SSLContext
+   :arglists '([ssl?])}
   [ssl?]
 
   (if ssl?

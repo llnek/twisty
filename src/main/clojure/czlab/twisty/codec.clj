@@ -1,4 +1,4 @@
-;; Copyright © 2013-2019, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2020, Kenneth Leung. All rights reserved.
 ;; The use and distribution terms for this software are covered by the
 ;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;; which can be found in the file epl-v10.html at the root of this distribution.
@@ -77,25 +77,25 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol Cryptor
-  ""
   (cr-algo [_] "Encryption algorithm used")
-  (decrypt [_ pkey data] "Decrypt some data")
-  (encrypt [_ pkey data] "Encrypt some data"))
+  (decrypt [_ pvkey data] "Decrypt some data")
+  (encrypt [_ pukey data] "Encrypt some data"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- ensure-key-size
 
   "Key has enough bits?"
-  ^bytes [^bytes kee algo]
+  ^bytes
+  [^bytes kee algo]
 
   (let [bits (* 8 (alength kee))]
     (if
       (and (< bits 192)
-           (= t3-des algo)) ;; 8x 3 = 24 bytes
+           (c/eq? t3-des algo)) ;; 8x 3 = 24 bytes
       (u/throw-BadArg "TripleDES key length must be 192."))
     (if
       (and (< bits 128)
-           (= "AES" algo))
+           (c/eq? "AES" algo))
       (u/throw-BadArg "AES key length must be 128 or 256."))
     ;ok
     kee))
@@ -104,11 +104,12 @@
 (defn- key->bits
 
   "Sanitize the key, maybe chop length."
-  ^bytes [^bytes pwd algo]
+  ^bytes
+  [^bytes pwd algo]
 
   (let [blen (alength pwd)
         bits (* 8 blen)]
-    (cond (.equals "AES" algo)
+    (cond (c/eq? "AES" algo)
           (cond (> bits 256) ;; 32 bytes
                 (c/vargs Byte/TYPE (take 32 pwd))
                 ;; 128 => 16 bytes
@@ -130,7 +131,9 @@
 (defn- locate-ch
 
   "Locate a character."
-  ^Integer [ch]
+  ^Integer
+  [ch]
+
   (or (some #(if (= ^Character ch
                     (aget VISCHS %1))
                %1) (range VISCHS-LEN)) -1))
@@ -141,7 +144,8 @@
   [delta cpos]
 
   (let [ptr (+ cpos delta)]
-    (-> (if (>= ptr VISCHS-LEN) (- ptr VISCHS-LEN) ptr) ident-ch)))
+    (-> (if (>= ptr VISCHS-LEN)
+          (- ptr VISCHS-LEN) ptr) ident-ch)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- slide-back
@@ -149,14 +153,15 @@
   [delta cpos]
 
   (let [ptr (- cpos delta)]
-    (-> (if (< ptr 0) (+ VISCHS-LEN ptr) ptr) ident-ch)))
+    (-> (if (neg? ptr)
+          (+ VISCHS-LEN ptr) ptr) ident-ch)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- shiftenc
 
   [shift delta cpos]
 
-  (if (< shift 0)
+  (if (neg? shift)
     (slide-forward delta cpos) (slide-back delta cpos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -164,7 +169,7 @@
 
   [shift delta cpos]
 
-  (if (< shift 0)
+  (if (neg? shift)
     (slide-back delta cpos) (slide-forward delta cpos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -175,12 +180,13 @@
 
   (let [ch (aget ca pos)
         p (locate-ch ch)]
-    (if (< p 0) ch (shiftFunc p))))
+    (if (neg? p) ch (shiftFunc p))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn caesar<>
 
   "Encrypt by character rotation."
+  {:arglists '([])}
   []
 
   (let [F (fn [shiftpos text func']
@@ -202,7 +208,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn jasypt<>
 
-  "jasypt cryptor."
+  "A Cryptor using Jasypt's implementation."
+  {:arglists '([])}
   []
 
   (let [F #(doto
@@ -260,6 +267,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn jcrypt<>
 
+  "A Cryptor using Java's implementation."
+  {:arglists '([])}
   []
 
   (reify Cryptor
@@ -273,7 +282,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn asym<>
 
-  "1024 - 2048 bits RSA."
+  "A Cryptor using 1024 - 2048 bits RSA."
+  {:arglists '([])}
   []
 
   (reify Cryptor
@@ -327,6 +337,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn bcastle<>
 
+  "A Cryptor using BouncyCastle's implementation."
+  {:arglists '([])}
   []
 
   (reify Cryptor
@@ -356,7 +368,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol Password
-  ""
   (strongly-hashed [_] "Get (string) hash value")
   (is-hash-valid? [_ targetHashed] "Check to match")
   (stringify [_] "Get as string")
@@ -395,13 +406,16 @@
 (defn pwd<>
 
   "Create a password object."
+  {:arglists '([pwd]
+               [pwd pkey])}
 
   ([pwd] (pwd<> pwd nil))
 
   ([pwd pkey]
    (let [s (i/x->str pwd)
          pk (i/x->chars (or pkey CKEY))]
-     (if-not (some-> s (cs/starts-with? pwd-pfx))
+     (if-not (some-> s
+                     (cs/starts-with? pwd-pfx))
        (mkpwd pwd pk)
        (mkpwd (decrypt (jasypt<>)
                        pk
@@ -411,12 +425,17 @@
 (defn random-str
 
   "Generate random text."
-  ^String [len] (create-xxx s-ascii-chars len))
+  {:tag String
+   :arglists '([len])}
+
+  [len] (create-xxx s-ascii-chars len))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn strong-pwd<>
 
   "Generate a strong password."
+  {:arglists '([len])}
+
   [len]
   (pwd<> (i/x->chars (create-xxx s-pwd-chars len))))
 

@@ -1,4 +1,4 @@
-;; Copyright © 2013-2019, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2020, Kenneth Leung. All rights reserved.
 ;; The use and distribution terms for this software are covered by the
 ;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;; which can be found in the file epl-v10.html at the root of this distribution.
@@ -101,22 +101,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn data-source<>
 
-  ^DataSource
+  "Create a Data Source."
+  {:tag DataSource
+   :arglists '([ctype content])}
   [ctype _content]
 
   (let [_ctype (c/stror ctype "")]
     (reify DataSource
       (getContentType [_] _ctype)
       (getName [_] "Unknown")
-      (getOutputStream [_]
-        (u/throw-IOE "Not implemented."))
+      (getOutputStream [_] (u/throw-UOE ""))
       (getInputStream [_] (.stream (XData. _content false))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn s->signing-algo
 
   "BC's internal value."
-  ^String [algo]
+  {:tag String
+   :arglists '([algo])}
+  [algo]
 
   (case algo
     "SHA-512" SMIMESignedGenerator/DIGEST_SHA512
@@ -168,53 +171,56 @@
       (.addCertificates (JcaCertStore. certs)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol SmimeDigSigAPI
-  (smime-digsig [_ pkey algo certs] "Sign a mime-msg/multipart."))
+(defn smime-digsig
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol SmimeDigSigAPI
-  MimeMessage
-  (smime-digsig [obj pkey algo certs]
-    (let [g (signer-gentor<> pkey algo certs)]
+  "Sign a mime-msg/multipart."
+  {:arglists '([obj pkey algo certs])}
+  [obj pkey algo certs]
+
+  (c/condp?? instance? obj
+    MimeMessage
+    (do
       ;; force internal processing
-      (.getContent obj)
-      (.generate g obj)))
-  Multipart
-  (smime-digsig [obj pkey algo certs]
-    (smime-digsig (doto (t/mime-msg<>)
-                    (.setContent obj)) pkey algo certs))
-  MimeBodyPart
-  (smime-digsig [obj pkey algo certs]
-    (.generate (signer-gentor<> pkey algo certs) obj)))
+      (.getContent ^MimeMessage obj)
+      (-> (signer-gentor<> pkey algo certs)
+          (.generate ^MimeMessage obj)))
+    Multipart
+    (smime-digsig
+      (doto (t/mime-msg<>)
+        (.setContent ^Multipart obj)) pkey algo certs)
+    MimeBodyPart
+    (-> (signer-gentor<> pkey algo certs) (.generate ^MimeBodyPart obj))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- to-cms
 
-  ^CMSProcessable [xs]
+  ^CMSProcessable
+  [xs]
+
   (if (c/is? File xs)
     (CMSProcessableFile. ^File xs)
     (CMSProcessableByteArray. (i/x->bytes xs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol PkcsDigSigAPI
-  (pkcs-digsig [_ pkey algo certs] "Sign some data."))
+(defn pkcs-digsig
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol PkcsDigSigAPI
-  Object
-  (pkcs-digsig [xs pkey algo certs]
-    (let [bdr (new JcaSignerInfoGeneratorBuilder
-                   (.build (t/with-BC JcaDigestCalculatorProviderBuilder)))
-          gen (CMSSignedDataGenerator.)
-          cert (c/_1 certs)
-          algo (c/ucase (c/kw->str algo))
-          cs (.build (t/with-BC1 JcaContentSignerBuilder algo) ^PrivateKey pkey)]
-      (.setDirectSignature bdr true)
-      (doto gen
-        (.addSignerInfoGenerator
-          (.build bdr cs ^X509Certificate cert))
-        (.addCertificates (JcaCertStore. certs)))
-      (.getEncoded (.generate gen (to-cms xs) false)))))
+  "Sign data PKCS style."
+  {:tag "[B"
+   :arglists '([xs pkey algo certs])}
+  [xs pkey algo certs]
+
+  (let [bdr (new JcaSignerInfoGeneratorBuilder
+                 (.build (t/with-BC JcaDigestCalculatorProviderBuilder)))
+        gen (CMSSignedDataGenerator.)
+        cert (c/_1 certs)
+        algo (c/ucase (c/kw->str algo))
+        cs (.build (t/with-BC1 JcaContentSignerBuilder algo) ^PrivateKey pkey)]
+    (.setDirectSignature bdr true)
+    (doto gen
+      (.addSignerInfoGenerator
+        (.build bdr cs ^X509Certificate cert))
+      (.addCertificates (JcaCertStore. certs)))
+    (.getEncoded (.generate gen (to-cms xs) false))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- smime-dec
@@ -245,17 +251,20 @@
       (c/trap! GeneralSecurityException "No matching decryption key.")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol DecryptAPI
-  (smime-decrypt [_ pkeys] "Decrypt this object."))
+(defn smime-decrypt
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol DecryptAPI
-  MimeMessage
-  (smime-decrypt [obj pkeys]
-    (smime-loop-dec (SMIMEEnveloped. obj) pkeys))
-  MimeBodyPart
-  (smime-decrypt [obj pkeys]
-    (smime-loop-dec (SMIMEEnveloped. obj) pkeys)))
+  "Decrypt content by trying the keys."
+  {:tag "[B"
+   :arglists '([obj pkeys])}
+  [obj pkeys]
+
+  (c/condp?? instance? obj
+    MimeMessage
+    (-> (SMIMEEnveloped. ^MimeMessage obj)
+        (smime-loop-dec pkeys))
+    MimeBodyPart
+    (-> (SMIMEEnveloped. ^MimeBodyPart obj)
+        (smime-loop-dec pkeys))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- si-tester
@@ -277,137 +286,156 @@
           (recur c it nil false) (recur c it dg true))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol PkcsDigSigVerifier
-  (pkcs-digsig?? [_ xs sig] "Verify the signed object with the signature."))
+(defn pkcs-digsig??
+
+  "Verify the signed object with the signature."
+  {:arglists '([cert xs dig])}
+  [cert xs sig]
+  {:pre [(c/is? X509Certificate cert)]}
+
+  (let [cs (JcaCertStore. [cert])
+        sls (some-> (to-cms xs)
+                    (CMSSignedData. ^bytes sig)
+                    .getSignerInfos .getSigners)]
+    (or (some (partial si-tester cs) (seq sls))
+        (c/trap! GeneralSecurityException
+                 "Decode signature: no matching cert."))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol PkcsDigSigVerifier
-  X509Certificate
-  (pkcs-digsig?? [cert xs sig]
-    (let [cs (JcaCertStore. [cert])
-          sls (some-> (to-cms xs)
-                      (CMSSignedData. ^bytes sig)
-                      .getSignerInfos .getSigners)]
-      (or (some (partial si-tester cs) (seq sls))
-          (c/trap! GeneralSecurityException
-                   "Decode signature: no matching cert.")))))
+(defn smime-encrypt
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol EncryptAPI
-  (smime-encrypt [_ algo cert] "Encrypt and returns BodyPart."))
+  "Encrypt and returns BodyPart."
+  {:arglists '([obj algo cert])}
+  [obj ^ASN1ObjectIdentifier algo ^X509Certificate cert]
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol EncryptAPI
-  MimeBodyPart
-  (smime-encrypt [obj ^ASN1ObjectIdentifier algo ^X509Certificate cert]
+  (c/condp?? instance? obj
+    MimeBodyPart
     (-> (doto
           (SMIMEEnvelopedGenerator.)
           (.addRecipientInfoGenerator
             (t/with-BC1 JceKeyTransRecipientInfoGenerator cert)))
-        (.generate obj
-                   (.build (t/with-BC1 JceCMSContentEncryptorBuilder algo)))))
-  MimeMessage
-  (smime-encrypt [obj ^ASN1ObjectIdentifier algo ^X509Certificate cert]
+        (.generate ^MimeBodyPart obj
+                   (.build (t/with-BC1
+                             JceCMSContentEncryptorBuilder algo))))
+    MimeMessage
     (-> (doto
           (SMIMEEnvelopedGenerator.)
           (.addRecipientInfoGenerator
             (t/with-BC1 JceKeyTransRecipientInfoGenerator cert)))
-        (.generate (doto obj .getContent)
-                   (.build (t/with-BC1 JceCMSContentEncryptorBuilder algo)))))
-  MimeMultipart
-  (smime-encrypt [obj algo cert]
-    (smime-encrypt (doto (t/mime-msg<>) (.setContent obj)) algo cert)))
+        (.generate (doto ^MimeMessage obj .getContent)
+                   (.build (t/with-BC1
+                             JceCMSContentEncryptorBuilder algo))))
+    MimeMultipart
+    (smime-encrypt (doto
+                     (t/mime-msg<>)
+                     (.setContent MimeMultipart obj)) algo cert)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol InflaterAPI
-  (smime-inflate [_] "Decompress content."))
+(defn smime-inflate
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol InflaterAPI
-  InputStream
-  (smime-inflate [obj]
-    (if-some [cms (-> (CMSCompressedDataParser. obj)
+  "Decompress the content."
+  {:tag "[B"
+   :arglists '([obj])}
+  [obj]
+
+  (c/condp?? instance? obj
+    InputStream
+    (if-some [cms (-> ^InputStream obj
+                      (CMSCompressedDataParser.)
                       (.getContent (ZlibExpanderProvider.)))]
       (i/slurpb (.getContentStream cms))
       (c/trap! GeneralSecurityException
-               "Decompress stream: corrupt content.")))
-  BodyPart
-  (smime-inflate [obj]
-    (c/wo* [inp (.getInputStream obj)] (smime-inflate inp))))
+               "Decompress stream: corrupt content."))
+    BodyPart
+    (c/wo* [inp (.getInputStream ^BodyPart obj)] (smime-inflate inp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol SMimeDigSigVerifier
-  (peek-signed-content [_] "Get the content ignoring the signing stuff.")
-  (smime-digsig?? [_ certs]
-                  [_ certs cte] "Verify the signature and return content if ok."))
+(defn smime-digsig??
+
+  "Verify the signature and return content if ok."
+  {:arglists '([mp certs]
+               [mp certs cte])}
+
+  ([mp certs]
+   (smime-digsig?? mp certs nil))
+
+  ([mp certs cte]
+   {:pre [(c/is? MimeMultipart mp)]}
+   (let [sc (if (c/nichts? cte)
+              (SMIMESigned. ^MimeMultipart mp)
+              (SMIMESigned. ^MimeMultipart mp cte))
+         sns (.getSigners (.getSignerInfos sc))
+         cs (JcaCertStore. certs)
+         rc (some (partial si-tester cs) (seq sns))]
+     (if (nil? rc)
+       (c/trap! GeneralSecurityException
+                "Verify signature: no matching cert.")
+     (array-map :digest rc
+                :content (some-> (.getContentAsMimeMessage
+                                   sc
+                                   (t/session<>)) .getContent))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol SMimeDigSigVerifier
-  MimeMultipart
-  (smime-digsig??
-    ([mp certs] (smime-digsig?? mp certs nil))
-    ([mp certs cte]
-     (let [sc (if (c/hgl? cte)
-                (SMIMESigned. mp cte) (SMIMESigned. mp))
-           sns (.getSigners (.getSignerInfos sc))
-           cs (JcaCertStore. certs)
-           rc (some (partial si-tester cs) (seq sns))]
-       (if (nil? rc)
-         (c/trap! GeneralSecurityException
-                  "Verify signature: no matching cert.")
-       (array-map :digest rc
-                  :content (some-> (.getContentAsMimeMessage
-                                     sc
-                                     (t/session<>)) .getContent))))))
-  (peek-signed-content [mp]
-    (some-> (SMIMESignedParser.
-              (BcDigestCalculatorProvider.)
-              mp
-              (t/charset?? (.getContentType mp) "binary")) .getContent .getContent)))
+(defn peek-signed-content
+
+  "Get the content ignoring the signing stuff."
+  {:arglists '([mp])}
+  [mp]
+  {:pre [(c/is? MimeMultipart mp)]}
+
+  (some->
+    (SMIMESignedParser.
+      (BcDigestCalculatorProvider.)
+      ^MimeMultipart mp
+      (-> (.getContentType ^MimeMultipart mp)
+          (t/charset?? "binary"))) .getContent .getContent))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol DeflateObjectAPI
-  (smime-deflate* [obj] ""))
+(defn smime-deflate*
+
+  "S/MIME compress a MIME message."
+  {:arglists '([obj])}
+  [obj]
+  {:pre [(c/is? MimeMessage obj)]}
+
+  (.getContent ^MimeMessage obj)
+  (.generate (SMIMECompressedGenerator.)
+             ^MimeMessage obj (ZlibCompressor.)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol DeflateObjectAPI
-  MimeMessage
-  (smime-deflate* [obj]
-    (do (.getContent obj)
-        (.generate (SMIMECompressedGenerator.) obj (ZlibCompressor.)))))
+(defn smime-deflate
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defprotocol DeflateContentAPI
-  (smime-deflate [cType arg]
-                 [cType arg cloc cid] "Compress content."))
+  "S/MIME compress content."
+  {:arglists '([cType arg])}
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol DeflateContentAPI
-  String
-  (smime-deflate
-    ([cType arg] (let [ds (data-source<> cType arg)]
-                   (.generate (SMIMECompressedGenerator.)
-                              (doto (MimeBodyPart.)
-                                (.setDataHandler (DataHandler. ds)))
-                              (ZlibCompressor.))))
-    ([cType arg ^String cloc ^String cid]
-     (let [ds (data-source<> cType arg)
-           bp (doto
-                (MimeBodyPart.)
-                (.setHeader "content-location" ^String cloc)
-                (.setHeader "content-id" ^String cid)
-                (.setDataHandler (DataHandler. ds)))
-           pos (cs/last-index-of cid \>)
-           cid' (if (nil? pos)
-                  (str cid "--z")
-                  (str (subs cid 0 pos) "--z>"))]
-       (doto
-         (.generate (SMIMECompressedGenerator.)
-                    bp
-                    (ZlibCompressor.))
-         (.setHeader "content-location" ^String cloc)
-         (.setHeader "content-id" ^String cid')
-         (.setHeader "content-transfer-encoding" "base64"))))))
+  ([cType arg]
+   {:pre [(string? cType)]}
+   (let [ds (data-source<> cType arg)]
+     (.generate (SMIMECompressedGenerator.)
+                (doto (MimeBodyPart.)
+                  (.setDataHandler
+                    (DataHandler. ds)))
+                (ZlibCompressor.))))
+
+  ([cType arg ^String cloc ^String cid]
+   {:pre [(string? cType)]}
+   (let [ds (data-source<> cType arg)
+         bp (doto
+              (MimeBodyPart.)
+              (.setHeader "content-location" ^String cloc)
+              (.setHeader "content-id" ^String cid)
+              (.setDataHandler (DataHandler. ds)))
+         pos (cs/last-index-of cid \>)
+         cid' (if (nil? pos)
+                (str cid "--z")
+                (str (subs cid 0 pos) "--z>"))]
+     (doto
+       (.generate (SMIMECompressedGenerator.)
+                  bp
+                  (ZlibCompressor.))
+       (.setHeader "content-location" ^String cloc)
+       (.setHeader "content-id" ^String cid')
+       (.setHeader "content-transfer-encoding" "base64")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

@@ -1,4 +1,4 @@
-;; Copyright © 2013-2019, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2020, Kenneth Leung. All rights reserved.
 ;; The use and distribution terms for this software are covered by the
 ;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;; which can be found in the file epl-v10.html at the root of this distribution.
@@ -35,27 +35,37 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defprotocol CryptoStore
-  (key-entity [_ pwd] [_ alias pwd] "")
-  (cert-entity [_ alias] "")
-  (trusted-certs [_] "")
+  "Higher abstraction over a Java Key Store."
+  (key-entity [_ pwd]
+              [_ alias pwd] "Get the 1st/named key entity.")
+  (cert-entity [_ alias] "Get the named certificate.")
+  (trusted-certs [_] "Get all trusted certificates.")
   (add-key-entity [_ gist pwd] "")
   (trust-manager-factory [_] "")
   (key-manager-factory [_] "")
   (cert-aliases [_] "")
   (key-aliases [_]  "")
   (add-cert-entity [_ cert]  "")
-  (add-pkcs7 [_ arg] "")
+  (add-pkcs7 [_ arg] "Add a PKCS7 into store.")
   (remove-entity [_ alias] "")
-  (keystore [_] "")
-  (cs-password [_] "")
-  (write-out [_ out] [_ out pwd] ""))
+  (keystore [_] "Get the underlying keystore object.")
+  (cs-password [_] "Password for the store.")
+  (write-out [_ out]
+             [_ out pwd] "Write out to file."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn crypto-store<>
 
-  ([pwd] (crypto-store<> nil pwd))
+  "Create a crypto store."
+  {:arglists '([]
+               [pwd]
+               [ks pwd])}
 
-  ([] (crypto-store<> nil))
+  ([pwd]
+   (crypto-store<> nil pwd))
+
+  ([]
+   (crypto-store<> nil))
 
   ([ks pwd]
    (let [_passwd (i/x->chars pwd)
