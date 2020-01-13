@@ -161,7 +161,7 @@
 (Security/addProvider *-bc-*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(c/defenum exform pem 1 der)
+(c/defenum exform 1 pem der)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defrecord CertGist [issuer subj notBefore notAfter])
