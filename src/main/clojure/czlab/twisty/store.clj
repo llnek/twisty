@@ -72,11 +72,11 @@
          ^KeyStore _store (or ks (t/pkcs12<>))]
     (reify CryptoStore
       (add-key-entity [_ gist pwd]
-        (c/let#nil [{:keys [pkey chain]} gist]
+        (c/let->nil [{:keys [pkey chain]} gist]
           (.setKeyEntry _store
                         (t/alias<>) pkey (i/x->chars pwd) chain)))
       (add-cert-entity [_ cert]
-        (c/do#nil
+        (c/do->nil
           (.setCertificateEntry _store (t/alias<>) cert)))
       (trust-manager-factory [_]
         (doto (TrustManagerFactory/getInstance
