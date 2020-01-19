@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defproject io.czlab/twisty "1.1.0"
+(defproject io.czlab/twisty "2.0.0"
 
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -16,7 +16,7 @@
                  [com.sun.mail/javax.mail "1.6.2"]
                  [org.jasypt/jasypt "1.9.3"]
                  [org.mindrot/jbcrypt "0.4"]
-                 [io.czlab/basal "1.1.0"]]
+                 [io.czlab/basal "2.0.0"]]
 
   :plugins [[cider/cider-nrepl "0.22.4"]
             [lein-codox "0.10.7"]]
