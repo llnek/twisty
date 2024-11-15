@@ -10,7 +10,7 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 ;;
-;; Copyright © 2013-2022, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2024, Kenneth Leung. All rights reserved.
 
 (ns czlab.twisty.smime
 
@@ -23,7 +23,7 @@
             [czlab.basal.util :as u]
             [czlab.twisty.core :as t])
 
-  (:import [javax.mail BodyPart MessagingException Multipart Session]
+  (:import [jakarta.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
            [java.security.cert Certificate X509Certificate]
            [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
@@ -33,7 +33,7 @@
             ASN1ObjectIdentifier]
            [org.bouncycastle.cert.jcajce JcaCertStore]
            [org.bouncycastle.asn1.x500 X500Name]
-           [javax.activation DataSource DataHandler]
+           [jakarta.activation DataSource DataHandler]
            [clojure.lang APersistentMap]
            [czlab.basal XData]
            [org.bouncycastle.asn1.cms
@@ -48,7 +48,7 @@
             InputStreamReader
             ByteArrayInputStream
             ByteArrayOutputStream]
-           [javax.mail.internet
+           [jakarta.mail.internet
             ContentType
             MimeBodyPart
             MimeMessage

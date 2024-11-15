@@ -10,7 +10,7 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 ;;
-;; Copyright © 2013-2022, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2024, Kenneth Leung. All rights reserved.
 
 (ns czlab.twisty.core
 
@@ -23,10 +23,10 @@
             [czlab.basal.core :as c]
             [czlab.basal.dates :as d])
 
-  (:import [javax.activation DataHandler CommandMap MailcapCommandMap]
-           [javax.mail BodyPart MessagingException Multipart Session]
+  (:import [jakarta.activation DataHandler CommandMap MailcapCommandMap]
+           [jakarta.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
-           [org.apache.commons.mail DefaultAuthenticator]
+           [czlab.twisty DefaultAuthenticator]
            [javax.net.ssl X509TrustManager TrustManager]
            [org.bouncycastle.util.encoders Hex Base64]
            [org.bouncycastle.asn1.pkcs PrivateKeyInfo]
@@ -129,7 +129,7 @@
            [java.math BigInteger]
            [java.net URL]
            [java.util Random Date]
-           [javax.mail.internet
+           [jakarta.mail.internet
             ContentType
             MimeBodyPart
             MimeMessage

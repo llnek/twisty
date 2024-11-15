@@ -10,7 +10,7 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 ;;
-;; Copyright © 2013-2022, Kenneth Leung. All rights reserved.
+;; Copyright © 2013-2024, Kenneth Leung. All rights reserved.
 
 (ns czlab.test.twisty.mime
 
@@ -24,16 +24,16 @@
             [czlab.basal.core
               :refer [ensure?? ensure-thrown??] :as c])
 
-  (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
+  (:import [jakarta.mail.internet MimeBodyPart MimeMessage MimeMultipart]
            [java.io File InputStream ByteArrayOutputStream]
            [org.bouncycastle.cms CMSAlgorithm]
            [java.security Policy
             KeyStore
             KeyStore$PrivateKeyEntry
             KeyStore$TrustedCertificateEntry SecureRandom]
-           [javax.activation DataHandler DataSource]
+           [jakarta.activation DataHandler DataSource]
            [java.util Date GregorianCalendar]
-           [javax.mail Multipart BodyPart]))
+           [jakarta.mail Multipart BodyPart]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (c/def- root-pfx (i/res->bytes "czlab/test/twisty/test.pfx"))

@@ -14,22 +14,31 @@
 
 package czlab.twisty;
 
-import javax.net.ssl.ManagerFactoryParameters;
-import javax.net.ssl.TrustManagerFactorySpi;
-import java.security.KeyStore;
+import jakarta.mail.Authenticator;
+import jakarta.mail.PasswordAuthentication;
 
 /**
- * A simple trust manager.
- *
+ * A simple authentication object.
  */
-@SuppressWarnings("unused")
-public abstract class SSLTrustMgrFactory extends TrustManagerFactorySpi {
+public class DefaultAuthenticator extends Authenticator {
 
-  @Override
-  public void engineInit(ManagerFactoryParameters p) {}
+  private final PasswordAuthentication authentication;
 
+  /**
+   */
+  public DefaultAuthenticator(final String user, final String pwd) {
+    authentication = new PasswordAuthentication(user, pwd);
+  }
+
+  /**
+   * Gets the authentication object that will be used to login to the mail server.
+   *
+   * @return object containing the login information.
+   */
   @Override
-  public void engineInit(KeyStore ks) {}
+  protected PasswordAuthentication getPasswordAuthentication() {
+    return authentication;
+  }
 
 }
 
