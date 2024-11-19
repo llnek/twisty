@@ -14,8 +14,8 @@
 
 package czlab.twisty;
 
-import jakarta.mail.Authenticator;
-import jakarta.mail.PasswordAuthentication;
+import javax.mail.Authenticator;
+import javax.mail.PasswordAuthentication;
 
 /**
  * A simple authentication object.

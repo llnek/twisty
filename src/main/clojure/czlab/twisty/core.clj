@@ -23,8 +23,8 @@
             [czlab.basal.core :as c]
             [czlab.basal.dates :as d])
 
-  (:import [jakarta.activation DataHandler CommandMap MailcapCommandMap]
-           [jakarta.mail BodyPart MessagingException Multipart Session]
+  (:import [javax.activation DataHandler CommandMap MailcapCommandMap]
+           [javax.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [czlab.twisty DefaultAuthenticator]
            [javax.net.ssl X509TrustManager TrustManager]
@@ -129,7 +129,7 @@
            [java.math BigInteger]
            [java.net URL]
            [java.util Random Date]
-           [jakarta.mail.internet
+           [javax.mail.internet
             ContentType
             MimeBodyPart
             MimeMessage

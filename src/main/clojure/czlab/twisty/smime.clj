@@ -23,7 +23,7 @@
             [czlab.basal.util :as u]
             [czlab.twisty.core :as t])
 
-  (:import [jakarta.mail BodyPart MessagingException Multipart Session]
+  (:import [javax.mail BodyPart MessagingException Multipart Session]
            [org.bouncycastle.operator.bc BcDigestCalculatorProvider]
            [java.security.cert Certificate X509Certificate]
            [org.bouncycastle.mail.smime SMIMEEnvelopedParser]
@@ -33,7 +33,7 @@
             ASN1ObjectIdentifier]
            [org.bouncycastle.cert.jcajce JcaCertStore]
            [org.bouncycastle.asn1.x500 X500Name]
-           [jakarta.activation DataSource DataHandler]
+           [javax.activation DataSource DataHandler]
            [clojure.lang APersistentMap]
            [czlab.basal XData]
            [org.bouncycastle.asn1.cms
@@ -48,7 +48,7 @@
             InputStreamReader
             ByteArrayInputStream
             ByteArrayOutputStream]
-           [jakarta.mail.internet
+           [javax.mail.internet
             ContentType
             MimeBodyPart
             MimeMessage

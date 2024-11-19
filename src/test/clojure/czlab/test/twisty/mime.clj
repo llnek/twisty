@@ -24,16 +24,16 @@
             [czlab.basal.core
               :refer [ensure?? ensure-thrown??] :as c])
 
-  (:import [jakarta.mail.internet MimeBodyPart MimeMessage MimeMultipart]
+  (:import [javax.mail.internet MimeBodyPart MimeMessage MimeMultipart]
            [java.io File InputStream ByteArrayOutputStream]
            [org.bouncycastle.cms CMSAlgorithm]
            [java.security Policy
             KeyStore
             KeyStore$PrivateKeyEntry
             KeyStore$TrustedCertificateEntry SecureRandom]
-           [jakarta.activation DataHandler DataSource]
+           [javax.activation DataHandler DataSource]
            [java.util Date GregorianCalendar]
-           [jakarta.mail Multipart BodyPart]))
+           [javax.mail Multipart BodyPart]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (c/def- root-pfx (i/res->bytes "czlab/test/twisty/test.pfx"))
